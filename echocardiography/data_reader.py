@@ -133,7 +133,6 @@ def main(data_dir):
             frame_1 = video[keypoint_dict['diastole']]
             frame_2 = video[keypoint_dict['systole']]
         if keypoint_dict['diastole'] is not None and keypoint_dict['systole'] is None:
-            print(video.shape, keypoint_dict['diastole'], keypoint_dict['systole'])
             frame_1 = video[keypoint_dict['diastole']]
             frame_2 = None
         if keypoint_dict['diastole'] is None and keypoint_dict['systole'] is not None:
