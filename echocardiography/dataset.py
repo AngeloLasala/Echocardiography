@@ -14,7 +14,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
 
-from data_reader import read_video_grayscale
+from data_reader import read_video, read_video
 
 class EchoNetLVH(Dataset):
     def __init__(self, data_dir, batch, split, only_diastole=False, transform=None):
@@ -68,17 +68,18 @@ class EchoNetLVH(Dataset):
         
         ## read the video
         video_dir = os.path.join(self.data_dir, self.batch, patient+'.avi')
-        video = read_video_grayscale(video_dir)
+        video = read_video(video_dir)
+        
 
         img_diastole = video[patient_label['diastole']]
+        image = Image.fromarray(img_diastole)
         keypoints_label = []
-        print(patient_label.keys())
         for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
             if patient_label[heart_part] is not None:
-                x1_heart_part = patient_label[heart_part]['x1']
-                y1_heart_part = patient_label[heart_part]['y1']
-                x2_heart_part = patient_label[heart_part]['x2']
-                y2_heart_part = patient_label[heart_part]['y2']
+                x1_heart_part = patient_label[heart_part]['x1'] / img_diastole.shape[1]
+                y1_heart_part = patient_label[heart_part]['y1'] / img_diastole.shape[0]
+                x2_heart_part = patient_label[heart_part]['x2'] / img_diastole.shape[1]
+                y2_heart_part = patient_label[heart_part]['y2'] / img_diastole.shape[0]
                 keypoints_label.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
 
         keypoints_label = (np.array(keypoints_label)).flatten()
@@ -86,7 +87,7 @@ class EchoNetLVH(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        return img_diastole, keypoints_label
+        return image, keypoints_label
 
     def get_keypoint_dataset(self):
         """
@@ -166,7 +167,7 @@ class EchoNetLVH(Dataset):
         patient_label = self.get_keypoint(patient)
 
         video_dir = os.path.join(self.data_dir, self.batch, patient+'.avi')
-        video = read_video_grayscale(video_dir)
+        video = read_video(video_dir)
         keypoint_dict = self.get_keypoint(patient)
 
         fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20,10), tight_layout=True, num=patient)
@@ -199,22 +200,28 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
     args = parser.parse_args()
     
-    echonet_dataset = EchoNetLVH(data_dir=args.data_dir, batch='Batch1', split='train', transform=None, only_diastole=True)
+    ## initialize the reshape and normalization for image in a transfrom object
+    transform = transforms.Compose([transforms.Resize((256,256)),
+                                    transforms.ToTensor()])
+
+    echonet_dataset = EchoNetLVH(data_dir=args.data_dir, batch='Batch1', split='train', transform=transform, only_diastole=True)
     
-    image, label = echonet_dataset[0]
+    image, label = echonet_dataset[5]
+    ## convert the tor into numpy
+    image = image.numpy().transpose((1, 2, 0))
+    
 
     plt.figure(figsize=(14,14), num='Example')
     plt.imshow(image, cmap='gray')
-    plt.scatter(label[0], label[1], color='green', marker='o', s=100, alpha=0.5) 
-    plt.scatter(label[2], label[3], color='green', marker='o', s=100, alpha=0.5)
+    plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
+    plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
 
-    plt.scatter(label[4], label[5], color='red', marker='o', s=100, alpha=0.5) 
-    plt.scatter(label[6], label[7], color='red', marker='o', s=100, alpha=0.5)
+    plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
+    plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
 
-    plt.scatter(label[8], label[9], color='blue', marker='o', s=100, alpha=0.5) 
-    plt.scatter(label[10], label[11], color='blue', marker='o', s=100, alpha=0.5)
+    plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
+    plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
 
-    echonet_dataset.show_img_with_keypoints(0)
-    print(image, label)
+    echonet_dataset.show_img_with_keypoints(5)
     
     plt.show()
