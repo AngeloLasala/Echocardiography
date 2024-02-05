@@ -59,6 +59,58 @@ def read_video(file_path):
 
     return video_array
 
+def read_video_grayscale(file_path):
+    """
+    Read a video file and return a NumPy array in grayscale (one channel)
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the video file
+
+    Returns
+    -------
+    video_array : ndarray
+        NumPy array of shape (num_frames, height, width) containing the grayscale video frames
+    """
+    # Open the video file
+    cap = cv2.VideoCapture(file_path)
+
+    # Check if the video file is opened successfully
+    if not cap.isOpened():
+        print("Error: Could not open video file.")
+        return None
+
+    # Read the first frame to get video properties
+    ret, frame = cap.read()
+    if not ret:
+        print("Error: Could not read the first frame.")
+        return None
+
+    # Get video properties
+    height, width = frame.shape[:2]
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Initialize an empty NumPy array to store grayscale video frames
+    video_array = np.empty((num_frames, height, width), dtype=np.uint8)
+
+    # Read and store all frames in the array
+    frame_count = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        # Convert the frame to grayscale
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        video_array[frame_count] = gray_frame
+        frame_count += 1
+
+    # Release the video capture object
+    cap.release()
+
+    return video_array
+
 def get_keypoint(label, patient_hash):
     """
     Get the keypoint from the label dataset file
