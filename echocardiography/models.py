@@ -8,7 +8,9 @@ from pathlib import Path
 from torchsummary import summary 
 
 class ResNet50Regression(torch.nn.Module):
-    def __init__(self, input_channels=3, num_labels=6):
+    def __init__(self, 
+                input_channels=3, 
+                num_labels=12):
         super(ResNet50Regression, self).__init__()
         # Load the pre-trained ResNet50 model
         resnet50 = models.resnet50(weights='DEFAULT')
@@ -42,9 +44,9 @@ class PlaxModel(torch.nn.Module):
 
 
 ### SimpleRegression model
-model = ResNet50Regression()
-x = torch.randn(1, 3, 256, 256)
-print(model(x))
+# model = ResNet50Regression()
+# x = torch.randn(1, 3, 256, 256)
+# print(model(x))
 
 
 ### PLAX model

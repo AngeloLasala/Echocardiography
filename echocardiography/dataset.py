@@ -46,9 +46,8 @@ class EchoNetLVH(Dataset):
         """
         Return the total number of patiel in selected batch
         """
-        batch_dir = os.path.join(self.data_dir,self.batch)
-        patients_batch = [i.split('.')[0] for i in os.listdir(batch_dir) if i.endswith('.avi')]
-        return len(patients_batch)
+        patients = self.get_diastole_patient()
+        return len(patients)
 
     def __getitem__(self, idx):
         """
@@ -60,10 +59,9 @@ class EchoNetLVH(Dataset):
         if self.only_diastole:
             patients = self.get_diastole_patient()
         else:
-            self.patients_batch 
+            patients = self.patients_batch 
 
-        patient = self.patients_batch[idx]
-        print(f'{self.split} - {len(patients)}')
+        patient = patients[idx]
         patient_label = self.get_keypoint(patient)
         
         ## read the video
@@ -150,7 +148,7 @@ class EchoNetLVH(Dataset):
         this function return the patient with all diastole label
         """
         diastole_patient = []
-        for patient in tqdm.tqdm(self.patients_batch[:100]):
+        for patient in self.patients_batch[:32]:
             patient_label = self.get_keypoint(patient)
             if patient_label['diastole'] is not None :
                 if patient_label['LVIDd'] is not None and patient_label['IVSd'] is not None and patient_label['LVPWd'] is not None:
@@ -203,8 +201,10 @@ if __name__ == '__main__':
     ## initialize the reshape and normalization for image in a transfrom object
     transform = transforms.Compose([transforms.Resize((256,256)),
                                     transforms.ToTensor()])
+            
 
     echonet_dataset = EchoNetLVH(data_dir=args.data_dir, batch='Batch1', split='train', transform=transform, only_diastole=True)
+    print(len(echonet_dataset))
     
     image, label = echonet_dataset[5]
     ## convert the tor into numpy
@@ -216,11 +216,11 @@ if __name__ == '__main__':
     plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
     plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
 
-    plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
-    plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
+    # plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
+    # plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
 
-    plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
-    plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
+    # plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
+    # plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
 
     echonet_dataset.show_img_with_keypoints(5)
     
