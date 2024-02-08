@@ -227,7 +227,7 @@ def select_patients(data_dir, batch):
     label = pd.read_csv(label_dir, index_col=0)
     
     diastole_patient = {'train': [], 'val': [], 'test': []}
-    for patient in tqdm.tqdm(patients_batch):
+    for patient in tqdm.tqdm(patients_batch[:10]):
         patient_label = select_keypoint(patient, label)
         if patient_label['diastole'] is not None :  ## check if the patient has the diastole label
             if patient_label['LVIDd'] is not None and patient_label['IVSd'] is not None and patient_label['LVPWd'] is not None: ## check if the patient has all the label
@@ -293,7 +293,8 @@ if __name__ == '__main__':
     if classs:
         ## initialize the reshape and normalization for image in a transfrom object
         transform = transforms.Compose([transforms.Resize((256,256)),
-                                        transforms.ToTensor()])
+                                        transforms.ToTensor(),
+                                        transforms.Normalize((0.5 ), (0.5 ))])
         import time
         
         echonet_dataset = EchoNetLVH(data_dir=args.data_dir, batch='Batch2', split='train', transform=transform, patients=patients['train'])
@@ -305,6 +306,11 @@ if __name__ == '__main__':
 
         ## convert the tor into numpy
         image = image.numpy().transpose((1, 2, 0))
+        print(np.min(image), np.max(image))
+
+        plt.figure()
+        plt.hist(image.ravel())
+        plt.show()
         
 
         plt.figure(figsize=(14,14), num='Example')
