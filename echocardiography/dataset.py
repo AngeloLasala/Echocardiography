@@ -17,7 +17,7 @@ import tqdm
 from data_reader import read_video, read_video
 
 class EchoNetLVH(Dataset):
-    def __init__(self, data_dir, batch, split, patients, transform=None):
+    def __init__(self, data_dir, batch, split, patients, phase, transform=None):
         """
         Args:
             data_dir (string): Directory with all the video.
@@ -35,6 +35,9 @@ class EchoNetLVH(Dataset):
 
         ## list of patients in the selected batch, this comes from the ausiliar functions
         self.patients = patients
+
+        ## diastole or systole frame
+        self.phase = phase
     
     def __len__(self):
         """
@@ -57,7 +60,7 @@ class EchoNetLVH(Dataset):
         video = read_video(video_dir)
         
 
-        img_diastole = video[patient_label['diastole']]
+        img_diastole = video[patient_label[self.phase]]
         image = Image.fromarray(img_diastole)
         keypoints_label = []
         for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
@@ -138,7 +141,7 @@ class EchoNetLVH(Dataset):
         diastole_patient = []
         for patient in tqdm.tqdm(self.patients_batch[:]):
             patient_label = self.get_keypoint(patient)
-            if patient_label['diastole'] is not None :
+            if patient_label[self.phase] is not None :
                 if patient_label['LVIDd'] is not None and patient_label['IVSd'] is not None and patient_label['LVPWd'] is not None:
                     if patient_label['split'] == self.split:
                         diastole_patient.append(patient)
@@ -185,16 +188,11 @@ class EchoNetLVH(Dataset):
         """
         Create the directory to save the images for traing validation and test
         """
-        if self.only_diastole:
-            print('start only diastole images...')
-            patients = self.get_diastole_patient()
-            print('end only diastole images...')
-        else:
-            patients = self.patients_batch 
+        
+        patients = self.patients
 
-        # create the directory to save the images
-        phase = {self.only_diastole: 'diastole', not(self.only_diastole):'systole'}   
-        dir_save = os.path.join('DATA', self.batch, self.split, phase[self.only_diastole])
+        # create the directory to save the images 
+        dir_save = os.path.join('DATA', self.batch, self.split, self.phase)
         if not os.path.exists(dir_save):
             os.makedirs(dir_save)
 
@@ -204,20 +202,23 @@ class EchoNetLVH(Dataset):
             video_dir = os.path.join(self.data_dir, self.batch, patient+'.avi')
             video = read_video(video_dir)
 
-            for frame in ['diastole', 'systole']:
-                img_frame = video[patient_label[frame]]
-                image = Image.fromarray(img_frame)
-                print(patient, image.size)
-                image.save(os.path.join(dir_save, f'{patient}.png'))
+            img_frame = video[patient_label[self.phase]]
+            image = Image.fromarray(img_frame)
+            # print(patient, image.size)
+            image.save(os.path.join(dir_save, f'{patient}.png'))
 
 
 ## ausiliar functions to get the subset of the dataset 
-def select_patients(data_dir, batch):
+def select_patients(data_dir, batch, phase):
     """
     Because the dataset label are not equal across the patients, 
     this function return the list of patient with all diastole label
 
     """
+
+    #ma the phase with a single letter
+    phase_letter = {'diastole': 'd', 'systole': 's'}
+
     ## Read the entire batch patients' name
     batch_dir = os.path.join(data_dir, batch)
     patients_batch = [i.split('.')[0] for i in os.listdir(batch_dir) if i.endswith('.avi')]
@@ -226,14 +227,14 @@ def select_patients(data_dir, batch):
     label_dir = os.path.join(data_dir, 'MeasurementsList.csv')
     label = pd.read_csv(label_dir, index_col=0)
     
-    diastole_patient = {'train': [], 'val': [], 'test': []}
-    for patient in tqdm.tqdm(patients_batch[:10]):
+    phase_patient = {'train': [], 'val': [], 'test': []}
+    for patient in tqdm.tqdm(patients_batch[:]):
         patient_label = select_keypoint(patient, label)
-        if patient_label['diastole'] is not None :  ## check if the patient has the diastole label
-            if patient_label['LVIDd'] is not None and patient_label['IVSd'] is not None and patient_label['LVPWd'] is not None: ## check if the patient has all the label
-                diastole_patient[patient_label['split']].append(patient)
+        if patient_label[phase] is not None :  ## check if the patient has the diastole label
+            if patient_label['LVID' + phase_letter[phase]] is not None and patient_label['IVS'+ phase_letter[phase]] is not None and patient_label['LVPW'+ phase_letter[phase]] is not None: ## check if the patient has all the label
+                phase_patient[patient_label['split']].append(patient)
     
-    return diastole_patient
+    return phase_patient
 
 def select_keypoint(patient_hash, label):
     """
@@ -282,49 +283,48 @@ def select_keypoint(patient_hash, label):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
     parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
+    parser.add_argument('--batch', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
+    parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
     args = parser.parse_args()
 
-    classs = True
-
-    patients = select_patients(args.data_dir, 'Batch2')
+    transform = transforms.Compose([transforms.Resize((256,256)),
+                                    transforms.ToTensor(),
+                                    transforms.Normalize((0.5 ), (0.5 ))])
+    
+    patients = select_patients(args.data_dir, args.batch, args.phase)
     for key in patients.keys():
         print(f'Number of patient in {key} = {len(patients[key])}')
     
-    if classs:
-        ## initialize the reshape and normalization for image in a transfrom object
-        transform = transforms.Compose([transforms.Resize((256,256)),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize((0.5 ), (0.5 ))])
-        import time
-        
-        echonet_dataset = EchoNetLVH(data_dir=args.data_dir, batch='Batch2', split='train', transform=transform, patients=patients['train'])
-        # echonet_dataset.save_img()
-        
-        a = time.time()
-        image, label = echonet_dataset[6]
-        print(f'time to get single subject = {time.time()-a:.5f}')
+    #     ## initialize the reshape and normalization for image in a transfrom object
+        echonet_dataset = EchoNetLVH(data_dir=args.data_dir, batch=args.batch, split=key, transform=transform, patients=patients[key], phase=args.phase)
+        # print(f'Number of patient in {key} = {len(echonet_dataset)}')
+        echonet_dataset.save_img()
+    
+    # a = time.time()
+    # image, label = echonet_dataset[6]
+    # print(f'time to get single subject = {time.time()-a:.5f}')
 
-        ## convert the tor into numpy
-        image = image.numpy().transpose((1, 2, 0))
-        print(np.min(image), np.max(image))
+    # ## convert the tor into numpy
+    # image = image.numpy().transpose((1, 2, 0))
+    # print(np.min(image), np.max(image))
 
-        plt.figure()
-        plt.hist(image.ravel())
-        plt.show()
-        
+    # plt.figure()
+    # plt.hist(image.ravel())
+    # plt.show()
+    
 
-        plt.figure(figsize=(14,14), num='Example')
-        plt.imshow(image, cmap='gray')
-        plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
-        plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
+    # plt.figure(figsize=(14,14), num='Example')
+    # plt.imshow(image, cmap='gray')
+    # plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
+    # plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
 
-        # plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
-        # plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
+    # # plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
+    # # plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
 
-        # plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
-        # plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
+    # # plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
+    # # plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
 
-        #0X10F154DF2CD47783
-        echonet_dataset.show_img_with_keypoints(6)
-        
-        plt.show()
+    # #0X10F154DF2CD47783
+    # echonet_dataset.show_img_with_keypoints(6)
+    
+    # plt.show()
