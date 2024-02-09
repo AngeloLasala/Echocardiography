@@ -11,12 +11,13 @@ from datetime import datetime
 import time
 import tqdm
 
+import json
 import pandas as pd
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
-from dataset import EchoNetDataset
+from dataset import EchoNetDataset, convert_to_serializable
 from models import ResNet50Regression
 
 def dataset_iteration(dataloader):
@@ -71,7 +72,7 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
 
         # Gather data and report
         running_loss += loss.item()  
-        if i == len(training_loader) - 1:  
+        if i == len(training_loader) - 1:
             last_loss = running_loss / (i + 1) 
             # print(f'last batch loss: {last_loss}')
             # tb_x = epoch_index * len(training_loader) + i + 1     # add time step to the tensorboard
@@ -133,11 +134,13 @@ def fit(training_loader, validation_loader,
                 vlabels = vlabels.to(device)
 
                 voutputs = model(vinputs).to(device)
-                vloss = loss_fn(voutputs, vlabels)
+                vloss = loss_fn(voutputs, vlabels).item()
                 running_vloss += vloss
 
         avg_vloss = running_vloss / (i + 1)
-        losses['train'].append(avg_loss) 
+        #convert the torch tensor  to float
+
+        losses['train'].append(avg_loss)
         losses['valid'].append(avg_vloss)
 
         # Track best performance, and save the model's state
@@ -145,10 +148,10 @@ def fit(training_loader, validation_loader,
             # print('best model found')
             best_vloss = avg_vloss
             model_path = f'model_{epoch}'
-            torch.save(model.state_dict(), os.join.path(save_dir, model_path))
+            torch.save(model.state_dict(), os.path.join(save_dir, model_path))
         # print('============================================')
+    return losses
         
-
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
@@ -161,38 +164,51 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default='TRAINED_MODEL', help='Directory to save the model')
     args = parser.parse_args()
 
+    ## device and reproducibility    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.manual_seed(42)
+    np.random.seed(42)
     print(f'Using device: {device}')
     
-    ## initialize the reshape and normalization for image in a transfrom object
+    ## initialize the prepocessing and data augmentation
     transform = transforms.Compose([transforms.Resize((256,256)),
                                     transforms.ToTensor(), 
                                     transforms.Normalize((0.5 ), (0.5 ))])
 
     print('start creating the dataset...')
-    train_set = EchoNetDataset(batch=args.batch, split='train', phase=args.phase, label_directory=args.data_dir, transform=transform)
-    validation_set = EchoNetDataset(batch=args.batch, split='val', phase=args.phase, label_directory=args.data_dir, transform=transform)
+    train_set = EchoNetDataset(batch=args.batch, split='train', phase=args.phase, label_directory=None, transform=transform)
+    validation_set = EchoNetDataset(batch=args.batch, split='val', phase=args.phase, label_directory=None, transform=transform)
 
     print('start creating the dataloader...')
     training_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
-    
 
     loss_fn = torch.nn.MSELoss()
     model = ResNet50Regression(num_labels=12).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, save_dir=args.save_dir)
+    #check if the save directory exist, if not create it
+    save_dir = os.path.join(args.save_dir, args.batch, args.phase)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
+                save_dir=save_dir)
+    with open(os.path.join(save_dir,'losses.json'), 'w') as f:
+        json.dump(losses, f, default=convert_to_serializable, indent=4)
+
+
+    # save the args dictionary in a file
+    args_dict = vars(args)
+    with open(os.path.join(save_dir,'args.json'), 'w') as f:
+        json.dump(args_dict, f, indent=4)
 
     ## plot the loss
     fig, ax = plt.subplots(figsize=(10, 6), num='Losses')
-    ax.plot(losses['train'], label='train')
-    ax.plot(losses['valid'], label='valid')
+    ax.plot(np.array(losses['train']), label='train')
+    ax.plot(np.array(losses['valid']), label='valid')
     ax.set_xlabel('Epochs', fontsize=15)
     ax.set_ylabel('Loss', fontsize=15)
     ax.tick_params(axis='both', which='major', labelsize=15)
     ax.legend(fontsize=15)
     plt.show()
-
-    
- 
