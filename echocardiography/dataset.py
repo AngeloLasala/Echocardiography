@@ -16,6 +16,100 @@ import tqdm
 
 from data_reader import read_video, read_video
 
+class EchoNetDataset(Dataset):
+    def __init__(self, batch, split, phase, label_directory, transform=None):
+        """
+        Args:
+            data_dir (string): Directory with all the video.
+            batch (string): Batch number of video folder, e.g. 'Batch1', 'Batch2', 'Batch3', 'Batch4'.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        self.transform = transform
+        self.split = split
+        self.batch = batch
+        self.phase = phase
+
+        label = pd.read_csv(os.path.join(label_directory, 'MeasurementsList.csv'), index_col=0)
+        self.label = label
+        self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
+        self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(self.data_dir)]
+
+        ##
+        self.keypoints_dict = {patient_hash: self.get_keypoint(patient_hash) for patient_hash in tqdm.tqdm(self.patient_files)}
+
+    def __len__(self):
+        """
+        Return the total number of patiel in selected batch
+        """ 
+        return len(self.patient_files)
+
+    def __getitem__(self, idx):
+        """
+        Get the image and the label of the patient
+        """
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        patient = self.patient_files[idx]
+        patient_label = self.keypoints_dict[patient]
+
+        # read the image wiht PIL
+        image = Image.open(os.path.join(self.data_dir, patient+'.png')) 
+        
+        # read the label  
+        keypoints_label = []
+        for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
+            if patient_label[heart_part] is not None:
+                x1_heart_part = patient_label[heart_part]['x1'] / image.size[0]
+                y1_heart_part = patient_label[heart_part]['y1'] / image.size[1]
+                x2_heart_part = patient_label[heart_part]['x2'] / image.size[0]
+                y2_heart_part = patient_label[heart_part]['y2'] / image.size[1]
+                keypoints_label.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
+
+        keypoints_label = (np.array(keypoints_label)).flatten()
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, keypoints_label
+
+
+    def get_patiens(self):
+        """
+        get the list of patient in the entire dataset
+        """
+        return np.unique(self.label['HashedFileName'].values)
+
+    def get_keypoint(self, patient_hash):
+        """
+        Get the keypoint from the label dataset file
+
+        Parameters
+        ----------
+        patient_hash : str
+            Hashed file name of the patient
+
+        Returns
+        -------
+        label_dict : dict
+            Dictionary containing the keypoint information
+        """
+        label = self.label
+        label_dict = {'LVIDd': None, 'IVSd': None, 'LVPWd': None, 
+                    'LVIDs': None, 'IVSs': None, 'LVPWs': None}
+
+        for value in label[label['HashedFileName'] == patient_hash]['Calc'].values:
+            x1 = label.loc[(label['HashedFileName'] == patient_hash) & (label['Calc'] == value), 'X1'].array[0]
+            x2 = label.loc[(label['HashedFileName'] == patient_hash) & (label['Calc'] == value), 'X2'].array[0]
+            y1 = label.loc[(label['HashedFileName'] == patient_hash) & (label['Calc'] == value), 'Y1'].array[0]
+            y2 = label.loc[(label['HashedFileName'] == patient_hash) & (label['Calc'] == value), 'Y2'].array[0]
+            
+            calc_value = label.loc[(label['HashedFileName'] == patient_hash) & (label['Calc'] == value), 'CalcValue'].array[0]
+            label_dict[value] = {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'calc_value': calc_value}
+
+        return label_dict
+
 class EchoNetLVH(Dataset):
     def __init__(self, data_dir, batch, split, patients, phase, transform=None):
         """
