@@ -13,11 +13,12 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
+import json
 
 from data_reader import read_video, read_video
 
 class EchoNetDataset(Dataset):
-    def __init__(self, batch, split, phase, label_directory, transform=None):
+    def __init__(self, batch, split, phase, label_directory=None, transform=None):
         """
         Args:
             data_dir (string): Directory with all the video.
@@ -30,13 +31,18 @@ class EchoNetDataset(Dataset):
         self.batch = batch
         self.phase = phase
 
-        label = pd.read_csv(os.path.join(label_directory, 'MeasurementsList.csv'), index_col=0)
-        self.label = label
         self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
-        self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(self.data_dir)]
+        self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(os.path.join(self.data_dir, 'image'))]
 
-        ##
-        self.keypoints_dict = {patient_hash: self.get_keypoint(patient_hash) for patient_hash in tqdm.tqdm(self.patient_files)}
+    
+        if label_directory is not None:
+            label = pd.read_csv(os.path.join(label_directory, 'MeasurementsList.csv'), index_col=0)
+            self.label = label
+            self.keypoints_dict = {patient_hash: self.get_keypoint(patient_hash) for patient_hash in tqdm.tqdm(self.patient_files)}
+        else:
+            #load a directory from a json file
+            with open(os.path.join(self.data_dir, 'label', 'label.json'), 'r') as f:
+                self.keypoints_dict = json.load(f)
 
     def __len__(self):
         """
@@ -55,7 +61,7 @@ class EchoNetDataset(Dataset):
         patient_label = self.keypoints_dict[patient]
 
         # read the image wiht PIL
-        image = Image.open(os.path.join(self.data_dir, patient+'.png')) 
+        image = Image.open(os.path.join(self.data_dir, 'image', patient+'.png')) 
         
         # read the label  
         keypoints_label = []
@@ -75,11 +81,11 @@ class EchoNetDataset(Dataset):
         return image, keypoints_label
 
 
-    def get_patiens(self):
-        """
-        get the list of patient in the entire dataset
-        """
-        return np.unique(self.label['HashedFileName'].values)
+    # def get_patiens(self):
+    #     """
+    #     get the list of patient in the entire dataset
+    #     """
+    #     return np.unique(self.label['HashedFileName'].values)
 
     def get_keypoint(self, patient_hash):
         """
@@ -132,6 +138,9 @@ class EchoNetLVH(Dataset):
 
         ## diastole or systole frame
         self.phase = phase
+
+        self.keypoints_dict = {patient_hash: self.get_keypoint(patient_hash) for patient_hash in tqdm.tqdm(self.patients)}
+
     
     def __len__(self):
         """
@@ -147,7 +156,7 @@ class EchoNetLVH(Dataset):
             idx = idx.tolist()
 
         patient = self.patients[idx]
-        patient_label = self.get_keypoint(patient)
+        patient_label = self.keypoints_dict[patient]
         
         ## read the video
         video_dir = os.path.join(self.data_dir, self.batch, patient+'.avi')
@@ -218,7 +227,7 @@ class EchoNetLVH(Dataset):
                 label_dict['diastole'] = diastole-1
 
             calc_value = label.loc[(label['HashedFileName'] == patient_hash) & (label['Calc'] == value), 'CalcValue'].array[0]
-            label_dict[value] = {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'calc_value': calc_value}
+            label_dict[value] = {'x1': x1.item(), 'x2': x2.item(), 'y1': y1.item(), 'y2': y2.item(), 'calc_value': calc_value.item()}
         
 
 
@@ -278,7 +287,7 @@ class EchoNetLVH(Dataset):
         ax[1].axis('off')
         plt.show()
 
-    def save_img(self):
+    def save_img_and_label(self):
         """
         Create the directory to save the images for traing validation and test
         """
@@ -287,8 +296,13 @@ class EchoNetLVH(Dataset):
 
         # create the directory to save the images 
         dir_save = os.path.join('DATA', self.batch, self.split, self.phase)
-        if not os.path.exists(dir_save):
-            os.makedirs(dir_save)
+        dir_save_img = os.path.join(dir_save, 'image')
+        dir_save_label = os.path.join(dir_save, 'label')
+
+        if not os.path.exists(dir_save): os.makedirs(dir_save)   
+        if not os.path.exists(dir_save_img): os.makedirs(dir_save_img)
+        if not os.path.exists(dir_save_label): os.makedirs(dir_save_label)
+         
 
         for patient in tqdm.tqdm(patients):
             patient_label = self.get_keypoint(patient)
@@ -299,7 +313,12 @@ class EchoNetLVH(Dataset):
             img_frame = video[patient_label[self.phase]]
             image = Image.fromarray(img_frame)
             # print(patient, image.size)
-            image.save(os.path.join(dir_save, f'{patient}.png'))
+            image.save(os.path.join(dir_save_img,  f'{patient}.png'))
+
+        ## save the label in a json file
+        with open(os.path.join(dir_save_label,'label.json'), 'w') as f:
+            json.dump(self.keypoints_dict, f, default=convert_to_serializable, indent=4)
+        
 
 
 ## ausiliar functions to get the subset of the dataset 
@@ -322,7 +341,7 @@ def select_patients(data_dir, batch, phase):
     label = pd.read_csv(label_dir, index_col=0)
     
     phase_patient = {'train': [], 'val': [], 'test': []}
-    for patient in tqdm.tqdm(patients_batch[:]):
+    for patient in tqdm.tqdm(patients_batch):
         patient_label = select_keypoint(patient, label)
         if patient_label[phase] is not None :  ## check if the patient has the diastole label
             if patient_label['LVID' + phase_letter[phase]] is not None and patient_label['IVS'+ phase_letter[phase]] is not None and patient_label['LVPW'+ phase_letter[phase]] is not None: ## check if the patient has all the label
@@ -361,7 +380,7 @@ def select_keypoint(patient_hash, label):
             label_dict['diastole'] = diastole-1
 
         calc_value = label.loc[(label['HashedFileName'] == patient_hash) & (label['Calc'] == value), 'CalcValue'].array[0]
-        label_dict[value] = {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'calc_value': calc_value}
+        label_dict[value] = {'x1': x1.astype(int), 'x2': x2.astype(int), 'y1': y1.astype(int), 'y2': y2.astype(int), 'calc_value': calc_value}
     
 
 
@@ -370,9 +389,12 @@ def select_keypoint(patient_hash, label):
 
     return label_dict
 
+def convert_to_serializable(obj):
+    if isinstance(obj, (np.ndarray, np.integer)):
+        return int(obj)
+    return obj
+
         
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
@@ -388,37 +410,34 @@ if __name__ == '__main__':
     patients = select_patients(args.data_dir, args.batch, args.phase)
     for key in patients.keys():
         print(f'Number of patient in {key} = {len(patients[key])}')
-    
-    #     ## initialize the reshape and normalization for image in a transfrom object
+
         echonet_dataset = EchoNetLVH(data_dir=args.data_dir, batch=args.batch, split=key, transform=transform, patients=patients[key], phase=args.phase)
-        # print(f'Number of patient in {key} = {len(echonet_dataset)}')
-        echonet_dataset.save_img()
-    
-    # a = time.time()
-    # image, label = echonet_dataset[6]
-    # print(f'time to get single subject = {time.time()-a:.5f}')
+        echonet_dataset.save_img_and_label()
+        
 
-    # ## convert the tor into numpy
-    # image = image.numpy().transpose((1, 2, 0))
-    # print(np.min(image), np.max(image))
+    image, label = echonet_dataset[6]
 
-    # plt.figure()
-    # plt.hist(image.ravel())
-    # plt.show()
+    ## convert the tor into numpy
+    image = image.numpy().transpose((1, 2, 0))
+    print(np.min(image), np.max(image))
+
+    plt.figure()
+    plt.hist(image.ravel())
+    plt.show()
     
 
-    # plt.figure(figsize=(14,14), num='Example')
-    # plt.imshow(image, cmap='gray')
-    # plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
-    # plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
+    plt.figure(figsize=(14,14), num='Example')
+    plt.imshow(image, cmap='gray')
+    plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
+    plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
 
-    # # plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
-    # # plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
+    # plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
+    # plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
 
-    # # plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
-    # # plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
+    # plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
+    # plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
 
-    # #0X10F154DF2CD47783
-    # echonet_dataset.show_img_with_keypoints(6)
+    #0X10F154DF2CD47783
+    echonet_dataset.show_img_with_keypoints(6)
     
-    # plt.show()
+    plt.show()
