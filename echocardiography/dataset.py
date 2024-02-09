@@ -14,6 +14,10 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
 import json
+from scipy.stats import multivariate_normal
+from scipy import ndimage
+import cv2
+import math
 
 from data_reader import read_video, read_video
 
@@ -80,12 +84,52 @@ class EchoNetDataset(Dataset):
 
         return image, keypoints_label
 
+    def get_heatmap(self, idx):
+        patient = self.patient_files[idx]
+        patient_label = self.keypoints_dict[patient]
 
-    # def get_patiens(self):
-    #     """
-    #     get the list of patient in the entire dataset
-    #     """
-    #     return np.unique(self.label['HashedFileName'].values)
+        image = Image.open(os.path.join(self.data_dir, 'image', patient+'.png')) 
+        
+        # read the label  
+        labels = []
+        for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
+            if patient_label[heart_part] is not None:
+                x1_heart_part = patient_label[heart_part]['x1'] 
+                y1_heart_part = patient_label[heart_part]['y1'] 
+                x2_heart_part = patient_label[heart_part]['x2'] 
+                y2_heart_part = patient_label[heart_part]['y2'] 
+                labels.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
+
+        labels = (np.array(labels)).flatten()
+
+        x, y = np.meshgrid(np.arange(0, image.size[0]), np.arange(0, image.size[1]))
+        pos = np.dstack((x, y))
+        
+        # Adjust the mean to be the provided center
+        mean = labels[0:2]
+        std_dev = int(image.size[0] * 0.05) 
+        covariance = np.array([[std_dev, 0.], [0., int(std_dev*0.2)]])
+        print(mean, covariance)
+        
+        gaussian = multivariate_normal(mean=mean, cov=covariance)
+        base_heatmap = gaussian.pdf(pos)
+        base_heatmap = base_heatmap / np.max(base_heatmap)
+        print(base_heatmap)
+
+        p1 = labels[0:2]
+        p2 = labels[2:4]
+
+        x_diff = p1[0] - p2[0]
+        y_diff = p2[1] - p1[1]
+        angle = math.degrees(math.atan2(y_diff, x_diff))
+
+        rotation_matrix = cv2.getRotationMatrix2D(mean, angle + 90, 1.0)
+        base_heatmap = cv2.warpAffine(base_heatmap, rotation_matrix, (base_heatmap.shape[1], base_heatmap.shape[0]))
+       
+        return base_heatmap
+
+        
+        return keypoints_label
 
     def get_keypoint(self, patient_hash):
         """
