@@ -20,6 +20,7 @@ import tqdm
 from dataset import EchoNetDataset, convert_to_serializable
 from models import ResNet50Regression
 
+
 def dataset_iteration(dataloader):
     """
     Iterate over the dataset
@@ -171,44 +172,79 @@ if __name__ == '__main__':
     print(f'Using device: {device}')
     
     ## initialize the prepocessing and data augmentation
-    transform = transforms.Compose([transforms.Resize((256,256)),
-                                    transforms.ToTensor(), 
-                                    transforms.Normalize((0.5 ), (0.5 ))])
+    
+    transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.RandomApply([
+            transforms.GaussianBlur(kernel_size=5),
+            transforms.ColorJitter(brightness=0.2)
+        ], p=0.2),
+        transforms.ToTensor(),
+        # transforms.Normalize((0.5,), (0.5,))
+    ])
 
     print('start creating the dataset...')
-    train_set = EchoNetDataset(batch=args.batch, split='train', phase=args.phase, label_directory=None, transform=transform)
-    validation_set = EchoNetDataset(batch=args.batch, split='val', phase=args.phase, label_directory=None, transform=transform)
+    train_set = EchoNetDataset(batch=args.batch, split='train', phase=args.phase, label_directory=None, transform=None)
+    validation_set = EchoNetDataset(batch=args.batch, split='val', phase=args.phase, label_directory=None, transform=None)
+
 
     print('start creating the dataloader...')
     training_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
 
-    loss_fn = torch.nn.MSELoss()
-    model = ResNet50Regression(num_labels=12).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    image, label = train_set[0]
+    heatmap = train_set.get_heatmap(0)
 
-    #check if the save directory exist, if not create it
-    save_dir = os.path.join(args.save_dir, args.batch, args.phase)
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
-                save_dir=save_dir)
-    with open(os.path.join(save_dir,'losses.json'), 'w') as f:
-        json.dump(losses, f, default=convert_to_serializable, indent=4)
+    print(type(image), type(heatmap))
 
 
-    # save the args dictionary in a file
-    args_dict = vars(args)
-    with open(os.path.join(save_dir,'args.json'), 'w') as f:
-        json.dump(args_dict, f, indent=4)
+    plt.figure(figsize=(14,14), num='Example')
+    plt.imshow(image, cmap='gray')
+    plt.imshow(heatmap, cmap='jet')
 
-    ## plot the loss
-    fig, ax = plt.subplots(figsize=(10, 6), num='Losses')
-    ax.plot(np.array(losses['train']), label='train')
-    ax.plot(np.array(losses['valid']), label='valid')
-    ax.set_xlabel('Epochs', fontsize=15)
-    ax.set_ylabel('Loss', fontsize=15)
-    ax.tick_params(axis='both', which='major', labelsize=15)
-    ax.legend(fontsize=15)
+    # plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
+    # plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
+
+    # plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
+    # plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
+
+    # plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
+    # plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
+    plt.axis('off')
     plt.show()
+
+    # loss_fn = torch.nn.MSELoss()
+    # model = ResNet50Regression(num_labels=12).to(device)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    # #check if the save directory exist, if not create it
+    # save_dir = os.path.join(args.save_dir, args.batch, args.phase)
+    # if not os.path.exists(save_dir):
+    #     save_dir = os.path.join(save_dir, 'trial_1')
+    #     os.makedirs(os.path.join(save_dir))
+    # else:
+    #     current_trial = len(os.listdir(save_dir))
+    #     save_dir = os.path.join(save_dir, f'trial_{current_trial + 1}')
+    #     os.makedirs(os.path.join(save_dir))
+
+
+    # losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
+    #             save_dir=save_dir)
+    # with open(os.path.join(save_dir,'losses.json'), 'w') as f:
+    #     json.dump(losses, f, default=convert_to_serializable, indent=4)
+
+
+    # # save the args dictionary in a file
+    # args_dict = vars(args)
+    # with open(os.path.join(save_dir,'args.json'), 'w') as f:
+    #     json.dump(args_dict, f, indent=4)
+
+    # ## plot the loss
+    # fig, ax = plt.subplots(figsize=(10, 6), num='Losses')
+    # ax.plot(np.array(losses['train']), label='train')
+    # ax.plot(np.array(losses['valid']), label='valid')
+    # ax.set_xlabel('Epochs', fontsize=15)
+    # ax.set_ylabel('Loss', fontsize=15)
+    # ax.tick_params(axis='both', which='major', labelsize=15)
+    # ax.legend(fontsize=15)
+    # plt.show()
