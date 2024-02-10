@@ -71,7 +71,7 @@ class EchoNetDataset(Dataset):
         if self.target == 'keypoints': 
             label = label
 
-        elif self.target == 'heatmap': 
+        elif self.target == 'heatmaps': 
             label = self.get_heatmap(idx)
             if self.transform_target:
                 #convert each channel in a pil image
@@ -87,6 +87,9 @@ class EchoNetDataset(Dataset):
                 label = [Image.fromarray(label[:,:,i]) for i in range(label.shape[2])]
                 label = [self.transform_target(i) for i in label]
                 label = np.array([np.array(i) for i in label])
+
+        else:
+            raise ValueError(f'target {self.target} is not valid. Available targets are keypoints, heatmaps, segmentation')
         
         if self.transform:
             image = self.transform(image)
