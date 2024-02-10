@@ -187,23 +187,30 @@ if __name__ == '__main__':
     print(f'Using device: {device}')
     
     ## initialize the prepocessing and data augmentation
-    transform = transforms.Compose([
+    transform_train = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomApply([
             transforms.ColorJitter(brightness=0.2, contrast=0.2),
             AdjustGamma(gamma=0.5)
         ], p=0.2),
         transforms.ToTensor(),
-        # transforms.Normalize((0.5,), (0.5,))
+        transforms.Normalize((0.5,), (0.5,))
+    ])
+
+    ## initialize the prepocessing and data augmentation
+    transform_val = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))
     ])
 
     transform_target = transforms.Compose([transforms.Resize((256, 256))])
 
     print('start creating the dataset...')
     train_set = EchoNetDataset(batch=args.batch, split='train', phase=args.phase, label_directory=None,
-                              target=args.target, transform=transform, transform_target=transform_target)
+                              target=args.target, transform=transform_train, transform_target=transform_target)
     validation_set = EchoNetDataset(batch=args.batch, split='val', phase=args.phase, label_directory=None, 
-                              target=args.target, transform=transform, transform_target=transform_target)
+                              target=args.target, transform=transform_val, transform_target=transform_target)
 
     print('start creating the dataloader...')
     training_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
