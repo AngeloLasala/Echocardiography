@@ -33,28 +33,66 @@ class PlaxModel(torch.nn.Module):
     measurements of interest.
     """
 
-    def __init__(self, 
-            measurements=['LVPW', 'LVID', 'IVS'], 
-        ) -> None:
+    def __init__(self, num_classes):
         super().__init__()
-        self.model = torchvision.models.segmentation.deeplabv3_resnet50(num_classes=len(measurements) + 1)
+        self.num_classes = num_classes
+        self.model = torchvision.models.segmentation.deeplabv3_resnet50(num_classes=self.num_classes)
 
     def forward(self, x):
         return torch.sigmoid(self.model(x)['out'])
 
+if __name__ == '__main__':
+    ## SimpleRegression model
+    model = ResNet50Regression()
+    x = torch.randn(1, 3, 256, 256)
+    print(model(x))
 
-### SimpleRegression model
-# model = ResNet50Regression()
-# x = torch.randn(1, 3, 256, 256)
-# print(model(x))
+
+    ## PLAX model
+    model = PlaxModel(num_classes=6)
+    x = torch.randn(2, 3, 256, 256)
+    model.train()
+    print(model(x).shape)
+    pred = model(x).detach().numpy()
+    # print max and min values
+    print(pred.max(), pred.min())
+    print(pred.shape)
+
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.imshow(pred[0, 0, :, :])
+    plt.show()
 
 
-### PLAX model
-# model = PlaxModel()
-# # print(summary(model, (3, 224, 224)))
-# sequential_block = model.model.backbone  # Replace with the specific Sequential block you want to inspect
-# print(sequential_block)
+    # Iterate through the layers inside the Sequential blockKC
+    # for layer_idx, layer in enumerate(sequential_block.children()):
+    #     print(f"Layer {layer_idx + 1}: {layer}")
 
-# Iterate through the layers inside the Sequential block
-# for layer_idx, layer in enumerate(sequential_block.children()):
-#     print(f"Layer {layer_idx + 1}: {layer}")
+
+    ############################################################################################################
+    # a = time.time()
+    # image, label = train_set[1456]
+    # print('time to get the image and label:', time.time() - a)
+    # print(image.size, label.shape, type(image), type(label))
+    # image = image.numpy().transpose((1, 2, 0))
+    
+    # a = time.time()
+    # heatmap = train_set.get_heatmap(0)
+    # print('time to get the heatmap:', time.time() - a)
+    # print(heatmap.shape)
+
+    # plt.figure(figsize=(14,14), num='Example_dataset_heatmap')
+    # plt.imshow(image, cmap='gray')
+    # for i in range(label.shape[0]):
+    #     plt.imshow(label[i,:,:], cmap='jet', alpha=0.2)
+    # plt.show()
+
+    # for i in training_loader:
+    #     print(i[0].shape, i[1].shape)
+    #     label = i[1].numpy()        
+    #     print(label.shape)
+    #     plt.figure()
+    #     plt.imshow(i[0].numpy().transpose((0, 2, 3, 1))[0], cmap='gray')
+    #     plt.imshow(label[0, 0, :, :], alpha=0.3)
+    #     plt.imshow(label[0, -1, :, :], alpha=0.3)
+    #     plt.show()
