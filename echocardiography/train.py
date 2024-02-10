@@ -19,6 +19,19 @@ import matplotlib.pyplot as plt
 import tqdm
 from dataset import EchoNetDataset, convert_to_serializable
 from models import ResNet50Regression
+from scipy.stats import multivariate_normal
+from scipy import ndimage
+import cv2
+import math
+
+class AdjustGamma(object):
+    """
+    Gamma correction for the image
+    """
+    def __init__(self, gamma):
+        self.gamma = gamma
+    def __call__(self, img):
+        return transforms.functional.adjust_gamma(img, self.gamma)
 
 
 def dataset_iteration(dataloader):
@@ -43,14 +56,14 @@ def dataset_iteration(dataloader):
         
         plt.figure(figsize=(14,14), num='Example - batch ' + str(batch_idx + 1))
         plt.imshow(image, cmap='gray')
-        plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
-        plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
+        plt.scatter(label[0] * image.shape[0], label[1] * image.shape[1], color='green', marker='o', s=100, alpha=0.5) 
+        plt.scatter(label[2] * image.shape[0], label[3] * image.shape[1], color='green', marker='o', s=100, alpha=0.5)
 
-        plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
-        plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
+        plt.scatter(label[4] * image.shape[0], label[5] * image.shape[1], color='red', marker='o', s=100, alpha=0.5) 
+        plt.scatter(label[6] * image.shape[0], label[7] * image.shape[1], color='red', marker='o', s=100, alpha=0.5)
 
-        plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
-        plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
+        plt.scatter(label[8] * image.shape[0], label[9] * image.shape[1], color='blue', marker='o', s=100, alpha=0.5) 
+        plt.scatter(label[10] * image.shape[0], label[11] * image.shape[1], color='blue', marker='o', s=100, alpha=0.5)
         plt.axis('off')
         plt.show()
 
@@ -116,7 +129,8 @@ def fit(training_loader, validation_loader,
     best_vloss = 1_000_000.     # initialize the current best validation loss with a large value
 
     losses = {'train': [], 'valid': []}
-    for epoch in tqdm.tqdm(range(EPOCHS)):
+    for epoch in range(EPOCHS):
+        start = time.time()
         epoch += 1
         # print(f'EPOCH {epoch}')
 
@@ -150,7 +164,7 @@ def fit(training_loader, validation_loader,
             best_vloss = avg_vloss
             model_path = f'model_{epoch}'
             torch.save(model.state_dict(), os.path.join(save_dir, model_path))
-        # print('============================================')
+        print(f'Epoch {epoch}/{EPOCHS} | Train Loss: {avg_loss:.6f} | Validation Loss: {avg_vloss:.6f} | Time: {time.time() - start:.2f}s')
     return losses
         
         
@@ -159,6 +173,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
     parser.add_argument('--batch', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
     parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
+    parser.add_argument('--target', type=str, default='keypoints', help='select the target to predict, e.g. keypoints, heatmaps, segmentation')
     parser.add_argument('--epochs', type=int, default=5, help='Number of epochs to train the model')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for the dataloader')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for the optimizer')
@@ -172,79 +187,61 @@ if __name__ == '__main__':
     print(f'Using device: {device}')
     
     ## initialize the prepocessing and data augmentation
-    
     transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomApply([
-            transforms.GaussianBlur(kernel_size=5),
-            transforms.ColorJitter(brightness=0.2)
+            transforms.ColorJitter(brightness=0.2, contrast=0.2),
+            AdjustGamma(gamma=0.5)
         ], p=0.2),
         transforms.ToTensor(),
         # transforms.Normalize((0.5,), (0.5,))
     ])
 
-    print('start creating the dataset...')
-    train_set = EchoNetDataset(batch=args.batch, split='train', phase=args.phase, label_directory=None, transform=None)
-    validation_set = EchoNetDataset(batch=args.batch, split='val', phase=args.phase, label_directory=None, transform=None)
+    transform_target = transforms.Compose([transforms.Resize((256, 256))])
 
+    print('start creating the dataset...')
+    train_set = EchoNetDataset(batch=args.batch, split='train', phase=args.phase, label_directory=None,
+                              target=args.target, transform=transform, transform_target=transform_target)
+    validation_set = EchoNetDataset(batch=args.batch, split='val', phase=args.phase, label_directory=None, 
+                              target=args.target, transform=transform, transform_target=transform_target)
 
     print('start creating the dataloader...')
     training_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
 
-    image, label = train_set[0]
-    heatmap = train_set.get_heatmap(0)
+    loss_fn = torch.nn.MSELoss()
+    model = ResNet50Regression(num_labels=12).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    print(type(image), type(heatmap))
+    #check if the save directory exist, if not create it
+    save_dir = os.path.join(args.save_dir, args.batch, args.phase)
+    if not os.path.exists(save_dir):
+        save_dir = os.path.join(save_dir, 'trial_1')
+        os.makedirs(os.path.join(save_dir))
+    else:
+        current_trial = len(os.listdir(save_dir))
+        save_dir = os.path.join(save_dir, f'trial_{current_trial + 1}')
+        os.makedirs(os.path.join(save_dir))
 
 
-    plt.figure(figsize=(14,14), num='Example')
-    plt.imshow(image, cmap='gray')
-    plt.imshow(heatmap, cmap='jet')
+    losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
+                save_dir=save_dir)
 
-    # plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o', s=100, alpha=0.5) 
-    # plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o', s=100, alpha=0.5)
+    with open(os.path.join(save_dir,'losses.json'), 'w') as f:
+        json.dump(losses, f, default=convert_to_serializable, indent=4)
 
-    # plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o', s=100, alpha=0.5) 
-    # plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o', s=100, alpha=0.5)
 
-    # plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5) 
-    # plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o', s=100, alpha=0.5)
-    plt.axis('off')
+    # save the args dictionary in a file
+    args_dict = vars(args)
+    with open(os.path.join(save_dir,'args.json'), 'w') as f:
+        json.dump(args_dict, f, indent=4)
+
+    ## plot the loss
+    fig, ax = plt.subplots(figsize=(10, 6), num='Losses')
+    ax.plot(np.array(losses['train']), label='train')
+    ax.plot(np.array(losses['valid']), label='valid')
+    ax.set_xlabel('Epochs', fontsize=15)
+    ax.set_ylabel('Loss', fontsize=15)
+    ax.tick_params(axis='both', which='major', labelsize=15)
+    ax.legend(fontsize=15)
     plt.show()
-
-    # loss_fn = torch.nn.MSELoss()
-    # model = ResNet50Regression(num_labels=12).to(device)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-    # #check if the save directory exist, if not create it
-    # save_dir = os.path.join(args.save_dir, args.batch, args.phase)
-    # if not os.path.exists(save_dir):
-    #     save_dir = os.path.join(save_dir, 'trial_1')
-    #     os.makedirs(os.path.join(save_dir))
-    # else:
-    #     current_trial = len(os.listdir(save_dir))
-    #     save_dir = os.path.join(save_dir, f'trial_{current_trial + 1}')
-    #     os.makedirs(os.path.join(save_dir))
-
-
-    # losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
-    #             save_dir=save_dir)
-    # with open(os.path.join(save_dir,'losses.json'), 'w') as f:
-    #     json.dump(losses, f, default=convert_to_serializable, indent=4)
-
-
-    # # save the args dictionary in a file
-    # args_dict = vars(args)
-    # with open(os.path.join(save_dir,'args.json'), 'w') as f:
-    #     json.dump(args_dict, f, indent=4)
-
-    # ## plot the loss
-    # fig, ax = plt.subplots(figsize=(10, 6), num='Losses')
-    # ax.plot(np.array(losses['train']), label='train')
-    # ax.plot(np.array(losses['valid']), label='valid')
-    # ax.set_xlabel('Epochs', fontsize=15)
-    # ax.set_ylabel('Loss', fontsize=15)
-    # ax.tick_params(axis='both', which='major', labelsize=15)
-    # ax.legend(fontsize=15)
-    # plt.show()
