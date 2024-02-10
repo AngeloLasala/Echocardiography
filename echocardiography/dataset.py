@@ -22,18 +22,23 @@ import math
 from data_reader import read_video, read_video
 
 class EchoNetDataset(Dataset):
-    def __init__(self, batch, split, phase, label_directory=None, transform=None):
+    def __init__(self, batch, split, phase, target, label_directory=None, transform=None, transform_target=None):
         """
         Args:
-            data_dir (string): Directory with all the video.
             batch (string): Batch number of video folder, e.g. 'Batch1', 'Batch2', 'Batch3', 'Batch4'.
+            split (string): train, validation or test
+            phase (string): diastole or systole
+            target (string): keypoint, heatmap, segmentation
+            label_directory (string): Directory of the label dataset, default None that means read the file from the json file
             transform (callable, optional): Optional transform to be applied
-                on a sample.
         """
-        self.transform = transform
         self.split = split
         self.batch = batch
         self.phase = phase
+        self.target = target
+        self.transform = transform
+        self.transform_target = transform_target
+
 
         self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
         self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(os.path.join(self.data_dir, 'image'))]
@@ -61,6 +66,77 @@ class EchoNetDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
+        image, label = self.get_image_label(idx)
+
+        if self.target == 'keypoints': 
+            label = label
+
+        elif self.target == 'heatmap': 
+            label = self.get_heatmap(idx)
+            if self.transform_target:
+                #convert each channel in a pil image
+                label = [Image.fromarray(label[:,:,i]) for i in range(label.shape[2])]
+                label = [self.transform_target(i) for i in label]
+                label = np.array([np.array(i) for i in label])
+
+        elif self.target == 'segmentation':
+            label = self.get_heatmap(idx)
+            label = (label > 0.5).astype(np.float32)
+            if self.transform_target:
+                #convert each channel in a pil image
+                label = [Image.fromarray(label[:,:,i]) for i in range(label.shape[2])]
+                label = [self.transform_target(i) for i in label]
+                label = np.array([np.array(i) for i in label])
+        
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+    def get_heatmap(self, idx):
+        """
+        given a index of the patient return the 6D heatmap of the keypoints
+        """
+        image, labels = self.get_image_label(idx)
+
+        ## mulptiple the labels by the image size
+        converter = np.tile([image.size[0], image.size[1]], 6)
+        labels = labels * converter
+
+        x, y = np.meshgrid(np.arange(0, image.size[0]), np.arange(0, image.size[1]))
+        pos = np.dstack((x, y))
+
+        std_dev = int(image.size[0] * 0.05) 
+        covariance = np.array([[std_dev * 20, 0.], [0., std_dev]])
+        
+        # Initialize an empty 6-channel heatmap vector
+        heatmaps_label= np.zeros((image.size[1], image.size[0], 6), dtype=np.float32)
+        for hp, heart_part in enumerate([labels[0:4], labels[4:8], labels[8:12]]): ## LVIDd, IVSd, LVPWd
+            ## compute the angle of the heart part
+            x_diff = heart_part[0:2][0] - heart_part[2:4][0]
+            y_diff = heart_part[2:4][1] - heart_part[0:2][1]
+            angle = math.degrees(math.atan2(y_diff, x_diff))
+            
+            for i in range(2): ## each heart part has got two keypoints with the same angle
+                mean = (int(heart_part[i*2]), int(heart_part[(i*2)+1]))
+                
+                gaussian = multivariate_normal(mean=mean, cov=covariance)
+                base_heatmap = gaussian.pdf(pos)
+
+                rotation_matrix = cv2.getRotationMatrix2D(mean, angle + 90, 1.0)
+                base_heatmap = cv2.warpAffine(base_heatmap, rotation_matrix, (base_heatmap.shape[1], base_heatmap.shape[0]))
+                base_heatmap = base_heatmap / np.max(base_heatmap)
+                # print(base_heatmap.shape, np.min(base_heatmap), np.max(base_heatmap))
+                channel_index = hp * 2 + i
+                heatmaps_label[:, :, channel_index] = base_heatmap
+
+        return heatmaps_label
+
+    def get_image_label(self, idx):
+        """
+        from index return the image and the label 
+        the labels are the normalized coordinates of the keypoints
+        """
         patient = self.patient_files[idx]
         patient_label = self.keypoints_dict[patient]
 
@@ -78,59 +154,9 @@ class EchoNetDataset(Dataset):
                 keypoints_label.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
 
         keypoints_label = (np.array(keypoints_label)).flatten()
-
-        if self.transform:
-            image = self.transform(image)
-
         return image, keypoints_label
 
-    def get_heatmap(self, idx):
-        patient = self.patient_files[idx]
-        patient_label = self.keypoints_dict[patient]
-
-        image = Image.open(os.path.join(self.data_dir, 'image', patient+'.png')) 
         
-        # read the label  
-        labels = []
-        for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
-            if patient_label[heart_part] is not None:
-                x1_heart_part = patient_label[heart_part]['x1'] 
-                y1_heart_part = patient_label[heart_part]['y1'] 
-                x2_heart_part = patient_label[heart_part]['x2'] 
-                y2_heart_part = patient_label[heart_part]['y2'] 
-                labels.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
-
-        labels = (np.array(labels)).flatten()
-
-        x, y = np.meshgrid(np.arange(0, image.size[0]), np.arange(0, image.size[1]))
-        pos = np.dstack((x, y))
-        
-        # Adjust the mean to be the provided center
-        mean = labels[0:2]
-        std_dev = int(image.size[0] * 0.05) 
-        covariance = np.array([[std_dev, 0.], [0., int(std_dev*0.2)]])
-        print(mean, covariance)
-        
-        gaussian = multivariate_normal(mean=mean, cov=covariance)
-        base_heatmap = gaussian.pdf(pos)
-        base_heatmap = base_heatmap / np.max(base_heatmap)
-        print(base_heatmap)
-
-        p1 = labels[0:2]
-        p2 = labels[2:4]
-
-        x_diff = p1[0] - p2[0]
-        y_diff = p2[1] - p1[1]
-        angle = math.degrees(math.atan2(y_diff, x_diff))
-
-        rotation_matrix = cv2.getRotationMatrix2D(mean, angle + 90, 1.0)
-        base_heatmap = cv2.warpAffine(base_heatmap, rotation_matrix, (base_heatmap.shape[1], base_heatmap.shape[0]))
-       
-        return base_heatmap
-
-        
-        return keypoints_label
-
     def get_keypoint(self, patient_hash):
         """
         Get the keypoint from the label dataset file
