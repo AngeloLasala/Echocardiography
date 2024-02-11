@@ -196,7 +196,6 @@ def fit(training_loader, validation_loader,
                 voutputs = model(vinputs).to(device)
                 vloss = loss_fn(voutputs, vlabels).item()
                 running_vloss += vloss
-            print(f'label shape: {vlabels.shape} | output shape: {voutputs.shape}')
 
         avg_vloss = running_vloss / (i + 1)
         #convert the torch tensor  to float
@@ -266,6 +265,7 @@ if __name__ == '__main__':
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
     ## TRAIN
+    print('start training...')
     loss_fn = cfg['loss']
     model = cfg['model'].to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
