@@ -18,12 +18,13 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
 from dataset import EchoNetDataset, convert_to_serializable
-from models import ResNet50Regression
+from models import ResNet50Regression, PlaxModel
 from scipy.stats import multivariate_normal
 from scipy import ndimage
 import cv2
 import math
 
+## Auxiliar class for data augmentation and loss (UPDATIND: move to other module.py)
 class AdjustGamma(object):
     """
     Gamma correction for the image
@@ -34,6 +35,20 @@ class AdjustGamma(object):
         return transforms.functional.adjust_gamma(img, self.gamma)
 
 
+class RMSELoss(torch.nn.Module):
+    """
+    Root Mean Square Error Loss
+    """
+    def __init__(self, eps=1e-6):
+        super().__init__()
+        self.mse = torch.nn.MSELoss()
+        self.eps = eps
+        
+    def forward(self,yhat,y):
+        loss = torch.sqrt(self.mse(yhat,y) + self.eps)
+        return loss
+
+## FIT functions
 def dataset_iteration(dataloader):
     """
     Iterate over the dataset
@@ -66,6 +81,36 @@ def dataset_iteration(dataloader):
         plt.scatter(label[10] * image.shape[0], label[11] * image.shape[1], color='blue', marker='o', s=100, alpha=0.5)
         plt.axis('off')
         plt.show()
+
+def train_config(target):
+    """
+    return the model and the loss function based on the target
+
+    Parameters
+    ----------
+    target : str
+        target to predict, e.g. keypoints, heatmaps, segmentation
+
+    Returns
+    -------
+    """
+    cfg = {}
+    if target == 'keypoints': 
+        cfg['model'] = ResNet50Regression(num_labels=12)
+        cfg['loss'] = torch.nn.MSELoss()
+
+    elif target == 'heatmaps': 
+        cfg['model'] = PlaxModel(num_classes=6)
+        cfg['loss'] = RMSELoss()
+        
+    elif target == 'segmentation':
+        cfg['model'] = PlaxModel(num_classes=6)
+        cfg['loss'] = torch.nn.BCELoss()
+       
+    else:
+        raise ValueError(f'target {target} is not valid. Available targets are keypoints, heatmaps, segmentation')
+
+    return cfg
 
 def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer = None):
     """
@@ -151,6 +196,7 @@ def fit(training_loader, validation_loader,
                 voutputs = model(vinputs).to(device)
                 vloss = loss_fn(voutputs, vlabels).item()
                 running_vloss += vloss
+            print(f'label shape: {vlabels.shape} | output shape: {voutputs.shape}')
 
         avg_vloss = running_vloss / (i + 1)
         #convert the torch tensor  to float
@@ -171,15 +217,18 @@ def fit(training_loader, validation_loader,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
     parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
-    parser.add_argument('--batch', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
+    parser.add_argument('--batch_dir', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
     parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
     parser.add_argument('--target', type=str, default='keypoints', help='select the target to predict, e.g. keypoints, heatmaps, segmentation')
     parser.add_argument('--epochs', type=int, default=5, help='Number of epochs to train the model')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for the dataloader')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for the optimizer')
+    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--save_dir', type=str, default='TRAINED_MODEL', help='Directory to save the model')
     args = parser.parse_args()
 
+    ## define the model and the loss w.r.t. target
+    cfg = train_config(args.target)
+    
     ## device and reproducibility    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(42)
@@ -207,21 +256,22 @@ if __name__ == '__main__':
     transform_target = transforms.Compose([transforms.Resize((256, 256))])
 
     print('start creating the dataset...')
-    train_set = EchoNetDataset(batch=args.batch, split='train', phase=args.phase, label_directory=None,
+    train_set = EchoNetDataset(batch=args.batch_dir, split='train', phase=args.phase, label_directory=None,
                               target=args.target, transform=transform_train, transform_target=transform_target)
-    validation_set = EchoNetDataset(batch=args.batch, split='val', phase=args.phase, label_directory=None, 
+    validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, 
                               target=args.target, transform=transform_val, transform_target=transform_target)
 
     print('start creating the dataloader...')
-    training_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
-    validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
+    training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
-    loss_fn = torch.nn.MSELoss()
-    model = ResNet50Regression(num_labels=12).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    ## TRAIN
+    loss_fn = cfg['loss']
+    model = cfg['model'].to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     #check if the save directory exist, if not create it
-    save_dir = os.path.join(args.save_dir, args.batch, args.phase)
+    save_dir = os.path.join(args.save_dir, args.batch_dir, args.phase)
     if not os.path.exists(save_dir):
         save_dir = os.path.join(save_dir, 'trial_1')
         os.makedirs(os.path.join(save_dir))
@@ -234,11 +284,10 @@ if __name__ == '__main__':
     losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
                 save_dir=save_dir)
 
+    ## save the args dictionary in a file
     with open(os.path.join(save_dir,'losses.json'), 'w') as f:
         json.dump(losses, f, default=convert_to_serializable, indent=4)
 
-
-    # save the args dictionary in a file
     args_dict = vars(args)
     with open(os.path.join(save_dir,'args.json'), 'w') as f:
         json.dump(args_dict, f, indent=4)
@@ -251,4 +300,4 @@ if __name__ == '__main__':
     ax.set_ylabel('Loss', fontsize=15)
     ax.tick_params(axis='both', which='major', labelsize=15)
     ax.legend(fontsize=15)
-    plt.show()
+    plt.savefig(os.path.join(save_dir, 'losses.png'))
