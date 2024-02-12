@@ -99,7 +99,25 @@ def show_prediction(image, label, output, target):
         for i, ch in enumerate(num_classes):
             axes[1,i].imshow(output[:,:,ch], cmap='jet', alpha=0.5)
 
+def percentage_error(label, output):
+    """
+    Compute the percentage error between the distance of 'LVPW', 'LVID', 'IVS'
+    """
+    label, output = label * 256., output * 256.
+    distances_label, distances_output = [], []
+    for i in range(3):
+        x1, y1 = label[(i*4)], label[(i*4)+1]
+        x2, y2 = label[(i*4)+2], label[(i*4)+3]
+        distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        distances_label.append(distance)
 
+        x1, y1 = output[(i*4)], output[(i*4)+1]
+        x2, y2 = output[(i*4)+2], output[(i*4)+3]
+        distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        distances_output.append(distance)
+
+    return distances_label, distances_output    
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
@@ -140,6 +158,7 @@ if __name__ == '__main__':
     
     ## test the model
     model.eval()
+    distances_label_list , distances_output_list = [], []
     with torch.no_grad():
         for i, data in enumerate(test_loader):
             images, labels = data
@@ -156,9 +175,20 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                show_prediction(image, label, output, target=trained_args['target'])
+                # show_prediction(image, label, output, target=trained_args['target'])
+                dist_label, dist_output = percentage_error(label, output)
 
-                plt.show()
+                distances_label_list.append(dist_label)
+                distances_output_list.append(dist_output)
+
+    distances_label_list = np.array(distances_label_list)
+    distances_output_list = np.array(distances_output_list)
+
+    ## Mean Percentage error
+    mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
+    mpe = np.mean(mpe, axis=0)
+    print(mpe)
+    
                
             
                 
