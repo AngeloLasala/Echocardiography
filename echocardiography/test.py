@@ -18,7 +18,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
 from dataset import EchoNetDataset, convert_to_serializable
-from models import ResNet50Regression
+from train import train_config
 from scipy.stats import multivariate_normal
 from scipy import ndimage
 import cv2
@@ -37,6 +37,70 @@ def get_best_model(train_dir):
                 best_model = int(model)
     return best_model
 
+def show_prediction(image, label, output, target):
+    """
+    Show the prediction of PLAX keypoits based on the type of the target
+
+    Parameters  
+    ----------
+    image: np.array
+        image in the range -1, 1
+    """
+    image = (image * 0.5) + 0.5
+
+    if target == 'keypoints':
+        plt.figure(figsize=(14,14), num='Example')
+        plt.imshow(image, cmap='gray', alpha=1.0)
+
+        #labels
+        plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o',s=150, alpha=0.7) 
+        plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o',s=150, alpha=0.7)
+
+        plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o',s=150, alpha=0.7) 
+        plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o',s=150, alpha=0.7)
+
+        plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o',s=150, alpha=0.7) 
+        plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o',s=150, alpha=0.7)
+
+        #predictions
+        plt.scatter(output[0] * image.shape[1], output[1] * image.shape[0], color='green', marker='*',s=150, alpha=0.7) 
+        plt.scatter(output[2] * image.shape[1], output[3] * image.shape[0], color='green', marker='*',s=150, alpha=0.7)
+
+        plt.scatter(output[4] * image.shape[1], output[5] * image.shape[0], color='red', marker='*',s=150, alpha=0.7) 
+        plt.scatter(output[6] * image.shape[1], output[7] * image.shape[0], color='red', marker='*',s=150, alpha=0.7)
+
+        plt.scatter(output[8] * image.shape[1], output[9] * image.shape[0], color='blue', marker='*',s=150, alpha=0.7) 
+        plt.scatter(output[10] * image.shape[1], output[11] * image.shape[0], color='blue', marker='*',s=150, alpha=0.7)
+        plt.axis('off')
+
+    else:
+        ## for 'segmentation' and 'heatmaps' the output shape is (num_classes, h, w)
+        # put the chaneel on the last shape
+        label = label.transpose((1, 2, 0))
+        output = output.transpose((1, 2, 0))
+        
+        fig, axes = plt.subplots(nrows=2, ncols=4, num='example', figsize=(26,14), tight_layout=True)
+        num_classes = [0,1,3,5] # for the visualizazion i aviod the superimpose classes
+
+        # real image on each spot
+        for ax in axes: ## 2 elements == label and prediction
+            for i in range(len(num_classes)): ## 4 eleminets, num of classes
+                ax[i].imshow(image, cmap='gray', alpha=1.0)
+                ax[i].axis('off')
+
+        # plot the label
+        for i, ch in enumerate(num_classes):
+            axes[0,i].imshow(label[:,:,ch], cmap='jet', alpha=0.5)
+
+        # plot the ouput
+        if target == 'segmentation':
+            output = (output > 0.5).astype(np.float32)
+
+        for i, ch in enumerate(num_classes):
+            axes[1,i].imshow(output[:,:,ch], cmap='jet', alpha=0.5)
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
     parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
@@ -53,6 +117,7 @@ if __name__ == '__main__':
         losses = json.load(json_file)
     with open(os.path.join(train_dir, 'args.json')) as json_file:
         trained_args = json.load(json_file)
+    cfg = train_config(trained_args['target'])
 
     ## load test dataset
     transform_val = transforms.Compose([
@@ -69,7 +134,7 @@ if __name__ == '__main__':
     ## load the model
     best_model = get_best_model(train_dir)
     model_dir = os.path.join('TRAINED_MODEL', args.batch, args.phase, args.trial)
-    model = ResNet50Regression(num_labels=12)
+    model = cfg['model'].to(device)
     model.load_state_dict(torch.load(os.path.join(train_dir, f'model_{best_model}')))
     model.to(device)
     
@@ -91,32 +156,8 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                print(label)
-                print(output)
+                show_prediction(image, label, output, target=trained_args['target'])
 
-                plt.figure(figsize=(14,14), num='Example')
-                plt.imshow(image, cmap='gray', alpha=0.2)
-
-                #labels
-                plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o',s=150, alpha=0.7) 
-                plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o',s=150, alpha=0.7)
-
-                plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o',s=150, alpha=0.7) 
-                plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o',s=150, alpha=0.7)
-
-                plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o',s=150, alpha=0.7) 
-                plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o',s=150, alpha=0.7)
-
-                #predictions
-                plt.scatter(output[0] * image.shape[1], output[1] * image.shape[0], color='green', marker='*',s=150, alpha=0.7) 
-                plt.scatter(output[2] * image.shape[1], output[3] * image.shape[0], color='green', marker='*',s=150, alpha=0.7)
-
-                plt.scatter(output[4] * image.shape[1], output[5] * image.shape[0], color='red', marker='*',s=150, alpha=0.7) 
-                plt.scatter(output[6] * image.shape[1], output[7] * image.shape[0], color='red', marker='*',s=150, alpha=0.7)
-
-                plt.scatter(output[8] * image.shape[1], output[9] * image.shape[0], color='blue', marker='*',s=150, alpha=0.7) 
-                plt.scatter(output[10] * image.shape[1], output[11] * image.shape[0], color='blue', marker='*',s=150, alpha=0.7)
-                plt.axis('off')
                 plt.show()
                
             
