@@ -7,6 +7,7 @@ import argparse
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+from torchsummary import summary 
 from datetime import datetime
 import time
 import tqdm
@@ -18,7 +19,8 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
 from dataset import EchoNetDataset, convert_to_serializable
-from models import ResNet50Regression, PlaxModel
+from models import ResNet50Regression, PlaxModel, UNet
+from losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss
 from scipy.stats import multivariate_normal
 from scipy import ndimage
 import cv2
@@ -34,19 +36,6 @@ class AdjustGamma(object):
     def __call__(self, img):
         return transforms.functional.adjust_gamma(img, self.gamma)
 
-
-class RMSELoss(torch.nn.Module):
-    """
-    Root Mean Square Error Loss
-    """
-    def __init__(self, eps=1e-6):
-        super().__init__()
-        self.mse = torch.nn.MSELoss()
-        self.eps = eps
-        
-    def forward(self,yhat,y):
-        loss = torch.sqrt(self.mse(yhat,y) + self.eps)
-        return loss
 
 ## FIT functions
 def dataset_iteration(dataloader):
@@ -82,7 +71,7 @@ def dataset_iteration(dataloader):
         plt.axis('off')
         plt.show()
 
-def train_config(target):
+def train_config(target, device):
     """
     return the model and the loss function based on the target
 
@@ -101,10 +90,12 @@ def train_config(target):
 
     elif target == 'heatmaps': 
         cfg['model'] = PlaxModel(num_classes=6)
-        cfg['loss'] = RMSELoss()
+        # cfg['model'] = UNet(num_classes=6)
+        cfg['loss'] = WeightedRMSELoss(device=device)
         
     elif target == 'segmentation':
         cfg['model'] = PlaxModel(num_classes=6)
+        # cfg['model'] = UNet(in_channels=3, num_classes=6)
         cfg['loss'] = torch.nn.BCELoss()
        
     else:
@@ -224,14 +215,12 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for the optimizer')
     parser.add_argument('--save_dir', type=str, default='TRAINED_MODEL', help='Directory to save the model')
     args = parser.parse_args()
-
-    ## define the model and the loss w.r.t. target
-    cfg = train_config(args.target)
     
     ## device and reproducibility    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(42)
     np.random.seed(42)
+    cfg = train_config(args.target, device=device)
     print(f'Using device: {device}')
     
     ## initialize the prepocessing and data augmentation
@@ -267,6 +256,7 @@ if __name__ == '__main__':
     ## TRAIN
     print('start training...')
     loss_fn = cfg['loss']
+    print(loss_fn) 
     model = cfg['model'].to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 

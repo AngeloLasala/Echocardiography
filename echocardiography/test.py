@@ -175,19 +175,20 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                # show_prediction(image, label, output, target=trained_args['target'])
-                dist_label, dist_output = percentage_error(label, output)
+                show_prediction(image, label, output, target=trained_args['target'])
+                plt.show()
+                # dist_label, dist_output = percentage_error(label, output)
 
-                distances_label_list.append(dist_label)
-                distances_output_list.append(dist_output)
+    #             distances_label_list.append(dist_label)
+    #             distances_output_list.append(dist_output)
 
-    distances_label_list = np.array(distances_label_list)
-    distances_output_list = np.array(distances_output_list)
+    # distances_label_list = np.array(distances_label_list)
+    # distances_output_list = np.array(distances_output_list)
 
-    ## Mean Percentage error
-    mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
-    mpe = np.mean(mpe, axis=0)
-    print(mpe)
+    # ## Mean Percentage error
+    # mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
+    # mpe = np.mean(mpe, axis=0)
+    # print(mpe)
     
                
             
