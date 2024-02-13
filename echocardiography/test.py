@@ -41,7 +41,7 @@ def show_prediction(image, label, output, target):
     """
     Show the prediction of PLAX keypoits based on the type of the target
 
-    Parameters  
+    Parameters
     ----------
     image: np.array
         image in the range -1, 1
@@ -53,23 +53,23 @@ def show_prediction(image, label, output, target):
         plt.imshow(image, cmap='gray', alpha=1.0)
 
         #labels
-        plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o',s=150, alpha=0.7) 
+        plt.scatter(label[0] * image.shape[1], label[1] * image.shape[0], color='green', marker='o',s=150, alpha=0.7)
         plt.scatter(label[2] * image.shape[1], label[3] * image.shape[0], color='green', marker='o',s=150, alpha=0.7)
 
-        plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o',s=150, alpha=0.7) 
+        plt.scatter(label[4] * image.shape[1], label[5] * image.shape[0], color='red', marker='o',s=150, alpha=0.7)
         plt.scatter(label[6] * image.shape[1], label[7] * image.shape[0], color='red', marker='o',s=150, alpha=0.7)
 
-        plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o',s=150, alpha=0.7) 
+        plt.scatter(label[8] * image.shape[1], label[9] * image.shape[0], color='blue', marker='o',s=150, alpha=0.7)
         plt.scatter(label[10] * image.shape[1], label[11] * image.shape[0], color='blue', marker='o',s=150, alpha=0.7)
 
         #predictions
-        plt.scatter(output[0] * image.shape[1], output[1] * image.shape[0], color='green', marker='*',s=150, alpha=0.7) 
+        plt.scatter(output[0] * image.shape[1], output[1] * image.shape[0], color='green', marker='*',s=150, alpha=0.7)
         plt.scatter(output[2] * image.shape[1], output[3] * image.shape[0], color='green', marker='*',s=150, alpha=0.7)
 
-        plt.scatter(output[4] * image.shape[1], output[5] * image.shape[0], color='red', marker='*',s=150, alpha=0.7) 
+        plt.scatter(output[4] * image.shape[1], output[5] * image.shape[0], color='red', marker='*',s=150, alpha=0.7)
         plt.scatter(output[6] * image.shape[1], output[7] * image.shape[0], color='red', marker='*',s=150, alpha=0.7)
 
-        plt.scatter(output[8] * image.shape[1], output[9] * image.shape[0], color='blue', marker='*',s=150, alpha=0.7) 
+        plt.scatter(output[8] * image.shape[1], output[9] * image.shape[0], color='blue', marker='*',s=150, alpha=0.7)
         plt.scatter(output[10] * image.shape[1], output[11] * image.shape[0], color='blue', marker='*',s=150, alpha=0.7)
         plt.axis('off')
 
@@ -78,7 +78,7 @@ def show_prediction(image, label, output, target):
         # put the chaneel on the last shape
         label = label.transpose((1, 2, 0))
         output = output.transpose((1, 2, 0))
-        
+
         fig, axes = plt.subplots(nrows=2, ncols=4, num='example', figsize=(26,14), tight_layout=True)
         num_classes = [0,1,3,5] # for the visualizazion i aviod the superimpose classes
 
@@ -109,7 +109,7 @@ def get_corrdinate_from_heatmap(heatmap):
         coor = np.where(heatmap[ch] == max_value)
         label_list.append(coor[1][0])
         label_list.append(coor[0][0])
-    return label_list 
+    return label_list
 
 def percentage_error(label, output, target):
     """
@@ -133,7 +133,7 @@ def percentage_error(label, output, target):
         ## compute the coordinate of the max value in the heatmaps
         label = get_corrdinate_from_heatmap(label)
         output = get_corrdinate_from_heatmap(output)
-        
+
         distances_label, distances_output = [], []
         for i in range(3):
             x1, y1 = label[(i*4)], label[(i*4)+1]
@@ -145,7 +145,7 @@ def percentage_error(label, output, target):
             x2, y2 = output[(i*4)+2], output[(i*4)+3]
             distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             distances_output.append(distance)
-    return distances_label, distances_output 
+    return distances_label, distances_output
 
 def keypoints_error(label, output, target):
     """
@@ -155,7 +155,7 @@ def keypoints_error(label, output, target):
         label, output = label * 256., output * 256.
         label, output = np.array(label), np.array(output)
         error = label - output
-    
+
     if target == 'heatmaps':
         ## compute the coordinate of the max value in the heatmaps
         label = get_corrdinate_from_heatmap(label)
@@ -163,7 +163,7 @@ def keypoints_error(label, output, target):
         label, output = np.array(label), np.array(output)
         error = label - output
     return error
-    
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     ])
     transform_target = transforms.Compose([transforms.Resize((256, 256))])
 
-    test_set = EchoNetDataset(batch=args.batch, split='test', phase=args.phase, label_directory=None, 
+    test_set = EchoNetDataset(batch=args.batch, split='test', phase=args.phase, label_directory=None,
                               target=trained_args['target'], transform=transform_val, transform_target=transform_target)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
 
@@ -202,7 +202,7 @@ if __name__ == '__main__':
     model = cfg['model'].to(device)
     model.load_state_dict(torch.load(os.path.join(train_dir, f'model_{best_model}')))
     model.to(device)
-    
+
     ## test the model
     model.eval()
     distances_label_list , distances_output_list = [], []
@@ -218,7 +218,7 @@ if __name__ == '__main__':
             images = images.cpu().numpy().transpose((0, 2, 3, 1))
             outputs = outputs.cpu().numpy()
             labels = labels.cpu().numpy()
-            
+
             for i in range(images.shape[0]):
                 image = images[i]
                 label = labels[i]
@@ -227,7 +227,7 @@ if __name__ == '__main__':
                 # plt.show()
                 dist_label, dist_output = percentage_error(label, output, target=trained_args['target'])
                 err = keypoints_error(label, output, target=trained_args['target'])
-    
+
                 distances_label_list.append(dist_label)
                 distances_output_list.append(dist_output)
                 keypoints_error_list.append(err)
@@ -260,10 +260,3 @@ if __name__ == '__main__':
         plt.legend(fontsize=20)
         plt.grid()
     plt.show()
-    
-               
-            
-                
-
-        
-    
