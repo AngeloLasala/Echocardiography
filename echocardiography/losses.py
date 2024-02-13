@@ -97,14 +97,14 @@ if __name__ == '__main__':
 
     print('start creating the dataset...')
     validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, 
-                              target=args.target, transform=transform, transform_target=transform_target)
+                              target=args.target, transform=transform, transform_target=transform_target, augmentation=True)
 
     print('start creating the dataloader...')
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
     for ii in range(10):
         image, label = validation_set[0]
-        # print(f'image shape: {image.shape} - label shape: {label.shape}')
+        print(f'image shape: {image.shape} - label shape: {label.shape}')
 
         # plt.figure(figsize=(10, 10))
         # plt.subplot(1, 4, 1)
@@ -133,6 +133,27 @@ if __name__ == '__main__':
     for i, (image, label) in enumerate(validation_loader):
         ## cretate a target tensfor random with the same shape of the label
         print(image.shape, label.shape)
+
+        plt.figure(figsize=(10, 10))
+        plt.subplot(1, 4, 1)
+        plt.imshow(image[0,0,:,:], cmap='gray')
+        plt.title('Image')
+        plt.axis('off')
+        plt.subplot(1, 4, 2)
+        plt.imshow(image[0,0,:,:], cmap='gray')
+        plt.imshow(label[0,0,:,:], cmap='jet', alpha=0.5)
+        plt.imshow(label[0,-1,:,:], cmap='jet', alpha=0.5)
+        plt.title('Image')
+        plt.axis('off')
+        plt.subplot(1, 4, 3)
+        plt.imshow(label[0,0,:,:], cmap='jet')
+        plt.title('Label')
+        plt.axis('off')
+        plt.subplot(1, 4, 4)
+        plt.imshow(label[0,-1,:,:], cmap='jet')
+        plt.title('Heatmap')
+        plt.axis('off')
+        plt.show()
 
         output = torch.rand(label.shape).to(device)
         label = label.to(device)
