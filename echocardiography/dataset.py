@@ -22,7 +22,7 @@ import math
 from data_reader import read_video, read_video
 
 class EchoNetDataset(Dataset):
-    def __init__(self, batch, split, phase, target, label_directory=None, transform=None, transform_target=None):
+    def __init__(self, batch, split, phase, target, label_directory=None, transform=None, transform_target=None, augmentation=False):
         """
         Args:
             batch (string): Batch number of video folder, e.g. 'Batch1', 'Batch2', 'Batch3', 'Batch4'.
@@ -30,7 +30,9 @@ class EchoNetDataset(Dataset):
             phase (string): diastole or systole
             target (string): keypoint, heatmap, segmentation
             label_directory (string): Directory of the label dataset, default None that means read the file from the json file
-            transform (callable, optional): Optional transform to be applied
+            transform (callable, optional): Optional transform to be applied on a sample.    
+            transform_target (callable, optional): Optional transform to be applied on a sample.
+            augmentation (bool): Apply data augmentation to the image and the label
         """
         self.split = split
         self.batch = batch
@@ -38,7 +40,7 @@ class EchoNetDataset(Dataset):
         self.target = target
         self.transform = transform
         self.transform_target = transform_target
-
+        self.augmentation = augmentation
 
         self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
         self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(os.path.join(self.data_dir, 'image'))]
@@ -76,24 +78,22 @@ class EchoNetDataset(Dataset):
 
         elif self.target == 'heatmaps': 
             label = self.get_heatmap(idx)
+            label = torch.tensor(label)
             if self.transform_target:
-                #convert each channel in a pil image
-                label = [Image.fromarray(label[:,:,i]) for i in range(label.shape[2])]
-                label = [self.transform_target(i) for i in label]
-                label = np.array([np.array(i) for i in label])
+                label = self.transform_target(label) 
 
-                image, label = self.data_augmentation(image, label)
+                if self.data_augmentation:
+                    image, label = self.data_augmentation(image, label)
+
 
         elif self.target == 'segmentation':
             label = self.get_heatmap(idx)
             label = (label > 0.5).astype(np.float32)
+            label = torch.tensor(label)
             if self.transform_target:
-                #convert each channel in a pil image
-                label = [Image.fromarray(label[:,:,i]) for i in range(label.shape[2])]
-                label = [self.transform_target(i) for i in label]
-                label = np.array([np.array(i) for i in label])
-
-                image, label = self.data_augmentation(image, label)
+                label = self.transform_target(label)
+                if self.augmentation:
+                    image, label = self.data_augmentation(image, label)
 
         else:
             raise ValueError(f'target {self.target} is not valid. Available targets are keypoints, heatmaps, segmentation')
@@ -104,9 +104,7 @@ class EchoNetDataset(Dataset):
         """
         Set of trasformation to apply to image and label(heatmaps) as a data augmentation
         """
-        ## convert the label torch tensor
-        label = torch.tensor(label)
-        
+     
         ## random rotation to image and label
         if torch.rand(1) > 0.5:
             angle = np.random.randint(-15, 15)
@@ -153,7 +151,7 @@ class EchoNetDataset(Dataset):
         covariance = np.array([[std_dev * 20, 0.], [0., std_dev]])
         
         # Initialize an empty 6-channel heatmap vector
-        heatmaps_label= np.zeros((image.size[1], image.size[0], 6), dtype=np.float32)
+        heatmaps_label= np.zeros((6, image.size[1], image.size[0]), dtype=np.float32)
         for hp, heart_part in enumerate([labels[0:4], labels[4:8], labels[8:12]]): ## LVIDd, IVSd, LVPWd
             ## compute the angle of the heart part
             x_diff = heart_part[0:2][0] - heart_part[2:4][0]
@@ -171,7 +169,7 @@ class EchoNetDataset(Dataset):
                 base_heatmap = base_heatmap / np.max(base_heatmap)
                 # print(base_heatmap.shape, np.min(base_heatmap), np.max(base_heatmap))
                 channel_index = hp * 2 + i
-                heatmaps_label[:, :, channel_index] = base_heatmap
+                heatmaps_label[channel_index, :, :] = base_heatmap
 
         return heatmaps_label
 
