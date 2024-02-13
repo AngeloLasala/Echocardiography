@@ -110,7 +110,6 @@ class EchoNetDataset(Dataset):
         ## random rotation to image and label
         if torch.rand(1) > 0.5:
             angle = np.random.randint(-15, 15)
-            print(angle)
             image = transforms.functional.rotate(image, angle)
             label = transforms.functional.rotate(label, angle)
 
@@ -121,7 +120,6 @@ class EchoNetDataset(Dataset):
                                                         scale_ranges=(1.0,1.0),
                                                         shears=(0.,0.), 
                                                         img_size=(256, 256))
-            print(translate)
             image = transforms.functional.affine(image, *translate)
             label = transforms.functional.affine(label, *translate)
 
@@ -132,7 +130,6 @@ class EchoNetDataset(Dataset):
         ## random gamma correction
         if torch.rand(1) > 0.0:
             gamma = np.random.uniform(0.5, 1.5)
-            print(gamma)
             image = transforms.functional.adjust_gamma(image, gamma)
         
         return image, label
