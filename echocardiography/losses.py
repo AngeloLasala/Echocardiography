@@ -8,14 +8,15 @@ import matplotlib.pyplot as plt
 
 ## define weighted MSE loss
 class WeightedMSELoss(nn.Module):
-    def __init__(self, device):
+    def __init__(self, threshold, device):
         super(WeightedMSELoss, self).__init__()
         self.device = device
+        self.threshold = threshold
 
     def forward(self, output, label):
         weight = torch.ones(label.shape).to(self.device)
         ## binary the targert with 0.5
-        mask = (label > 0.5).float().to(self.device)
+        mask = (label >= self.threshold).float().to(self.device)
         ## give me the total numer of 0 and 1
         num_0 = torch.sum(mask == 0).float().to(self.device)
         num_1 = torch.sum(mask == 1).float().to(self.device)
@@ -26,6 +27,7 @@ class WeightedMSELoss(nn.Module):
         # create a weight tensor substituting 1 with 1/num_1 and 0 with 1/num_0
         weight = torch.where(mask == 1, 1/freq_1, weight).to(self.device)
         weight = torch.where(mask == 0, 1/freq_0, weight).to(self.device)
+        print(f'Weight: {weight.min()} - {weight.max()}')
         return torch.mean(weight * (label - output) ** 2)
 
 class RMSELoss(torch.nn.Module):
@@ -45,16 +47,17 @@ class WeightedRMSELoss(torch.nn.Module):
     """
     Weighted Root Mean Square Error Loss
     """
-    def __init__(self, device, eps=1e-6):
+    def __init__(self, threshold, device, eps=1e-6):
         super().__init__()
         self.mse = torch.nn.MSELoss()
         self.eps = eps
         self.device = device
+        self.threshold = threshold
         
     def forward(self,output,label):
         weight = torch.ones(label.shape).to(self.device)
         ## binary the targert with 0.5
-        mask = (label > 0.5).float().to(self.device)
+        mask = (label >= self.threshold).float().to(self.device)
  
         ## give me the total numer of 0 and 1
         num_0 = torch.sum(mask == 0).float().to(self.device)
@@ -88,9 +91,8 @@ if __name__ == '__main__':
     device = torch.device('cpu')
     print(f'Using device: {device}')
     
-    transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.ToTensor()])
+    transform = transforms.Compose([transforms.Resize((256, 256)),
+                                    transforms.ToTensor()])
     transform_target = transforms.Compose([transforms.Resize((256, 256))])
 
     print('start creating the dataset...')
@@ -100,8 +102,38 @@ if __name__ == '__main__':
     print('start creating the dataloader...')
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
+    for ii in range(10):
+        image, label = validation_set[0]
+        # print(f'image shape: {image.shape} - label shape: {label.shape}')
+
+        # plt.figure(figsize=(10, 10))
+        # plt.subplot(1, 4, 1)
+        # plt.imshow(image[0], cmap='gray')
+        # plt.title('Image')
+        # plt.axis('off')
+        # plt.subplot(1, 4, 2)
+        # plt.imshow(image[0], cmap='gray')
+        # plt.imshow(label[0,:,:], cmap='jet', alpha=0.5)
+        # plt.imshow(label[-1,:,:], cmap='jet', alpha=0.5)
+        # plt.title('Image')
+        # plt.axis('off')
+        # plt.subplot(1, 4, 3)
+        # plt.imshow(label[0,:,:], cmap='jet')
+        # plt.title('Label')
+        # plt.axis('off')
+        # plt.subplot(1, 4, 4)
+        # plt.imshow(label[-1,:,:], cmap='jet')
+        # plt.title('Heatmap')
+        # plt.axis('off')
+        # plt.show()
+
+    
+    
+    
     for i, (image, label) in enumerate(validation_loader):
         ## cretate a target tensfor random with the same shape of the label
+        print(image.shape, label.shape)
+
         output = torch.rand(label.shape).to(device)
         label = label.to(device)
 
@@ -109,8 +141,8 @@ if __name__ == '__main__':
         loss = nn.MSELoss()
         
         output = loss(output, label)
-        w_mse = WeightedMSELoss(device)(output, label)
-        w_rmse = WeightedRMSELoss(device)(output, label)
+        w_mse = WeightedMSELoss(threshold=0.1, device = device)(output, label)
+        w_rmse = WeightedRMSELoss(threshold=0.1, device = device)(output, label)
         rmse = RMSELoss()(output, label)
 
         print(f'W_MSE: {w_mse}')
