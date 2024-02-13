@@ -68,6 +68,9 @@ class EchoNetDataset(Dataset):
 
         image, label = self.get_image_label(idx)
 
+        if self.transform: ## this compute the preprocessing of the image : ToTensor, Normalize, Resize
+            image = self.transform(image)
+
         if self.target == 'keypoints': 
             label = label
 
@@ -79,6 +82,8 @@ class EchoNetDataset(Dataset):
                 label = [self.transform_target(i) for i in label]
                 label = np.array([np.array(i) for i in label])
 
+                image, label = self.data_augmentation(image, label)
+
         elif self.target == 'segmentation':
             label = self.get_heatmap(idx)
             label = (label > 0.5).astype(np.float32)
@@ -88,13 +93,51 @@ class EchoNetDataset(Dataset):
                 label = [self.transform_target(i) for i in label]
                 label = np.array([np.array(i) for i in label])
 
+                image, label = self.data_augmentation(image, label)
+
         else:
             raise ValueError(f'target {self.target} is not valid. Available targets are keypoints, heatmaps, segmentation')
         
-        if self.transform:
-            image = self.transform(image)
-
         return image, label
+
+    def data_augmentation(self, image, label):
+        """
+        Set of trasformation to apply to image and label(heatmaps) as a data augmentation
+        """
+        ## convert the label torch tensor
+        label = torch.tensor(label)
+        
+        ## random rotation to image and label
+        if torch.rand(1) > 0.5:
+            angle = np.random.randint(-15, 15)
+            print(angle)
+            image = transforms.functional.rotate(image, angle)
+            label = transforms.functional.rotate(label, angle)
+
+        ## random translation to image and label in each direction
+        if torch.rand(1) > 0.5:
+            translate = transforms.RandomAffine.get_params(degrees=(0.,0.), 
+                                                        translate=(0.10, 0.10),
+                                                        scale_ranges=(1.0,1.0),
+                                                        shears=(0.,0.), 
+                                                        img_size=(256, 256))
+            print(translate)
+            image = transforms.functional.affine(image, *translate)
+            label = transforms.functional.affine(label, *translate)
+
+        ## random brightness and contrast
+        if torch.rand(1) > 0.5:
+            image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
+        
+        ## random gamma correction
+        if torch.rand(1) > 0.0:
+            gamma = np.random.uniform(0.5, 1.5)
+            print(gamma)
+            image = transforms.functional.adjust_gamma(image, gamma)
+        
+        return image, label
+
+
 
     def get_heatmap(self, idx):
         """
