@@ -99,24 +99,55 @@ def show_prediction(image, label, output, target):
         for i, ch in enumerate(num_classes):
             axes[1,i].imshow(output[:,:,ch], cmap='jet', alpha=0.5)
 
-def percentage_error(label, output):
+def get_corrdinate_from_heatmap(heatmap):
+    """
+    Get the coordinate from the heatmap
+    """
+    label_list = []
+    for ch in range(heatmap.shape[0]):
+        max_value = np.max(heatmap[ch])
+        coor = np.where(heatmap[ch] == max_value)
+        label_list.append(coor[1][0])
+        label_list.append(coor[0][0])
+    return label_list 
+
+def percentage_error(label, output, target):
     """
     Compute the percentage error between the distance of 'LVPW', 'LVID', 'IVS'
     """
-    label, output = label * 256., output * 256.
-    distances_label, distances_output = [], []
-    for i in range(3):
-        x1, y1 = label[(i*4)], label[(i*4)+1]
-        x2, y2 = label[(i*4)+2], label[(i*4)+3]
-        distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-        distances_label.append(distance)
+    if target == 'keypoints':
+        label, output = label * 256., output * 256.
+        distances_label, distances_output = [], []
+        for i in range(3):
+            x1, y1 = label[(i*4)], label[(i*4)+1]
+            x2, y2 = label[(i*4)+2], label[(i*4)+3]
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            distances_label.append(distance)
 
-        x1, y1 = output[(i*4)], output[(i*4)+1]
-        x2, y2 = output[(i*4)+2], output[(i*4)+3]
-        distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-        distances_output.append(distance)
+            x1, y1 = output[(i*4)], output[(i*4)+1]
+            x2, y2 = output[(i*4)+2], output[(i*4)+3]
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            distances_output.append(distance)
 
-    return distances_label, distances_output    
+    if target == 'heatmaps':
+        ## compute the coordinate of the max value in the heatmaps
+        label = get_corrdinate_from_heatmap(label)
+        output = get_corrdinate_from_heatmap(output)
+        
+        distances_label, distances_output = [], []
+        for i in range(3):
+            x1, y1 = label[(i*4)], label[(i*4)+1]
+            x2, y2 = label[(i*4)+2], label[(i*4)+3]
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            distances_label.append(distance)
+
+            x1, y1 = output[(i*4)], output[(i*4)+1]
+            x2, y2 = output[(i*4)+2], output[(i*4)+3]
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            distances_output.append(distance)
+    return distances_label, distances_output 
+
+
     
 
 if __name__ == '__main__':
@@ -135,7 +166,7 @@ if __name__ == '__main__':
         losses = json.load(json_file)
     with open(os.path.join(train_dir, 'args.json')) as json_file:
         trained_args = json.load(json_file)
-    cfg = train_config(trained_args['target'])
+    cfg = train_config(trained_args['target'], device=device)
 
     ## load test dataset
     transform_val = transforms.Compose([
@@ -151,6 +182,7 @@ if __name__ == '__main__':
 
     ## load the model
     best_model = get_best_model(train_dir)
+    print(f'Best model: {best_model}')
     model_dir = os.path.join('TRAINED_MODEL', args.batch, args.phase, args.trial)
     model = cfg['model'].to(device)
     model.load_state_dict(torch.load(os.path.join(train_dir, f'model_{best_model}')))
@@ -175,20 +207,20 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                show_prediction(image, label, output, target=trained_args['target'])
-                plt.show()
-                # dist_label, dist_output = percentage_error(label, output)
+                # show_prediction(image, label, output, target=trained_args['target'])
+                # plt.show()
+                dist_label, dist_output = percentage_error(label, output, target=trained_args['target'])
+    
+                distances_label_list.append(dist_label)
+                distances_output_list.append(dist_output)
 
-    #             distances_label_list.append(dist_label)
-    #             distances_output_list.append(dist_output)
+    distances_label_list = np.array(distances_label_list)
+    distances_output_list = np.array(distances_output_list)
 
-    # distances_label_list = np.array(distances_label_list)
-    # distances_output_list = np.array(distances_output_list)
-
-    # ## Mean Percentage error
-    # mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
-    # mpe = np.mean(mpe, axis=0)
-    # print(mpe)
+    ## Mean Percentage error
+    mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
+    mpe = np.mean(mpe, axis=0)
+    print(mpe)
     
                
             
