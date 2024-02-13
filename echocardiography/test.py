@@ -147,7 +147,22 @@ def percentage_error(label, output, target):
             distances_output.append(distance)
     return distances_label, distances_output 
 
-
+def keypoints_error(label, output, target):
+    """
+    Compute the error of the position of the keypoints
+    """
+    if target == 'keypoints':
+        label, output = label * 256., output * 256.
+        label, output = np.array(label), np.array(output)
+        error = label - output
+    
+    if target == 'heatmaps':
+        ## compute the coordinate of the max value in the heatmaps
+        label = get_corrdinate_from_heatmap(label)
+        output = get_corrdinate_from_heatmap(output)
+        label, output = np.array(label), np.array(output)
+        error = label - output
+    return error
     
 
 if __name__ == '__main__':
@@ -191,6 +206,7 @@ if __name__ == '__main__':
     ## test the model
     model.eval()
     distances_label_list , distances_output_list = [], []
+    keypoints_error_list = []
     with torch.no_grad():
         for i, data in enumerate(test_loader):
             images, labels = data
@@ -210,17 +226,40 @@ if __name__ == '__main__':
                 # show_prediction(image, label, output, target=trained_args['target'])
                 # plt.show()
                 dist_label, dist_output = percentage_error(label, output, target=trained_args['target'])
+                err = keypoints_error(label, output, target=trained_args['target'])
     
                 distances_label_list.append(dist_label)
                 distances_output_list.append(dist_output)
+                keypoints_error_list.append(err)
 
     distances_label_list = np.array(distances_label_list)
     distances_output_list = np.array(distances_output_list)
+    keypoints_error_list = np.array(keypoints_error_list)
 
-    ## Mean Percentage error
+    ## Mean Percentage error and Positional error
     mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
     mpe = np.mean(mpe, axis=0)
-    print(mpe)
+    positional_error = np.mean(keypoints_error_list, axis=0)
+    print(f'Mean Percantace Error: {mpe}')
+    print(f'Positional_error: {positional_error}')
+    print(positional_error.shape)
+
+    ## Plot some plots to visualize the error
+    title_name = {0:'LVPW', 1:'LVID', 2:'IVS'}
+    for point in range(3):
+        plt.figure(figsize=(14,14), num=f'Positional error histogram {title_name[point]}', tight_layout=True)
+        plt.title(f'Error of the keypoints {title_name[point]}', fontsize=20)
+        plt.hist(keypoints_error_list[:,point*4], alpha=0.5, label='x1')
+        plt.hist(keypoints_error_list[:,(point*4)+1], alpha=0.5, label='y1')
+        plt.hist(keypoints_error_list[:,(point*4)+2], alpha=0.5, label='x2')
+        plt.hist(keypoints_error_list[:,(point*4)+3], bins=50, alpha=0.5, label='y2')
+        plt.xlabel('Error', fontsize=20)
+        plt.ylabel('Frequency', fontsize=20)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.legend(fontsize=20)
+        plt.grid()
+    plt.show()
     
                
             
