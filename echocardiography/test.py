@@ -181,18 +181,11 @@ if __name__ == '__main__':
         losses = json.load(json_file)
     with open(os.path.join(train_dir, 'args.json')) as json_file:
         trained_args = json.load(json_file)
-    cfg = train_config(trained_args['target'], device=device)
+    cfg = train_config(trained_args['target'], threshold_wloss=trained_args['threshold_wloss'], device=device)
 
-    ## load test dataset
-    transform_val = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
-    transform_target = transforms.Compose([transforms.Resize((256, 256))])
 
     test_set = EchoNetDataset(batch=args.batch, split='test', phase=args.phase, label_directory=None,
-                              target=trained_args['target'], transform=transform_val, transform_target=transform_target)
+                              target=trained_args['target'], augmentation=False)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
 
     ## load the model
