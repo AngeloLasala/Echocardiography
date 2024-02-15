@@ -22,7 +22,7 @@ import math
 from data_reader import read_video, read_video
 
 class EchoNetDataset(Dataset):
-    def __init__(self, batch, split, phase, target, label_directory=None, transform=None, transform_target=None, augmentation=False):
+    def __init__(self, batch, split, phase, target, label_directory=None, transform=None, augmentation=False):
         """
         Args:
             batch (string): Batch number of video folder, e.g. 'Batch1', 'Batch2', 'Batch3', 'Batch4'.
@@ -38,9 +38,8 @@ class EchoNetDataset(Dataset):
         self.batch = batch
         self.phase = phase
         self.target = target
-        self.transform = transform
-        self.transform_target = transform_target
         self.augmentation = augmentation
+        self.size = (256, 256)
 
         self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
         self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(os.path.join(self.data_dir, 'image'))]
@@ -70,46 +69,80 @@ class EchoNetDataset(Dataset):
 
         image, label = self.get_image_label(idx)
 
-        if self.transform: ## this compute the preprocessing of the image : ToTensor, Normalize, Resize
-            image = self.transform(image)
-
+        ## trasform the label based on target: keypoints, heatmaps, segmentations
         if self.target == 'keypoints': 
             label = label
+            if self.augmentation:
+                image, label = self.data_augmentation_kp(image, label)
+            else:
+                resize = transforms.Resize(size=self.size)
+                image = resize(image)
+                label = torch.tensor(label)
+                image = transforms.functional.to_tensor(image)
+                image = transforms.functional.normalize(image, (0.5), (0.5))    
 
         elif self.target == 'heatmaps': 
             label = self.get_heatmap(idx)
-            label = torch.tensor(label)
-            if self.transform_target:
-                label = self.transform_target(label) 
-
-                if self.data_augmentation:
-                    image, label = self.data_augmentation(image, label)
-
-
+            ## apply data augmentation only on training set, else simply resize the image and the label
+            if self.augmentation:
+                image, label = self.data_augmentation(image, label)
+            else:
+                image, label = self.trasform(image, label)
+                
         elif self.target == 'segmentation':
             label = self.get_heatmap(idx)
             label = (label > 0.5).astype(np.float32)
-            label = torch.tensor(label)
-            if self.transform_target:
-                label = self.transform_target(label)
-                if self.augmentation:
-                    image, label = self.data_augmentation(image, label)
-
+            ## apply data augmentation only on training set, else simply resize the image and the label
+            if self.augmentation:
+                image, label = self.data_augmentation(image, label)
+            else:
+                image, label = self.trasform(image, label)
+           
         else:
             raise ValueError(f'target {self.target} is not valid. Available targets are keypoints, heatmaps, segmentation')
         
         return image, label
 
+    def trasform(self, image, label):
+        """
+        Simple trasformaztion of the label and image. Resize and normalize the image and resize the label
+        """
+        # convert each channel in PIL image
+        label = [Image.fromarray(label[:,:,ch]) for ch in range(label.shape[2])]
+
+        ## Resize
+        resize = transforms.Resize(size=self.size)
+        image = resize(image)
+        label = [resize(ch) for ch in label]
+
+        ## convert to tensor and normalize
+        label = np.array([np.array(ch) for ch in label])
+        label = torch.tensor(label)
+
+        image = transforms.functional.to_tensor(image)
+        image = transforms.functional.normalize(image, (0.5), (0.5))    
+        return image, label
+
     def data_augmentation(self, image, label):
         """
-        Set of trasformation to apply to image and label(heatmaps) as a data augmentation
+        Set of trasformation to apply to image and label (heatmaps).
+        This function contain all the data augmentation trasformations and the normalization.
+        Note: torchvision.transforms often rely on PIL as the underlying library, 
+            so each channel of heatmap need to transform  separately (channels are in the first dimension)
         """
-     
+        # convert each channel in PIL image
+        label = [Image.fromarray(label[:,:,ch]) for ch in range(label.shape[2])]
+
+        ## Resize
+        resize = transforms.Resize(size=self.size)
+        image = resize(image)
+        label = [resize(ch) for ch in label]
+        
         ## random rotation to image and label
         if torch.rand(1) > 0.5:
             angle = np.random.randint(-15, 15)
             image = transforms.functional.rotate(image, angle)
-            label = transforms.functional.rotate(label, angle)
+            label = [transforms.functional.rotate(ch, angle) for ch in label]
 
         ## random translation to image and label in each direction
         if torch.rand(1) > 0.5:
@@ -117,21 +150,48 @@ class EchoNetDataset(Dataset):
                                                         translate=(0.10, 0.10),
                                                         scale_ranges=(1.0,1.0),
                                                         shears=(0.,0.), 
-                                                        img_size=(256, 256))
+                                                        img_size=self.size)
             image = transforms.functional.affine(image, *translate)
-            label = transforms.functional.affine(label, *translate)
+            label = [transforms.functional.affine(ch, *translate) for ch in label]
 
         ## random brightness and contrast
         if torch.rand(1) > 0.5:
             image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
         
         ## random gamma correction
-        if torch.rand(1) > 0.0:
+        if torch.rand(1) > 0.5:
             gamma = np.random.uniform(0.5, 1.5)
             image = transforms.functional.adjust_gamma(image, gamma)
-        
+
+        ## Convert to tensor and normalize
+        label = np.array([np.array(ch) for ch in label])
+        label = torch.tensor(label)
+
+        image = transforms.functional.to_tensor(image)
+        image = transforms.functional.normalize(image, (0.5), (0.5))        
         return image, label
 
+    def data_augmentation_kp(self, image, label):
+        ## Resize
+        resize = transforms.Resize(size=self.size)
+        image = resize(image)
+        
+     
+        ## random brightness and contrast
+        if torch.rand(1) > 0.5:
+            image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
+        
+        ## random gamma correction
+        if torch.rand(1) > 0.5:
+            gamma = np.random.uniform(0.5, 1.5)
+            image = transforms.functional.adjust_gamma(image, gamma)
+
+        ## Convert to tensor and normalize
+        label = torch.tensor(label)
+
+        image = transforms.functional.to_tensor(image)
+        image = transforms.functional.normalize(image, (0.5), (0.5))        
+        return image, label
 
 
     def get_heatmap(self, idx):
@@ -151,7 +211,7 @@ class EchoNetDataset(Dataset):
         covariance = np.array([[std_dev * 20, 0.], [0., std_dev]])
         
         # Initialize an empty 6-channel heatmap vector
-        heatmaps_label= np.zeros((6, image.size[1], image.size[0]), dtype=np.float32)
+        heatmaps_label= np.zeros((image.size[1], image.size[0], 6), dtype=np.float32)
         for hp, heart_part in enumerate([labels[0:4], labels[4:8], labels[8:12]]): ## LVIDd, IVSd, LVPWd
             ## compute the angle of the heart part
             x_diff = heart_part[0:2][0] - heart_part[2:4][0]
@@ -169,7 +229,7 @@ class EchoNetDataset(Dataset):
                 base_heatmap = base_heatmap / np.max(base_heatmap)
                 # print(base_heatmap.shape, np.min(base_heatmap), np.max(base_heatmap))
                 channel_index = hp * 2 + i
-                heatmaps_label[channel_index, :, :] = base_heatmap
+                heatmaps_label[:, :, channel_index] = base_heatmap
 
         return heatmaps_label
 
