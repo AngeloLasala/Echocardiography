@@ -27,7 +27,7 @@ class WeightedMSELoss(nn.Module):
         # create a weight tensor substituting 1 with 1/num_1 and 0 with 1/num_0
         weight = torch.where(mask == 1, 1/freq_1, weight).to(self.device)
         weight = torch.where(mask == 0, 1/freq_0, weight).to(self.device)
-        print(f'Weight: {weight.min()} - {weight.max()}')
+        # print(f'Weight: {weight.min()} - {weight.max()}')
         return torch.mean(weight * (label - output) ** 2)
 
 class RMSELoss(torch.nn.Module):
@@ -91,26 +91,24 @@ if __name__ == '__main__':
     device = torch.device('cpu')
     print(f'Using device: {device}')
     
-    transform = transforms.Compose([transforms.Resize((256, 256)),
-                                    transforms.ToTensor()])
-    transform_target = transforms.Compose([transforms.Resize((256, 256))])
 
     print('start creating the dataset...')
     validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, 
-                              target=args.target, transform=transform, transform_target=transform_target, augmentation=True)
+                              target=args.target, augmentation=True)
 
     print('start creating the dataloader...')
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
     for ii in range(10):
         image, label = validation_set[0]
-        print(f'image shape: {image.shape} - label shape: {label.shape}')
+        print(f'image shape: {image.size} - label shape: {type(label)}')
+        print(f'min max image: {image.min()} - {image.max()}')
 
-        # plt.figure(figsize=(10, 10))
-        # plt.subplot(1, 4, 1)
-        # plt.imshow(image[0], cmap='gray')
-        # plt.title('Image')
-        # plt.axis('off')
+        plt.figure(figsize=(24, 10), tight_layout=True)
+        plt.subplot(1, 4, 1)
+        plt.imshow(image[0], cmap='gray')
+        plt.title('Image')
+        plt.axis('off')
         # plt.subplot(1, 4, 2)
         # plt.imshow(image[0], cmap='gray')
         # plt.imshow(label[0,:,:], cmap='jet', alpha=0.5)
@@ -125,7 +123,7 @@ if __name__ == '__main__':
         # plt.imshow(label[-1,:,:], cmap='jet')
         # plt.title('Heatmap')
         # plt.axis('off')
-        # plt.show()
+        plt.show()
 
     
     
@@ -134,7 +132,7 @@ if __name__ == '__main__':
         ## cretate a target tensfor random with the same shape of the label
         print(image.shape, label.shape)
 
-        plt.figure(figsize=(10, 10))
+        plt.figure(figsize=(24, 10))
         plt.subplot(1, 4, 1)
         plt.imshow(image[0,0,:,:], cmap='gray')
         plt.title('Image')
@@ -161,7 +159,6 @@ if __name__ == '__main__':
         loss = torch.nn.MSELoss()
         loss = nn.MSELoss()
         
-        output = loss(output, label)
         w_mse = WeightedMSELoss(threshold=0.1, device = device)(output, label)
         w_rmse = WeightedRMSELoss(threshold=0.1, device = device)(output, label)
         rmse = RMSELoss()(output, label)
