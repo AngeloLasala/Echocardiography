@@ -144,7 +144,6 @@ class UNet_up(nn.Module):
         
         # Decoder
         xu1 = self.conv1_1(self.upconv1(xe52))
-        print(xe52.shape, xu1.shape, xe42.shape)
         xu11 = torch.cat([xu1, xe42], dim=1)
         xd11 = F.relu(self.bn_d11(self.d11(xu11)))
         xd12 = F.relu(self.bn_d12(self.d12(xd11)))
@@ -262,9 +261,6 @@ class UNet(nn.Module):
         
         # Decoder
         xu1 = self.upconv1(xe52)
-        print('aaaaaaaaaaaaaaaaaaaaaaaaa')
-        print(xu1.shape, xe42.shape)
-        
         xu11 = torch.cat([xu1, xe42], dim=1)
         xd11 = F.relu(self.d11(xu11))
         xd12 = F.relu(self.d12(xd11))

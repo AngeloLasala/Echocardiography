@@ -10,6 +10,7 @@ from torchvision import transforms
 from datetime import datetime
 import time
 import tqdm
+from cfg import train_config
 
 import json
 import pandas as pd
@@ -18,7 +19,6 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
 from dataset import EchoNetDataset, convert_to_serializable
-from train import train_config
 from scipy.stats import multivariate_normal
 from scipy import ndimage
 import cv2
@@ -181,18 +181,22 @@ if __name__ == '__main__':
         losses = json.load(json_file)
     with open(os.path.join(train_dir, 'args.json')) as json_file:
         trained_args = json.load(json_file)
-    cfg = train_config(trained_args['target'], threshold_wloss=trained_args['threshold_wloss'], device=device)
+    cfg = train_config(trained_args['target'], 
+                       threshold_wloss=trained_args['threshold_wloss'], 
+                       model=trained_args['model'],
+                       device=device)
 
 
     test_set = EchoNetDataset(batch=args.batch, split='test', phase=args.phase, label_directory=None,
                               target=trained_args['target'], augmentation=False)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=8, shuffle=False, num_workers=4, pin_memory=True)
 
     ## load the model
     best_model = get_best_model(train_dir)
-    print(f'Best model: {best_model}')
+    print(f"Model: {trained_args['model']}, Best model: {best_model}")
     model_dir = os.path.join('TRAINED_MODEL', args.batch, args.phase, args.trial)
     model = cfg['model'].to(device)
+    print(model)
     model.load_state_dict(torch.load(os.path.join(train_dir, f'model_{best_model}')))
     model.to(device)
 
@@ -216,8 +220,8 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                # show_prediction(image, label, output, target=trained_args['target'])
-                # plt.show()
+                show_prediction(image, label, output, target=trained_args['target'])
+                plt.show()
                 dist_label, dist_output = percentage_error(label, output, target=trained_args['target'])
                 err = keypoints_error(label, output, target=trained_args['target'])
 

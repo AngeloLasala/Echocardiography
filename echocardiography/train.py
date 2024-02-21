@@ -13,8 +13,9 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 from dataset import EchoNetDataset, convert_to_serializable
-from models import ResNet50Regression, PlaxModel, UNet
+from models import ResNet50Regression, PlaxModel, UNet, UNet_up
 from losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss
+from cfg import train_config
 
 ## deactivate the warning of the torch
 import warnings
@@ -54,40 +55,7 @@ def dataset_iteration(dataloader):
         plt.axis('off')
         plt.show()
 
-def train_config(target, threshold_wloss, device):
-    """
-    return the model and the loss function based on the target
 
-    Parameters
-    ----------
-    target : str
-        target to predict, e.g. keypoints, heatmaps, segmentation
-
-    theta_wloss : float
-        threshold for the weighted loss, if 0. all the weights are 1 and the lass fall back to regular ones
-
-    Returns
-    -------
-    """
-    cfg = {}
-    if target == 'keypoints': 
-        cfg['model'] = ResNet50Regression(num_labels=12)
-        cfg['loss'] = torch.nn.MSELoss()
-
-    elif target == 'heatmaps': 
-        cfg['model'] = PlaxModel(num_classes=6)
-        # cfg['model'] = UNet(num_classes=6)
-        cfg['loss'] = WeightedRMSELoss(threshold=threshold_wloss, device=device)
-        
-    elif target == 'segmentation':
-        cfg['model'] = PlaxModel(num_classes=6)
-        # cfg['model'] = UNet(in_channels=3, num_classes=6)
-        cfg['loss'] = torch.nn.MSELoss()
-       
-    else:
-        raise ValueError(f'target {target} is not valid. Available targets are keypoints, heatmaps, segmentation')
-
-    return cfg
 
 def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer = None):
     """
@@ -203,13 +171,14 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=0.0, help='L2 regularization for the optimizer, default=0 that means no regularization')
     parser.add_argument('--threshold_wloss', type=float, default=0.5, help='Threshold for the weighted loss, if 0. all the weights are 1 and the lass fall back to regular ones')
     parser.add_argument('--save_dir', type=str, default='TRAINED_MODEL', help='Directory to save the model')
+    parser.add_argument('--model', type=str, default=None, help='model architecture to use, e.g. resnet50, unet, plaxmodel')
     args = parser.parse_args()
     
     ## device and reproducibility    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(42)
     np.random.seed(42)
-    cfg = train_config(args.target, threshold_wloss=args.threshold_wloss, device=device)
+    cfg = train_config(args.target, threshold_wloss=args.threshold_wloss, model=args.model, device=device)
     print(f'Using device: {device}')
     
     print('start creating the dataset...')
@@ -226,9 +195,10 @@ if __name__ == '__main__':
     ## TRAIN
     print('start training...')
     loss_fn = cfg['loss']
-    print(loss_fn) 
     model = cfg['model'].to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    print(loss_fn)
+    print(model) 
 
     #check if the save directory exist, if not create it
     save_dir = os.path.join(args.save_dir, args.batch_dir, args.phase)

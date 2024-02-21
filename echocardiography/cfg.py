@@ -6,7 +6,7 @@ import argparse
 
 import numpy as np
 from dataset import EchoNetDataset, convert_to_serializable
-from models import ResNet50Regression, PlaxModel, UNet
+from models import ResNet50Regression, PlaxModel, UNet, UNet_up
 from losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss
 
 def train_config(target, threshold_wloss, model, device):
