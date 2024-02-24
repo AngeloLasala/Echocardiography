@@ -287,39 +287,39 @@ class UNet(nn.Module):
         return out
 
 if __name__ == '__main__':
-    ## SimpleRegression model
-    model = ResNet50Regression()
-    x = torch.randn(1, 3, 256, 256)
-    print(model(x))
+    # ## SimpleRegression model
+    # model = ResNet50Regression()
+    # x = torch.randn(1, 3, 256, 256)
+    # print(model(x))
 
 
-    ## PLAX model
-    model = PlaxModel(num_classes=6)
-    x = torch.randn(2, 3, 256, 256)
-    model.train()
-    print(summary(model))
-    print(model(x).shape, model(x).min(), model(x).max())
-    pred = model(x).detach().numpy()
-    # print max and min values
-    print(pred.max(), pred.min())
-    print(pred.shape)
+    # ## PLAX model
+    # model = PlaxModel(num_classes=6)
+    # x = torch.randn(2, 3, 256, 256)
+    # model.train()
+    # print(summary(model))
+    # print(model(x).shape, model(x).min(), model(x).max())
+    # pred = model(x).detach().numpy()
+    # # print max and min values
+    # print(pred.max(), pred.min())
+    # print(pred.shape)
 
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.imshow(pred[0, 0, :, :])
-    # plt.show()
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.imshow(pred[0, 0, :, :])
+    # # plt.show()
 
-    ## UNet model
-    model = UNet(num_classes=6)
-    model.train()
-    x = torch.randn(2, 3, 256, 256)
-    print(summary(model))
-    print(model(x).shape, model(x).min(), model(x).max())
-    pred = model(x).detach().numpy()
+    # ## UNet model
+    # model = UNet(num_classes=6)
+    # model.train()
+    # x = torch.randn(2, 3, 256, 256)
+    # print(summary(model))
+    # print(model(x).shape, model(x).min(), model(x).max())
+    # pred = model(x).detach().numpy()
 
-    plt.figure()
-    plt.imshow(pred[0, 0, :, :])
-    # plt.show()
+    # plt.figure()
+    # plt.imshow(pred[0, 0, :, :])
+    # # plt.show()
 
 
     model = UNet_up(num_classes=6)
