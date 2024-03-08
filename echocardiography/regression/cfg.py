@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 from dataset import EchoNetDataset, convert_to_serializable
 from models import ResNet50Regression, PlaxModel, UNet, UNet_up
-from losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss
+from losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss, WeighteRMSELoss_l2MAE
 
 def train_config(target, threshold_wloss, model, device):
     """
@@ -34,7 +34,8 @@ def train_config(target, threshold_wloss, model, device):
         if model == 'unet': cfg['model'] = UNet(num_classes=6)
         if model == 'unet_up': cfg['model'] = UNet_up(num_classes=6)
         if model == 'plax': cfg['model'] = PlaxModel(num_classes=6)
-        cfg['loss'] = WeightedRMSELoss(threshold=threshold_wloss, device=device)
+        cfg['loss'] = WeighteRMSELoss_l2MAE(threshold=0.0, alpha=1.5, device = device)
+
         
     elif target == 'segmentation':
         if model == 'unet': cfg['model'] = UNet(num_classes=6)

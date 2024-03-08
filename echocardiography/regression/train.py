@@ -22,40 +22,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def dataset_iteration(dataloader):
-    """
-    Iterate over the dataset
-
-    Parameters
-    ----------
-    dataloader : torch.utils.data.DataLoader
-        DataLoader object that contains the dataset
-    """
-    for batch_idx, (data, target) in enumerate(dataloader):
-        # Your training code goes here
-        # 'data' contains the input images
-        # 'target' contains the corresponding labels or any other relevant information
-        
-        # Example: Print the shape of the batch
-        print(f'Batch {batch_idx + 1}/{len(training_loader)} - Data Shape: {data.shape}, Target Shape: {target.shape}')
-        image = data.numpy().transpose((0, 2, 3, 1))[0]
-        label = target.numpy()[0]
-        print(np.min(image), np.max(image))
-        
-        plt.figure(figsize=(14,14), num='Example - batch ' + str(batch_idx + 1))
-        plt.imshow(image, cmap='gray')
-        plt.scatter(label[0] * image.shape[0], label[1] * image.shape[1], color='green', marker='o', s=100, alpha=0.5) 
-        plt.scatter(label[2] * image.shape[0], label[3] * image.shape[1], color='green', marker='o', s=100, alpha=0.5)
-
-        plt.scatter(label[4] * image.shape[0], label[5] * image.shape[1], color='red', marker='o', s=100, alpha=0.5) 
-        plt.scatter(label[6] * image.shape[0], label[7] * image.shape[1], color='red', marker='o', s=100, alpha=0.5)
-
-        plt.scatter(label[8] * image.shape[0], label[9] * image.shape[1], color='blue', marker='o', s=100, alpha=0.5) 
-        plt.scatter(label[10] * image.shape[0], label[11] * image.shape[1], color='blue', marker='o', s=100, alpha=0.5)
-        plt.axis('off')
-        plt.show()
-
-
 
 def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer = None):
     """

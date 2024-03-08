@@ -3,6 +3,7 @@ import torch.nn as nn
 import os
 import argparse
 from dataset import EchoNetDataset, convert_to_serializable
+from utils import get_corrdinate_from_heatmap, get_corrdinate_from_heatmap_torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
 
@@ -56,7 +57,8 @@ class WeightedRMSELoss(torch.nn.Module):
         
     def forward(self,output,label):
         weight = torch.ones(label.shape).to(self.device)
-        ## binary the targert with 0.5
+
+        ## binary the targert with selected threshold
         mask = (label >= self.threshold).float().to(self.device)
  
         ## give me the total numer of 0 and 1
@@ -74,6 +76,58 @@ class WeightedRMSELoss(torch.nn.Module):
         loss = torch.sqrt((torch.mean(weight * (label - output) ** 2)) + self.eps)
         return loss
 
+class WeighteRMSELoss_l2MAE(torch.nn.Module):
+    """
+    Weighted Root Mean Square Error Loss with L2 regularization function for the mass center
+    """
+    def __init__(self, threshold, device, mu=1., alpha=1., eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        self.device = device
+        self.threshold = threshold
+        self.w_rmse = WeightedRMSELoss(self.threshold, self.device, self.eps)
+        self.mu = mu
+        self.alpha = alpha
+        
+    def forward(self,output,label):
+        ## weighted RMSE
+        w_rmse = self.w_rmse(output, label)
+
+        # ## L2 regularization
+        mass_center_output = self.get_cordinate(output).float()
+        mass_center_label = self.get_cordinate(label).float()
+        l2_reg = torch.mean((mass_center_output - mass_center_label) ** 2)
+
+        loss = self.mu * w_rmse + self.alpha * l2_reg
+        return loss
+
+    def get_cordinate(self, heatmap):
+        """
+        Get the coordinate from the heatmap
+
+        Parameters
+        ----------
+        heatmap : torch.Tensor
+            Tensor containing the heatmap (B x C * W * H)
+
+        Returns
+        -------
+        list
+            List containing the coordinates
+        """
+        batch_list, label_list = [], []
+        for batch in range(heatmap.shape[0]):
+            for ch in range(heatmap.shape[1]):
+                # Get the channel slice
+                ch_map = heatmap[0, ch, :, :]
+                max_index = torch.argmax(ch_map)
+                max_coordinates = divmod(max_index.item(), ch_map.size(1))
+                
+                label_list.append(max_coordinates[1]/ch_map.size(1))
+                label_list.append(max_coordinates[0]/ch_map.size(0))   
+            batch_list.append(label_list)
+        return torch.tensor(batch_list)
+        
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
     parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
@@ -99,7 +153,7 @@ if __name__ == '__main__':
     print('start creating the dataloader...')
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
-    for ii in range(10):
+    for ii in range(1):
         image, label = validation_set[0]
         print(f'image shape: {image.size} - label shape: {type(label)}')
         print(f'min max image: {image.min()} - {image.max()}')
@@ -109,21 +163,21 @@ if __name__ == '__main__':
         plt.imshow(image[0], cmap='gray')
         plt.title('Image')
         plt.axis('off')
-        # plt.subplot(1, 4, 2)
-        # plt.imshow(image[0], cmap='gray')
-        # plt.imshow(label[0,:,:], cmap='jet', alpha=0.5)
-        # plt.imshow(label[-1,:,:], cmap='jet', alpha=0.5)
-        # plt.title('Image')
-        # plt.axis('off')
-        # plt.subplot(1, 4, 3)
-        # plt.imshow(label[0,:,:], cmap='jet')
-        # plt.title('Label')
-        # plt.axis('off')
-        # plt.subplot(1, 4, 4)
-        # plt.imshow(label[-1,:,:], cmap='jet')
-        # plt.title('Heatmap')
-        # plt.axis('off')
-        plt.show()
+        plt.subplot(1, 4, 2)
+        plt.imshow(image[0], cmap='gray')
+        plt.imshow(label[0,:,:], cmap='jet', alpha=0.5)
+        plt.imshow(label[-1,:,:], cmap='jet', alpha=0.5)
+        plt.title('Image')
+        plt.axis('off')
+        plt.subplot(1, 4, 3)
+        plt.imshow(label[0,:,:], cmap='jet')
+        plt.title('Label')
+        plt.axis('off')
+        plt.subplot(1, 4, 4)
+        plt.imshow(label[-1,:,:], cmap='jet')
+        plt.title('Heatmap')
+        plt.axis('off')
+        # plt.show()
 
     
     
@@ -151,7 +205,6 @@ if __name__ == '__main__':
         plt.imshow(label[0,-1,:,:], cmap='jet')
         plt.title('Heatmap')
         plt.axis('off')
-        plt.show()
 
         output = torch.rand(label.shape).to(device)
         label = label.to(device)
@@ -161,9 +214,12 @@ if __name__ == '__main__':
         
         w_mse = WeightedMSELoss(threshold=0.1, device = device)(output, label)
         w_rmse = WeightedRMSELoss(threshold=0.1, device = device)(output, label)
+        wl_rmse = WeighteRMSELoss_l2MAE(threshold=0.0, device = device)(output, label)
         rmse = RMSELoss()(output, label)
 
         print(f'W_MSE: {w_mse}')
         print(f'W_RMSE: {w_rmse}')
         print(f'RMSE: {rmse}')
+        print(f'WL_RMSE: {wl_rmse}')
         print('===============================================')
+        plt.show()

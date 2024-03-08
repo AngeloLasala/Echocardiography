@@ -227,7 +227,6 @@ class EchoNetDataset(Dataset):
                 rotation_matrix = cv2.getRotationMatrix2D(mean, angle + 90, 1.0)
                 base_heatmap = cv2.warpAffine(base_heatmap, rotation_matrix, (base_heatmap.shape[1], base_heatmap.shape[0]))
                 base_heatmap = base_heatmap / np.max(base_heatmap)
-                # print(base_heatmap.shape, np.min(base_heatmap), np.max(base_heatmap))
                 channel_index = hp * 2 + i
                 heatmaps_label[:, :, channel_index] = base_heatmap
 

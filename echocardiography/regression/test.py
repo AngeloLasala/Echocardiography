@@ -18,12 +18,14 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import tqdm
-from dataset import EchoNetDataset, convert_to_serializable
 from scipy.stats import multivariate_normal
 from scipy import ndimage
 import cv2
 import math
 import numpy as np
+
+from utils import get_corrdinate_from_heatmap
+from dataset import EchoNetDataset, convert_to_serializable
 
 def get_best_model(train_dir):
     """
@@ -82,6 +84,13 @@ def show_prediction(image, label, output, target):
         fig, axes = plt.subplots(nrows=2, ncols=4, num='example', figsize=(26,14), tight_layout=True)
         num_classes = [0,1,3,5] # for the visualizazion i aviod the superimpose classes
 
+        ## sum the channels to have a single label and prediction
+        label_single = np.zeros((256,256))
+        output_single = np.zeros((256,256))
+        for i in num_classes:
+            label_single += label[:,:,i]
+            output_single += output[:,:,i]
+
         # real image on each spot
         for ax in axes: ## 2 elements == label and prediction
             for i in range(len(num_classes)): ## 4 eleminets, num of classes
@@ -99,17 +108,16 @@ def show_prediction(image, label, output, target):
         for i, ch in enumerate(num_classes):
             axes[1,i].imshow(output[:,:,ch], cmap='jet', alpha=0.5)
 
-def get_corrdinate_from_heatmap(heatmap):
-    """
-    Get the coordinate from the heatmap
-    """
-    label_list = []
-    for ch in range(heatmap.shape[0]):
-        max_value = np.max(heatmap[ch])
-        coor = np.where(heatmap[ch] == max_value)
-        label_list.append(coor[1][0])
-        label_list.append(coor[0][0])
-    return label_list
+        fig1, ax1 = plt.subplots(nrows=1, ncols=2, num='Example', figsize=(26,14), tight_layout=True)
+        ax1[0].imshow(image, cmap='gray', alpha=1.0)
+        ax1[0].imshow(label_single, cmap='jet', alpha=0.3)
+        ax1[1].imshow(image, cmap='gray', alpha=1.0)
+        ax1[1].imshow(output_single, cmap='jet', alpha=0.3)
+        ax1[0].axis('off')
+        ax1[1].axis('off')
+        plt.show()
+
+
 
 def percentage_error(label, output, target):
     """
