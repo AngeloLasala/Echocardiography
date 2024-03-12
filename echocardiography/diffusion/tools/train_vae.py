@@ -22,34 +22,8 @@ import matplotlib.pyplot as plt
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def train(conf):
-    # autoencoder_config = {
-    #     'z_channels': 3,
-    #     'down_channels': [32, 64, 128, 256],
-    #     'mid_channels': [256, 256],
-    #     'down_sample': [True, True, True],
-    #     'attn_down': [False, False, False], ## False, deactivate the attention meccanism of autoencoder
-    #     'norm_channels': 32,
-    #     'num_heads': 4,
-    #     'num_down_layers': 2,
-    #     'num_mid_layers': 2,
-    #     'num_up_layers': 2
-    # }
-    # dataset_config = {
-    #     'im_path': 'data/mnist/train/images',
-    #     'im_channels': 1,
-    #     'im_size': 256,
-    # }
-    # train_config = {'autoencoder_epochs': 20,
-    #                 'autoencoder_lr': 0.00001,
-    #                 'disc_start': tart
-    #                 'autoencoder_batch_size': 4,
-    #                 'kl_weight': 0.000005,
-    #                 'perceptual_weight': 1.,
-    #                 'disc_weight': 0.5,
+def train(conf, save_folder):
 
-    # }
-    # Read the config file #
     with open(conf, 'r') as file:
         try:
             config = yaml.safe_load(file)
@@ -82,14 +56,19 @@ def train(conf):
 
     # Create the dataset and dataloader
     data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']), im_path=dataset_config['im_path'])
-    data_loader = DataLoader(data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=8)
+    data_loader = DataLoader(data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4)
     
     ## generate save folder
-    save_folder = 'prova_tools_sgsdf'
-    if not os.path.exists(save_folder):
-        os.mkdir(save_folder)
+    save_dir = os.path.join(save_folder, dataset_config['name'])
+    if not os.path.exists(save_dir):
+        save_dir = os.path.join(save_dir, 'trial_1', 'vae')
+        os.makedirs(save_dir)
+    else:
+        current_trial = len(os.listdir(save_dir))
+        save_dir = os.path.join(save_dir, f'trial_{current_trial + 1}', 'vae')
+        os.makedirs(save_dir)
 
-        
+      
     # Create the loss and optimizer
     num_epochs = train_config['autoencoder_epochs']
 
@@ -110,7 +89,7 @@ def train(conf):
     # And one cant afford higher batch sizes
     # acc_steps = train_config['autoencoder_acc_steps']
     # image_save_steps = train_config['autoencoder_img_save_steps']
-    image_save_steps = len(data) // train_config['autoencoder_batch_size']
+    image_save_steps = len(data) // train_config['autoencoder_batch_size'] // 10
     losses_epoch = {'recon': [], 'kl': [], 'lpips': [], 'disc': [], 'gen': []}
 
     for epoch_idx in range(num_epochs):
@@ -145,9 +124,8 @@ def train(conf):
                 plt.figure(figsize=(20, 10), tight_layout=True)
                 plt.imshow(img)
                 plt.axis('off')
-                plt.savefig(os.path.join(save_folder, f'output_{step_count}.png'))
-                # plt.show()
-
+                plt.savefig(os.path.join(save_dir, f'output_{step_count}.png'))
+                plt.close()
 
             recon_loss = recon_criterion(output, im)
             recon_losses.append(recon_loss.item())
@@ -169,9 +147,7 @@ def train(conf):
 
             g_loss += train_config['perceptual_weight'] * lpips_loss   
             g_loss.backward()
-            losses.append(g_loss.item())
-            optimizer_g.step()
-            
+            losses.append(g_loss.item())            
             #############################################################################
 
             #########################  Discriminator ################################
@@ -189,7 +165,8 @@ def train(conf):
                 optimizer_d.step()
                 optimizer_d.zero_grad()
             #############################################################################
-        optimizer_g.zero_grad()
+            optimizer_g.step()
+            optimizer_g.zero_grad()
 
         ## Print epoch
         if len(disc_losses) > 0:
@@ -208,22 +185,42 @@ def train(conf):
             losses_epoch['gen'].append(0)
         # plt.show()
 
-       
-    torch.save(model.state_dict(), os.path.join(save_folder, 'vae_eco.pth'))                                            
-    torch.save(discriminator.state_dict(), os.path.join(save_folder, 'discriminator_vae_eco.pth'))
+    torch.save(model.state_dict(), os.path.join(save_dir, 'vae.pth'))                                            
+    torch.save(discriminator.state_dict(), os.path.join(save_dir, 'discriminator.pth'))
 
     ## save json file of losses
-    with open(os.path.join(save_folder, 'losses.json'), 'w') as f:
+    with open(os.path.join(save_dir, 'losses.json'), 'w') as f:
         json.dump(losses_epoch, f, indent=4)
+
+    ## save the config file
+    with open(os.path.join(save_dir, 'config.yaml'), 'w') as f:
+        yaml.dump(config, f)
+
+    ## plot the loss
+    fig, ax = plt.subplots(nrows=5, ncols=1, figsize=(10, 6), num='Losses')
+    ax[0].plot(np.array(losses_epoch['recon']), label='recon')
+    ax[1].plot(np.array(losses_epoch['kl']), label='kl')
+    ax[2].plot(np.array(losses_epoch['lpips']), label='lpips')
+    ax[3].plot(np.array(losses_epoch['disc']), label='disc')
+    ax[4].plot(np.array(losses_epoch['gen']), label='gen')
+    for i in range(5):
+        ax[i].set_xlabel('Epochs', fontsize=15)
+        ax[i].set_ylabel('Loss', fontsize=15)
+        ax[i].tick_params(axis='both', which='major', labelsize=15)
+        ax[i].legend(fontsize=15)
+    plt.savefig(os.path.join(save_dir, 'losses.png'))
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train VAE on MNIST or CelebA-HQ')
     parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco')  
+    parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model')
     args = parser.parse_args()
 
     current_directory = os.path.dirname(__file__)
     par_dir = os.path.dirname(current_directory)
+
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
-    train(conf = configuration)
+    save_folder = os.path.join(par_dir, args.save_folder)
+    train(conf = configuration, save_folder = save_folder)
