@@ -19,7 +19,7 @@ from scipy import ndimage
 import cv2
 import math
 
-from data_reader import read_video, read_video
+from echocardiography.regression.data_reader import read_video, read_video
 
 class EchoNetDataset(Dataset):
     def __init__(self, batch, split, phase, target, label_directory=None, transform=None, augmentation=False):
