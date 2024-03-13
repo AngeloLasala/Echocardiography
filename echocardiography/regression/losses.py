@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import os
 import argparse
-from dataset import EchoNetDataset, convert_to_serializable
-from utils import get_corrdinate_from_heatmap, get_corrdinate_from_heatmap_torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
 
+from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable
+from echocardiography.regression.utils import get_corrdinate_from_heatmap, get_corrdinate_from_heatmap_torch
 ## define weighted MSE loss
 class WeightedMSELoss(nn.Module):
     def __init__(self, threshold, device):
