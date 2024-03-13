@@ -56,7 +56,7 @@ def train(conf, save_folder):
 
     # Create the dataset and dataloader
     data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']), im_path=dataset_config['im_path'])
-    data_loader = DataLoader(data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4)
+    data_loader = DataLoader(data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
     
     ## generate save folder
     save_dir = os.path.join(save_folder, dataset_config['name'])
@@ -89,7 +89,7 @@ def train(conf, save_folder):
     # And one cant afford higher batch sizes
     # acc_steps = train_config['autoencoder_acc_steps']
     # image_save_steps = train_config['autoencoder_img_save_steps']
-    image_save_steps = len(data) // train_config['autoencoder_batch_size'] // 10
+    image_save_steps = len(data) // train_config['autoencoder_batch_size'] 
     losses_epoch = {'recon': [], 'kl': [], 'lpips': [], 'disc': [], 'gen': []}
 
     for epoch_idx in range(num_epochs):
@@ -118,7 +118,7 @@ def train(conf, save_folder):
                 save_output = torch.clamp(output[:sample_size], -1., 1.).detach().cpu()
                 save_output = ((save_output + 1) / 2)
                 save_input = ((im[:sample_size] + 1) / 2).detach().cpu()
-                
+
                 grid = make_grid(torch.cat([save_input, save_output], dim=0), nrow=sample_size)
                 img = torchvision.transforms.ToPILImage()(grid)
                 plt.figure(figsize=(20, 10), tight_layout=True)
