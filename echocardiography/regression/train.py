@@ -12,10 +12,11 @@ import tqdm
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-from dataset import EchoNetDataset, convert_to_serializable
-from models import ResNet50Regression, PlaxModel, UNet, UNet_up
-from losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss
-from cfg import train_config
+
+from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable
+from echocardiography.regression.models import ResNet50Regression, PlaxModel, UNet, UNet_up
+from echocardiography.regression.losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss
+from echocardiography.regression.cfg import train_config
 
 ## deactivate the warning of the torch
 import warnings
