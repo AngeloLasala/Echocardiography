@@ -124,7 +124,10 @@ def train(par_dir, conf, trial):
             loss.backward()
             optimizer.step()
         print(f'Finished epoch:{epoch_idx+1} | Loss : {np.mean(losses):.4f}')
-        torch.save(model.state_dict(), os.path.join(save_folder, f'ldm_{epoch_idx}.pth'))
+
+        # Save the model
+        if (epoch_idx+1) % train_config['save_frequency'] == 0:
+            torch.save(model.state_dict(), os.path.join(save_folder, f'ldm_{epoch_idx}.pth'))
     
     print('Done Training ...')
 
@@ -140,7 +143,6 @@ if __name__ == '__main__':
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
     save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    print(configuration)
     train(par_dir = par_dir,
         conf = configuration, 
         trial = args.trial)
