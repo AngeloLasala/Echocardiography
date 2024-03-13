@@ -10,7 +10,8 @@ from torchvision import transforms
 from datetime import datetime
 import time
 import tqdm
-from cfg import train_config
+# from cfg import train_config
+from echocardiography.regression.cfg import train_config
 
 import json
 import pandas as pd
@@ -24,8 +25,8 @@ import cv2
 import math
 import numpy as np
 
-from utils import get_corrdinate_from_heatmap
-from dataset import EchoNetDataset, convert_to_serializable
+from echocardiography.regression.utils import get_corrdinate_from_heatmap
+from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable
 
 def get_best_model(train_dir):
     """
