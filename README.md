@@ -16,6 +16,11 @@ and run the `setup.py` file
 pip install -e .
 ```
 
+**Guideline for the development**. Any change in the tree structure of the repository affect the installation of the packages with `setup.py`. Afert any modification in the tree, you have to reinstall the packages, here same usefull command line:
+
+- `pip list`: list of installed packeges in the virtual env, the name of echocardiography is `echocardiography version=1.0 ../Echocardiography
+- `pip uninstall echocargiography`: uninstall the package
+- `pip install -e .`: reinstall the packege
 ## Usage
 
 ### Regression
