@@ -37,6 +37,8 @@ python train_vae.py --data eco
 python infer_vae.py --data eco --trail trail_n
 ```
 
+#### Latent Diffusion Model
+
 
 
 
