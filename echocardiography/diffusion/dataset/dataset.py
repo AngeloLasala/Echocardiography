@@ -104,36 +104,29 @@ class EcoDataset():
 
         im = Image.open(patient_path)
         im = im.resize(self.size)
-        im_tensor = torchvision.transforms.ToTensor()(im)
+        # im_tensor = torchvision.transforms.ToTensor()(im)
 
         ## here the part for the heatmaps
         if self.spatial_condiction:
             model = self.get_model_regression()
             model.eval()
             with torch.no_grad():
-                image = im_tensor
+                image = torchvision.transforms.ToTensor()(im)
                 image = transforms.functional.normalize(image, (0.5), (0.5))    
                 image = image.unsqueeze(0)
                 image = image.to(device)
                 output = model(image).to(device)
 
-                # image = image.cpu().numpy().transpose((0, 2, 3, 1))
-                # output = output.cpu().numpy()
-                
-                # for i in range(image.shape[0]):
-                #     image = image[i]
-                #     output = output[i]
-                #     show_prediction(image, output, output, target='heatmaps')
-                #     plt.show()
-
             # Convert input to -1 to 1 range.
             im = im.convert('L')
+            im_tensor = torchvision.transforms.ToTensor()(im)
             im_tensor = (2 * im_tensor) - 1
             return im_tensor, output[0]
 
         else:
             # Convert input to -1 to 1 range.
             im = im.convert('L')
+            im_tensor = torchvision.transforms.ToTensor()(im)
             im_tensor = (2 * im_tensor) - 1
             return im_tensor
 
