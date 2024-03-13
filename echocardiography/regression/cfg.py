@@ -5,9 +5,9 @@ import os
 import argparse
 
 import numpy as np
-from dataset import EchoNetDataset, convert_to_serializable
-from models import ResNet50Regression, PlaxModel, UNet, UNet_up
-from losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss, WeighteRMSELoss_l2MAE
+from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable
+from echocardiography.regression.models import ResNet50Regression, PlaxModel, UNet, UNet_up
+from echocardiography.regression.losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss, WeighteRMSELoss_l2MAE
 
 def train_config(target, threshold_wloss, model, device):
     """
