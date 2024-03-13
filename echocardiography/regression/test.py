@@ -216,6 +216,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         for i, data in enumerate(test_loader):
             images, labels = data
+            print(images.shape)
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images).to(device)

@@ -59,3 +59,4 @@ train_params:
   vqvae_autoencoder_ckpt_name: 'vqvae_eco.pth'
   vae_latent_dir_name : 'vae_latents'
   vqvae_latent_dir_name : 'vqvae_latents'
+  save_frequency : 20
