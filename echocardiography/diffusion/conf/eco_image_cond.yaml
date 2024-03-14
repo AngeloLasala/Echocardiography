@@ -1,6 +1,7 @@
 dataset_params:
   im_path: 'data'
   split: 'train_eco_train'
+  split_val: 'val_eco'
   im_channels : 1
   im_size : 256
   name: 'eco'
