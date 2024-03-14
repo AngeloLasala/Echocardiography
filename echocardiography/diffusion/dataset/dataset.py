@@ -77,7 +77,7 @@ class MnistDataset(Dataset):
         return data_dir
 
 class EcoDataset():
-    def __init__(self, split, size, im_path, spatial_condiction=False, im_ext='png'):
+    def __init__(self, split, size, im_path, condition_config=None, im_ext='png'):
         self.split = split
         self.im_ext = im_ext
         self.size = size
@@ -88,9 +88,10 @@ class EcoDataset():
         self.get_data_directory()
         self.data_dir = os.path.join(self.get_data_directory(),  self.split)
 
+
+        self.condition_types = [] if condition_config is None else condition_config['condition_types']
         ## spatial condition 
         # self.train_dir = ## add the file path to be compatible with the function get_model_regression 
-        self.spatial_condiction = spatial_condiction
 
 
         self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(os.path.join(self.data_dir))]
@@ -104,26 +105,33 @@ class EcoDataset():
 
         im = Image.open(patient_path)
         im = im.resize(self.size)
-        # im_tensor = torchvision.transforms.ToTensor()(im)
+
+        cond_inputs = {}    ## add to this dict the condition inputs
 
         ## here the part for the heatmaps
-        if self.spatial_condiction:
-            model = self.get_model_regression()
-            model.eval()
-            with torch.no_grad():
-                image = torchvision.transforms.ToTensor()(im)
-                image = transforms.functional.normalize(image, (0.5), (0.5))    
-                image = image.unsqueeze(0)
-                image = image.to(device)
-                output = model(image).to(device)
+        if len(self.condition_types) > 0:  # at least one condition 
+            ################ IMAGE CONDITION ###################################
+            if 'image' in self.condition_types:
+                ## load model anc compute the heatmap
+                model = self.get_model_regression()
+                model.eval()
+                with torch.no_grad():
+                    image = torchvision.transforms.ToTensor()(im)
+                    image = transforms.functional.normalize(image, (0.5), (0.5))    
+                    image = image.unsqueeze(0)
+                    image = image.to(device)
+                    output = model(image).to(device)
 
-            # Convert input to -1 to 1 range.
-            im = im.convert('L')
-            im_tensor = torchvision.transforms.ToTensor()(im)
-            im_tensor = (2 * im_tensor) - 1
-            return im_tensor, output[0]
+                # Convert input to -1 to 1 range.
+                im = im.convert('L')
+                im_tensor = torchvision.transforms.ToTensor()(im)
+                im_tensor = (2 * im_tensor) - 1
+                cond_inputs['image'] = output[0]
+            #####################################################################
 
-        else:
+            return im_tensor, cond_inputs
+
+        else: # no condition
             # Convert input to -1 to 1 range.
             im = im.convert('L')
             im_tensor = torchvision.transforms.ToTensor()(im)

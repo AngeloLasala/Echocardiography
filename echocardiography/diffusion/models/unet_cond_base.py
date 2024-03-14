@@ -53,7 +53,6 @@ class Unet(nn.Module):
         if self.condition_config is not None:
             assert 'condition_types' in self.condition_config, 'Condition Type not provided in model config'
             condition_types = self.condition_config['condition_types']
-            print(condition_types)
             if 'class' in condition_types:
                 # validate_class_config(self.condition_config)
                 self.class_cond = True
@@ -69,7 +68,6 @@ class Unet(nn.Module):
                 self.im_cond_output_ch = self.condition_config['image_condition_config'][
                     'image_condition_output_channels']
 
-                print(self.im_cond_input_ch, self.im_cond_output_ch)
         if self.class_cond:
             # Rather than using a special null class we dont add the
             # class embedding information for unconditional generation
@@ -196,42 +194,42 @@ class Unet(nn.Module):
         # out B x C x H x W
         return out
 
-if __name__ == '__main__':
-    model_config = {
-        'down_channels': [ 128, 256, 256, 256],
-        'mid_channels': [ 256, 256],
-        'down_sample': [ False, False, False ],
-        'attn_down' : [True, True, True],
-        'time_emb_dim': 256,
-        'norm_channels' : 32,
-        'num_heads' : 16,
-        'conv_out_channels' : 128,
-        'num_down_layers': 2,
-        'num_mid_layers': 2,
-        'num_up_layers': 2,
-        'condition_config': {
-            'condition_types': [ 'image'],
-            'class_condition_config': {
-                'num_classes': 10
-            },
-            'text_condition_config': {
-                'text_embed_model': 'clip',
-                'train_text_embed_model': False,
-                'text_embed_dim': 512,
-                'cond_drop_prob': 0.1,
-            },
-            'image_condition_config': {
-                'image_condition_input_channels': 6,
-                'image_condition_output_channels': 3,
-            }
-        }
-    }
+# if __name__ == '__main__':
+    # model_config = {
+    #     'down_channels': [ 128, 256, 256, 256],
+    #     'mid_channels': [ 256, 256],
+    #     'down_sample': [ False, False, False ],
+    #     'attn_down' : [True, True, True],
+    #     'time_emb_dim': 256,
+    #     'norm_channels' : 32,
+    #     'num_heads' : 16,
+    #     'conv_out_channels' : 128,
+    #     'num_down_layers': 2,
+    #     'num_mid_layers': 2,
+    #     'num_up_layers': 2,
+    #     'condition_config': {
+    #         'condition_types': [ 'image'],
+    #         'class_condition_config': {
+    #             'num_classes': 10
+    #         },
+    #         'text_condition_config': {
+    #             'text_embed_model': 'clip',
+    #             'train_text_embed_model': False,
+    #             'text_embed_dim': 512,
+    #             'cond_drop_prob': 0.1,
+    #         },
+    #         'image_condition_config': {
+    #             'image_condition_input_channels': 6,
+    #             'image_condition_output_channels': 3,
+    #         }
+    #     }
+    # }
     
-    model = Unet(1, model_config)
-    x = torch.randn(4, 1, 32, 32)
-    t = torch.randint(0, 100, (4,))
-    class_cond = torch.randint(0, 10, (4,))
-    text_cond = torch.randn(4, 256)
-    mask_cond = torch.randn(4, 6, 32, 32)
-    out = model(x, t, {'image': mask_cond})
-    print(out.shape)
+    # model = Unet(1, model_config)
+    # x = torch.randn(4, 1, 32, 32)
+    # t = torch.randint(0, 100, (4,))
+    # class_cond = torch.randint(0, 10, (4,))
+    # text_cond = torch.randn(4, 256)
+    # mask_cond = torch.randn(4, 6, 32, 32)
+    # out = model(x, t, {'image': mask_cond})
+    # print(out.shape)

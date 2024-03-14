@@ -135,7 +135,7 @@ def train(par_dir, conf, trial):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
     parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco')
-    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
+    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for the VAE trained model')
     args = parser.parse_args()
 
     current_directory = os.path.dirname(__file__)
