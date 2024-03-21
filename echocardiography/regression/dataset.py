@@ -79,7 +79,9 @@ class EchoNetDataset(Dataset):
                 image = resize(image)
                 label = torch.tensor(label)
                 image = transforms.functional.to_tensor(image)
-                image = transforms.functional.normalize(image, (0.5), (0.5))    
+                # image = transforms.functional.normalize(image, (0.5), (0.5))  
+                # im_tensor = torchvision.transforms.ToTensor()(im)
+                image = (2 * image) - 1  
 
         elif self.target == 'heatmaps': 
             label = self.get_heatmap(idx)
@@ -120,7 +122,9 @@ class EchoNetDataset(Dataset):
         label = torch.tensor(label)
 
         image = transforms.functional.to_tensor(image)
-        image = transforms.functional.normalize(image, (0.5), (0.5))    
+        # image = transforms.functional.normalize(image, (0.5), (0.5))
+        # im_tensor = torchvision.transforms.ToTensor()(im)
+        image = (2 * image) - 1    
         return image, label
 
     def data_augmentation(self, image, label):
@@ -168,7 +172,9 @@ class EchoNetDataset(Dataset):
         label = torch.tensor(label)
 
         image = transforms.functional.to_tensor(image)
-        image = transforms.functional.normalize(image, (0.5), (0.5))        
+        # image = transforms.functional.normalize(image, (0.5), (0.5))
+        # im_tensor = torchvision.transforms.ToTensor()(im)
+        image = (2 * image) - 1  
         return image, label
 
     def data_augmentation_kp(self, image, label):
@@ -190,7 +196,9 @@ class EchoNetDataset(Dataset):
         label = torch.tensor(label)
 
         image = transforms.functional.to_tensor(image)
-        image = transforms.functional.normalize(image, (0.5), (0.5))        
+        # image = transforms.functional.normalize(image, (0.5), (0.5))
+        # im_tensor = torchvision.transforms.ToTensor()(im)
+        image = (2 * image) - 1  
         return image, label
 
 
