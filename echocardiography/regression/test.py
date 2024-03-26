@@ -154,6 +154,24 @@ def percentage_error(label, output, target):
             x2, y2 = output[(i*4)+2], output[(i*4)+3]
             distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             distances_output.append(distance)
+
+    if target == 'segmentation':
+        ## compute the coordinate of the max value in the heatmaps
+        label = get_corrdinate_from_heatmap(label)
+        output = get_corrdinate_from_heatmap(output)
+
+        distances_label, distances_output = [], []
+        for i in range(3):
+            x1, y1 = label[(i*4)], label[(i*4)+1]
+            x2, y2 = label[(i*4)+2], label[(i*4)+3]
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            distances_label.append(distance)
+
+            x1, y1 = output[(i*4)], output[(i*4)+1]
+            x2, y2 = output[(i*4)+2], output[(i*4)+3]
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            distances_output.append(distance)
+
     return distances_label, distances_output
 
 def keypoints_error(label, output, target):
@@ -167,6 +185,14 @@ def keypoints_error(label, output, target):
 
     if target == 'heatmaps':
         ## compute the coordinate of the max value in the heatmaps
+        label = get_corrdinate_from_heatmap(label)
+        output = get_corrdinate_from_heatmap(output)
+        label, output = np.array(label), np.array(output)
+        error = label - output
+
+    if target == 'segmentation':
+        ## compute the coordinate of the max value in the heatmapsù
+        ## to do.. modify to fet the ellipses and get the coordinate
         label = get_corrdinate_from_heatmap(label)
         output = get_corrdinate_from_heatmap(output)
         label, output = np.array(label), np.array(output)

@@ -40,8 +40,9 @@ def train_config(target, threshold_wloss, model, device):
         
     elif target == 'segmentation':
         if model == 'unet': cfg['model'] = UNet(num_classes=6)
+        if model == 'unet_up': cfg['model'] = UNet_up(num_classes=6)
         if model == 'plax': cfg['model'] = PlaxModel(num_classes=6)
-        cfg['loss'] = torch.nn.MSELoss()
+        cfg['loss'] = WeighteRMSELoss_l2MAE(threshold=threshold_wloss, alpha=1.5, device = device)
        
     else:
         raise ValueError(f'target {target} is not valid. Available targets are keypoints, heatmaps, segmentation')
