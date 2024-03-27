@@ -158,6 +158,11 @@ class EchoNetDataset(Dataset):
             image = transforms.functional.affine(image, *translate)
             label = [transforms.functional.affine(ch, *translate) for ch in label]
 
+        ## random horizontal flip
+        if torch.rand(1) > 0.5:
+            image = transforms.functional.hflip(image)
+            label = [transforms.functional.hflip(ch) for ch in label]
+            
         ## random brightness and contrast
         if torch.rand(1) > 0.5:
             image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
