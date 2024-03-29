@@ -6,7 +6,7 @@ import argparse
 
 import numpy as np
 from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable
-from echocardiography.regression.models import ResNet50Regression, PlaxModel, UNet, UNet_up
+from echocardiography.regression.models import ResNet50Regression, PlaxModel, UNet, UNet_up, UNet_up_hm
 from echocardiography.regression.losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss, WeighteRMSELoss_l2MAE
 import torch
 
@@ -42,6 +42,10 @@ def train_config(target, threshold_wloss, model, device):
         if model == 'unet': cfg['model'] = UNet(num_classes=6)
         if model == 'unet_up': cfg['model'] = UNet_up(num_classes=6)
         if model == 'plax': cfg['model'] = PlaxModel(num_classes=6)
+        cfg['loss'] = WeighteRMSELoss_l2MAE(threshold=threshold_wloss, alpha=1.5, device = device)
+
+    elif target == 'heatmaps_sigma':
+        cfg['model'] =  UNet_up_hm(num_classes=6)
         cfg['loss'] = WeighteRMSELoss_l2MAE(threshold=threshold_wloss, alpha=1.5, device = device)
        
     else:

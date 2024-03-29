@@ -143,8 +143,11 @@ if __name__ == '__main__':
     
     ## device and reproducibility    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    torch.manual_seed(42)
-    np.random.seed(42)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    random.seed(args.seed)
+    if device == 'cuda':
+        torch.cuda.manual_seed_all(args.seed)
     cfg = train_config(args.target, threshold_wloss=args.threshold_wloss, model=args.model, device=device)
     print(f'Using device: {device}')
     

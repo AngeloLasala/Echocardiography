@@ -81,6 +81,21 @@ class EchoNetDataset(Dataset):
                 image = transforms.functional.to_tensor(image)
                 # image = transforms.functional.normalize(image, (0.5), (0.5))  
                 # im_tensor = torchvision.transforms.ToTensor()(im)
+
+                image = (2 * image) - 1  
+
+        elif self.target == 'heatmaps_sigma': 
+            label = label
+            if self.augmentation:
+                image, label = self.data_augmentation_kp(image, label)
+            else:
+                resize = transforms.Resize(size=self.size)
+                image = resize(image)
+                label = torch.tensor(label)
+                image = transforms.functional.to_tensor(image)
+                # image = transforms.functional.normalize(image, (0.5), (0.5))  
+                # im_tensor = torchvision.transforms.ToTensor()(im)
+
                 image = (2 * image) - 1  
 
         elif self.target == 'heatmaps': 
@@ -101,7 +116,7 @@ class EchoNetDataset(Dataset):
                 image, label = self.trasform(image, label)
            
         else:
-            raise ValueError(f'target {self.target} is not valid. Available targets are keypoints, heatmaps, segmentation')
+            raise ValueError(f'target {self.target} is not valid. Available targets are keypoints, heatmaps, segmentation, heatmpas_sigma')
         
         return image, label
 
