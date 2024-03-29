@@ -16,11 +16,14 @@ and run the `setup.py` file
 pip install -e .
 ```
 
-**Guideline for the developer**. Any change in the tree structure of the repository affect the installation of the packages with `setup.py`. Afert any modification in the tree, you have to reinstall the packages, here same usefull command line:
+**Guideline for the developer**. 
+- Any change in the tree structure of the repository affect the installation of the packages with `setup.py`. Afert any modification in the tree, you have to reinstall the packages, here same usefull command line:
 
-- `pip list`: list of installed packeges in the virtual env, the name of echocardiography is `echocardiography version=1.0 ../Echocardiography`
-- `pip uninstall echocargiography`: uninstall the package
-- `pip install -e .`: reinstall the packege
+    - `pip list`: list of installed packeges in the virtual env, the name of echocardiography is `echocardiography version=1.0 ../Echocardiography`
+    - `pip uninstall echocargiography`: uninstall the package
+    - `pip install -e .`: reinstall the packege
+
+- GPU note for Lixus user. Use the comand `nvidia-smi --query-gpu=utilization.gpu --format=csv --loop=1` to chech the usage of GPU
 ## Usage
 
 ### Regression
