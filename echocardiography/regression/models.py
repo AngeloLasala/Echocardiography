@@ -4,6 +4,7 @@ Structure of the models used in automatic detection of keypoits in PLAX echocard
 import torch
 import torch.nn as nn
 import torchvision
+from torchvision import models
 import torchvision.transforms.functional as functional
 import torch.nn.functional as F
 from pathlib import Path
