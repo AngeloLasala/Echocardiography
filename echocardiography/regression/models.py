@@ -341,11 +341,12 @@ class HeatmapLayer(nn.Module):
         angle[:,2], angle[:,3]= angle_deg[:,1], angle_deg[:,1]
         angle[:,4], angle[:,5]= angle_deg[:,2], angle_deg[:,2]
 
+
         # cretate the tensor of means (the center of heatmaps)
         mean = torch.zeros((image.shape[0], self.num_classes,2), device=device)
         mean[:, :, 0] = labels[:, [0,2,4,6,8,10]] # x_coordinate of labels
         mean[:, :, 1] = labels[:, [1,3,5,7,9,11]] # y_coordinate of labels
-    
+
         ## Create the heatmaps
         # Initialize an empty 6-channel heatmap vector
         heatmaps_labels= torch.zeros((image.shape[0], self.num_classes, image.shape[2], image.shape[3]), device=device)
@@ -359,6 +360,21 @@ class HeatmapLayer(nn.Module):
                 #normalize the heatmap
                 base_heatmap = base_heatmap / torch.max(base_heatmap)
                 heatmaps_labels[batch, hp, :, :] = base_heatmap
+        
+        
+        # create the rotation matrix
+        # rot_matrix = torch.zeros((image.shape[0], self.num_classes, 2, 2), device=device)
+        # rot_matrix[:, :, 0, 0] = torch.cos(angle * torch.pi / 180)
+        # rot_matrix[:, :, 0, 1] = -torch.sin(angle * torch.pi / 180)
+        # rot_matrix[:, :, 1, 0] = torch.sin(angle * torch.pi / 180)
+        # rot_matrix[:, :, 1, 1] = torch.cos(angle * torch.pi / 180)
+        # print('rot_matrix', rot_matrix.shape)
+        # print('heatmaps_labels', heatmaps_labels.shape)
+
+        # # create the affine grid
+        # grid = F.affine_grid(rot_matrix, heatmaps_labels.size())
+        # print('grid', grid.shape)
+
         
         return heatmaps_labels
 
@@ -553,8 +569,8 @@ if __name__ == '__main__':
     model = UNet_up_hm(num_classes=6)
     total_params = sum(p.numel() for p in model.parameters())
     print(f"Number of parameters: {total_params}")
-    x = torch.randn(2, 3, 256, 256)
-    labels = torch.rand(2, 12)
+    x = torch.randn(5, 3, 256, 256)
+    labels = torch.rand(5, 12)
     pred, heatmaps = model(x, labels)
     heatmaps = heatmaps.detach().numpy()
 

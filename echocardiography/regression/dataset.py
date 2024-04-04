@@ -201,8 +201,38 @@ class EchoNetDataset(Dataset):
         ## Resize
         resize = transforms.Resize(size=self.size)
         image = resize(image)
-        
-     
+
+        ## random orizontal flip
+        if torch.rand(1) > 0.5:
+            image = transforms.functional.hflip(image)
+            label[0::2] =  1 - label[0::2]
+
+        # random rotation
+        if torch.rand(1) > 0.5:
+            angle = np.random.randint(-15, 15)
+            image = transforms.functional.rotate(image, angle)
+            angle = angle * np.pi/180
+            center = (0.5, 0.5)
+            rot_matrix = np.zeros((2, 3))
+            rot_matrix[0, 0] = np.cos(angle)
+            rot_matrix[0, 1] = np.sin(angle)
+            rot_matrix[1, 0] = -np.sin(angle)
+            rot_matrix[1, 1] = np.cos(angle)
+            rot_matrix[0, 2] = (1 - np.cos(angle)) * center[0] - np.sin(angle) * center[1]
+            rot_matrix[1, 2] = np.sin(angle) * center[0] + (1 - np.cos(angle)) * center[1]
+
+            # Apply rotation to each label coordinate
+            for i in range(len(label) // 2):
+                # Extract x and y coordinates
+                x_coord = label[i * 2]
+                y_coord = label[i * 2 + 1]
+                # Translate to origin
+                x_coord -= center[0]
+                y_coord -= center[1]
+                # Apply rotation
+                label[i * 2] = x_coord * rot_matrix[0, 0] + y_coord * rot_matrix[0, 1] + center[0]
+                label[i * 2 + 1] = x_coord * rot_matrix[1, 0] + y_coord * rot_matrix[1, 1] + center[1]
+
         ## random brightness and contrast
         if torch.rand(1) > 0.5:
             image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
