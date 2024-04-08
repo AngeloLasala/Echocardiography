@@ -98,3 +98,31 @@ def dataset_iteration(dataloader):
         plt.scatter(label[10] * image.shape[0], label[11] * image.shape[1], color='blue', marker='o', s=100, alpha=0.5)
         plt.axis('off')
         plt.show()
+
+
+def echocardiografic_parameters(label):
+    """
+    given the array of 12 labels compute the RWT and LVmass
+
+    Parameters
+    ----------
+    label: np.array
+        array of 12 labels [ in corrofinate order: x1, y1, x2, y2, x1, y1, x2, y2, x1, y1, x2, y2] * img shape
+
+    Returns
+    -------
+    RWT: float
+        Relative Wall Thickness
+
+    LVmass: float
+        Left Ventricular Mass
+    """
+    
+    ## compute the RWT
+    LVPWd = np.sqrt((label[2] - label[0])**2 + (label[3] - label[1])**2)
+    LVIDd = np.sqrt((label[6] - label[4])**2 + (label[7] - label[5])**2)
+    IVSd = np.sqrt((label[10] - label[8])**2 + (label[11] - label[9])**2)
+    
+    rwt = 2 * LVPWd / LVIDd
+    rst = 2 * IVSd / LVIDd
+    return rwt, rst

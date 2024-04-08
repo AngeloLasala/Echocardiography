@@ -25,7 +25,7 @@ import cv2
 import math
 import numpy as np
 
-from echocardiography.regression.utils import get_corrdinate_from_heatmap
+from echocardiography.regression.utils import get_corrdinate_from_heatmap, echocardiografic_parameters
 from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable
 
 def get_best_model(train_dir):
@@ -125,7 +125,7 @@ def percentage_error(label, output, target):
     Compute the percentage error between the distance of 'LVPW', 'LVID', 'IVS'
     """
     if target == 'keypoints':
-        label, output = label * 256., output * 256.
+        label, output = label * 256., output * 256.    
         distances_label, distances_output = [], []
         for i in range(3):
             x1, y1 = label[(i*4)], label[(i*4)+1]
@@ -199,6 +199,43 @@ def keypoints_error(label, output, target):
         error = label - output
     return error
 
+def echo_parameter_error(label, output, target):
+    """
+    Compute the error of the echocardiografic parameters
+    """
+    if target == 'keypoints':
+        label, output = label * 256., output * 256.    
+
+        rwt_label, rst_label = echocardiografic_parameters(label)
+        rwt_output, rst_output = echocardiografic_parameters(output)
+
+        parameter_label = [rwt_label, rst_label]
+        parameter_out = [rwt_output, rst_output]
+
+
+    if target == 'heatmaps':
+        ## compute the coordinate of the max value in the heatmaps
+        label = get_corrdinate_from_heatmap(label)
+        output = get_corrdinate_from_heatmap(output)
+
+        rwt_label, rst_label = echocardiografic_parameters(label)
+        rwt_output, rst_output = echocardiografic_parameters(output)
+
+        parameter_label = [rwt_label, rst_label]
+        parameter_out = [rwt_output, rst_output]
+
+    if target == 'segmentation':
+        ## compute the coordinate of the max value in the heatmaps
+        label = get_corrdinate_from_heatmap(label)
+        output = get_corrdinate_from_heatmap(output)
+
+        rwt_label, rst_label = echocardiografic_parameters(label)
+        rwt_output, rst_output = echocardiografic_parameters(output)
+
+        parameter_label = [rwt_label, rst_label]
+        parameter_out = [rwt_output, rst_output]
+
+    return parameter_label, parameter_out
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
@@ -239,10 +276,10 @@ if __name__ == '__main__':
     model.eval()
     distances_label_list , distances_output_list = [], []
     keypoints_error_list = []
+    parameters_label_list, parameters_output_list = [], []
     with torch.no_grad():
         for i, data in enumerate(test_loader):
             images, labels = data
-            print(images.shape)
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images).to(device)
@@ -256,26 +293,56 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                show_prediction(image, label, output, target=trained_args['target'])
-                plt.show()
+                # show_prediction(image, label, output, target=trained_args['target'])
+                
+                
                 dist_label, dist_output = percentage_error(label, output, target=trained_args['target'])
                 err = keypoints_error(label, output, target=trained_args['target'])
-
+                parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'])
+                # plt.show()
+                
                 distances_label_list.append(dist_label)
                 distances_output_list.append(dist_output)
                 keypoints_error_list.append(err)
+                parameters_label_list.append(parameter_label)
+                parameters_output_list.append(parameter_out)
 
     distances_label_list = np.array(distances_label_list)
     distances_output_list = np.array(distances_output_list)
     keypoints_error_list = np.array(keypoints_error_list)
+    parameters_label_list = np.array(parameters_label_list)
+    parameters_output_list = np.array(parameters_output_list)
+
+    ## echo parameters error
+    rwt_error = np.abs(parameters_label_list[:,0] - parameters_output_list[:,0])
+    rst_error = np.abs(parameters_label_list[:,1] - parameters_output_list[:,1])
+    print(f'RWT error: mean={np.mean(rwt_error):.4f},  median={np.median(rwt_error):.4f} - 1 quintile {np.quantile(rwt_error, 0.25):.4f} - 3 quintile {np.quantile(rwt_error, 0.75):.4f}')
+    print(f'RST error: mean={np.mean(rst_error):.4f},  median={np.median(rst_error):.4f} - 1 quintile {np.quantile(rst_error, 0.25):.4f} - 3 quintile {np.quantile(rst_error, 0.75):.4f}')
 
     ## Mean Percentage error and Positional error
     mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
     mpe = np.mean(mpe, axis=0)
     positional_error = np.mean(keypoints_error_list, axis=0)
+    import matplotlib.pyplot as plt
+
     print(f'Mean Percantace Error: {mpe}')
     print(f'Positional_error: {positional_error}')
-    print(positional_error.shape)
+
+    ## Regression plt label vs output
+    plt.figure(figsize=(8,8), num=f'{trained_args["target"]} - Regression plot', tight_layout=True)
+    plt.scatter(parameters_label_list[:,0], parameters_output_list[:,0], s=100, c='C0', label='RWT')
+    plt.plot(parameters_label_list[:,0],parameters_label_list[:,0], c='black')
+    plt.scatter(parameters_label_list[:,1], parameters_output_list[:,1], s=100, c='C1',label='RSD')
+    plt.axvline(x=0.42, color='r', linestyle='--')
+    plt.grid('dotted')
+    plt.legend()
+    plt.xlabel('Label', fontsize=20)
+    plt.ylabel('Prediction', fontsize=20)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
+    plt.legend(fontsize=20)
+    
+
 
     ## Plot some plots to visualize the error
     title_name = {0:'LVPW', 1:'LVID', 2:'IVS'}
