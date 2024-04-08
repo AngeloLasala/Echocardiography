@@ -55,7 +55,8 @@ def train(conf, save_folder):
     }.get(dataset_config['name'])
 
     # Create the dataset and dataloader
-    data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']), im_path=dataset_config['im_path'])
+    data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']),
+                          im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'] , phase=dataset_config['phase'])
     data_loader = DataLoader(data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
     
     ## generate save folder
@@ -215,7 +216,7 @@ def train(conf, save_folder):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train VAE on MNIST or CelebA-HQ')
     parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco')  
-    parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model')
+    parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model, default = trained_model')
     args = parser.parse_args()
 
     current_directory = os.path.dirname(__file__)

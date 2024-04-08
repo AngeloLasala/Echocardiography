@@ -77,16 +77,25 @@ class MnistDataset(Dataset):
         return data_dir
 
 class EcoDataset():
-    def __init__(self, split, size, im_path, condition_config=None, im_ext='png'):
+    def __init__(self, split, size, im_path, dataset_batch, phase,  
+                dataset_batch_regression=None, trial=None, condition_config=None, im_ext='png'):
         self.split = split
         self.im_ext = im_ext
         self.size = size
         self.im_path = im_path  ## '\data'
+
         # self.images, self.labels = self.load_images(im_path)
-       
+        self.dataset_batch = dataset_batch ## 'Batch_n' number of batch in Echonet-LVH, task generation
+        self.phase = phase                 ## cardiac phase: 'diastole' or 'systole'
+        
+        ## regression part
+        self.trial = trial     ## trial number for the trained model for regression
+        self.dataset_batch_regression = dataset_batch_regression ## 'Batch_n' number of batch in Echonet-LVH, task regression
+
         ## data directory
         self.get_data_directory()
-        self.data_dir = os.path.join(self.get_data_directory(),  self.split)
+        # self.data_dir = os.path.join(self.get_data_directory(),  self.split) # this is for the 'data' in 'diffusion/data'
+        self.data_dir = self.get_data_directory() # this is for the 'data' in 'echocardiography/regression/DATA/Batch_n/split/phase/image'
 
 
         self.condition_types = [] if condition_config is None else condition_config['condition_types']
@@ -143,22 +152,41 @@ class EcoDataset():
         Return the data directory from the current directory
         """
         current_dir = os.getcwd()
-        while current_dir.split('/')[-1] != 'diffusion':
+
+        ## this part is for for the image in 'diffusion/data'
+        # while current_dir.split('/')[-1] != 'diffusion':
+        #     current_dir = os.path.dirname(current_dir)
+        # data_dir = os.path.join(current_dir, self.im_path) ## this is right for the image in 'diffusion/data' when i copy and paste from the '/regression'
+        
+        ## this part is for the image in 'echocardiography/regression/DATA/Batch_n/split/phase/image'
+        while current_dir.split('/')[-1] != 'echocardiography':
             current_dir = os.path.dirname(current_dir)
-        data_dir = os.path.join(current_dir, self.im_path)
+        data_dir_regre = os.path.join(current_dir, 'regression')
+        data_dir_regre = os.path.join(data_dir_regre, self.im_path, self.dataset_batch, self.split, self.phase, 'image') ## change this to the path of the trained model
+        data_dir = data_dir_regre
         return data_dir
 
     def get_model_regression(self):
         """
         For each image in the dataset, get the heatmap of regression points
         """
+        # Possible error
+        if self.trial is None:
+            raise ValueError('The trial value is None, please provide a trial value to get the model, i.e. trial_1')
+
+        if self.dataset_batch_regression is None:
+            raise ValueError('The dataset_batch_regression value is None, please provide a dataset_batch_regression value to get the model, i.e. Batch_1')
+
+        if self.dataset_batch_regression == self.dataset_batch:
+            raise ValueError('The dataset_batch_regression value is equal to the dataset_batch value, please provide a different value for dataset_batch_regression')
+
         ## get the current directory
         current_dir = os.getcwd()
         while current_dir.split('/')[-1] != 'echocardiography':
             current_dir = os.path.dirname(current_dir)
         data_dir = os.path.join(current_dir, 'regression')
 
-        train_dir = os.path.join(data_dir, 'TRAINED_MODEL', 'Batch2', 'diastole', 'trial_21') ## change this to the path of the trained model
+        train_dir = os.path.join(data_dir, 'TRAINED_MODEL', self.dataset_batch_regression, self.phase, self.trial) ## change this to the path of the trained model
         with open(os.path.join(train_dir, 'args.json')) as json_file:
             trained_args = json.load(json_file)
         cfg = train_config(trained_args['target'],
@@ -318,8 +346,9 @@ class CelebDataset(Dataset):
 
 
 if __name__ == '__main__':
-    data = EcoDataset(split='train_eco_train', size=(256,256), im_path='data', spatial_condiction=False)
+    data = EcoDataset(split='train', size=(256,256), im_path='DATA', dataset_batch='Batch3', phase='diastole', 
+                      dataset_batch_regression='Batch2', trial='trial_2') #, condition_config=False)
     # data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=4, timeout=10)
     
-    print(data[3][0].shape, data[3][1].shape)
+    print(data[0])
 
