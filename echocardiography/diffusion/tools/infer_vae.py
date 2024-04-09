@@ -9,15 +9,33 @@ import pickle
 import torch
 import torchvision
 import yaml
+import numpy as np
 from torch.utils.data.dataloader import DataLoader
 from torchvision.utils import make_grid
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from echocardiography.diffusion.dataset.dataset import CelebDataset, MnistDataset, EcoDataset
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE
+from echocardiography.diffusion.models.lpips import LPIPS
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+def get_best_model(trial_folder):
+    """
+    Get the best model from the trial folder
+    """
+    best_model = 0
+
+    # in the folder give me only the file with extention '.pth'
+    for i in os.listdir(trial_folder):
+        if '.pth' in i and i.split('_')[0] == 'vae':
+            model = i.split('_')[-1].split('.')[0]
+            if int(model) > best_model:
+                best_model = int(model)
+    return best_model
 
 def infer(par_dir, conf, trial):
     ######## Read the config file #######
@@ -41,7 +59,8 @@ def infer(par_dir, conf, trial):
     
     # Create the dataset and dataloader
     ## updating, not using the train but the test set
-    data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']), im_path=dataset_config['im_path'])
+    data = im_dataset_cls(split='test', size=(dataset_config['im_size'], dataset_config['im_size']), 
+                          im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'] , phase=dataset_config['phase'])
     data_loader = DataLoader(data, batch_size=1, shuffle=False, num_workers=4)
 
     num_images = train_config['num_samples']
@@ -53,17 +72,65 @@ def infer(par_dir, conf, trial):
 
     trial_folder = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
     assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
+    
+    
+
     if 'vae' in os.listdir(trial_folder):
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
+        best_model = get_best_model(os.path.join(trial_folder,'vae'))
+        print(f'best model  epoch {best_model}')
         vae = VAE(im_channels=dataset_config['im_channels'], model_config=autoencoder_model_config).to(device)
         vae.eval()
-        vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vae', 'vae.pth'), map_location=device))
+        vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vae', f'vae_best_{best_model}.pth'), map_location=device))
 
     if 'vqvae' in os.listdir(trial_folder):
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
         vae = VQVAE(im_channels=dataset_config['im_channels'], model_config=autoencoder_model_config).to(device)
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vqvae', 'vqvae.pth'),map_location=device))
+
+    ## evalaute the recon loss on test set
+    recon_criterion = torch.nn.MSELoss()            # L1/L2 loss for Reconstruction
+    lpips_model = LPIPS().eval().to(device) 
+    with torch.no_grad():
+        test_recon_losses = []
+        test_perceptual_losses = []
+        for im in tqdm(data_loader):
+            im = im.float().to(device)
+            model_output = vae(im)
+            output, encoder_out = model_output
+            mean, logvar = torch.chunk(encoder_out, 2, dim=1) 
+
+            test_recon_loss = recon_criterion(output, im)
+            test_recon_losses.append(test_recon_loss.item())
+
+            test_lpips_loss = torch.mean(lpips_model(output, im)) 
+            test_perceptual_losses.append(train_config['perceptual_weight'] * test_lpips_loss.item())
+    import matplotlib.pyplot as plt
+
+
+    ## plt the histogram of the losses
+    fig, ax = plt.subplots(1, 2, figsize=(18, 12), num='test metrics', tight_layout=True)
+    ax[0].hist(test_recon_losses, color='blue', alpha=0.7, label='MAE')
+    ax[0].grid('dotted')
+    ax[0].set_xlabel('MAE', fontsize=20)
+    ax[0].set_title(f'MAE: mean={np.array(test_recon_losses).mean():.4f}, std={np.array(test_recon_losses).std():.4f}', fontsize=20)
+    ## ad vertical line for the mean
+    ax[0].axvline(np.array(test_recon_losses).mean(), color='C4', linestyle='dashed', linewidth=5, label=f'mean {np.array(test_recon_losses).mean():.4f}')
+    ax[0].axvline(np.median(test_recon_losses), color='C5', linestyle='dashed', linewidth=5, label=f'median {np.median(test_recon_losses):.4f}')
+    ax[0].legend(fontsize=16)
+    ax[1].hist(test_perceptual_losses, color='red', alpha=0.7, label='Perceptual metric')
+    ax[1].grid('dotted')
+    ax[1].set_xlabel('Perceptual metric', fontsize=20)
+    ax[1].set_title(f'Perceptual metric: mean={np.array(test_perceptual_losses).mean():.3f}, std={np.array(test_perceptual_losses).std():.3f}', fontsize=20)
+    ax[1].axvline(np.array(test_perceptual_losses).mean(), color='C4', linestyle='dashed', linewidth=5, label=f'mean {np.array(test_perceptual_losses).mean():.3f}')
+    ax[1].axvline(np.median(test_perceptual_losses), color='C5', linestyle='dashed', linewidth=5, label=f'median {np.median(test_perceptual_losses):.3f}')
+    ax[1].legend(fontsize=18)
+    ## change the label fontsize
+    for a in ax:
+        a.tick_params(axis='both', which='major', labelsize=18)
+    plt.savefig(os.path.join(trial_folder, 'vae', 'samples', 'test_metrics.png'))
+    plt.show()
 
     ## save this ijmage with a name
     save_folder = os.path.join(trial_folder, 'vae', 'samples')
@@ -95,7 +162,9 @@ def infer(par_dir, conf, trial):
         input_grid.show()
         encoder_grid.show()
         decoder_grid.show()
-        
+            
+
+        ## THIS PART IS FOR THE VQVAE   
         # input_grid.save(os.path.join(train_config['task_name'], 'input_samples.png'))
         # encoder_grid.save(os.path.join(train_config['task_name'], 'encoded_samples.png'))
         # decoder_grid.save(os.path.join(train_config['task_name'], 'reconstructed_samples.png'))
@@ -131,7 +200,7 @@ def infer(par_dir, conf, trial):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for vq vae inference')
-    parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco')  
+    parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco')  
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
     args = parser.parse_args()
 

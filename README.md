@@ -27,9 +27,6 @@ pip install -e .
 ## Usage
 
 ### Regression
-To do list:
-
-- in the dataset change the normalization: from torchvision.trasnfrom to custom to make compatible with diffusion
 
 ### Diffusion
 
