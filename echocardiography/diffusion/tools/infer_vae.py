@@ -110,7 +110,7 @@ def infer(par_dir, conf, trial):
 
 
     ## plt the histogram of the losses
-    fig, ax = plt.subplots(1, 2, figsize=(18, 12), num='test metrics', tight_layout=True)
+    fig, ax = plt.subplots(1, 2, figsize=(12, 8), num='test metrics', tight_layout=True)
     ax[0].hist(test_recon_losses, color='blue', alpha=0.7, label='MAE')
     ax[0].grid('dotted')
     ax[0].set_xlabel('MAE', fontsize=20)
