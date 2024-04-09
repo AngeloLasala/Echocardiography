@@ -41,7 +41,7 @@ python train_vae.py --data eco
 `infer_vae.py` file enable you to visualize some recostruction and the latent space. The trained model is saved during the training in a `trial_n` folder.
 
 ```bash
-python infer_vae.py --data eco --trail trail_n
+python infer_vae.py --data eco --triall trial_n
 ```
 
 #### Latent Diffusion Model
