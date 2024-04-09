@@ -55,6 +55,12 @@ python train_ldm --data eco --vae_train train_#n
 ```
 where `--vae_train` is related to the train_#n folder of trained VAE model.
 
+To sample a set of synthetic images use the following comand line
+
+```bash
+python tools/sample_ldm.py --data eco --trial trial_#n --epoch #_epoch
+```
+
 
 
 
