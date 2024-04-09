@@ -13,6 +13,7 @@ from echocardiography.diffusion.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE 
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
+from echocardiography.diffusion.tools.infer_vae import get_best_model
 from torch.utils.data import DataLoader
 import random
 
@@ -52,10 +53,10 @@ def train(par_dir, conf, trial):
     }.get(dataset_config['name'])
 
     # Create the dataset and dataloader
-    data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']), im_path=dataset_config['im_path'])
+    data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']),
+                         im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'] , phase=dataset_config['phase'])
     data_loader = DataLoader(data, batch_size=train_config['ldm_batch_size'], shuffle=True, num_workers=8)
  
-
     # Create the model and scheduler
     scheduler = LinearNoiseScheduler(num_timesteps=diffusion_config['num_timesteps'],
                                      beta_start=diffusion_config['beta_start'],
@@ -75,9 +76,11 @@ def train(par_dir, conf, trial):
     print(os.listdir(trial_folder))
     if 'vae' in os.listdir(trial_folder):
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
+        best_model = get_best_model(os.path.join(trial_folder,'vae'))
+        print(f'best model  epoch {best_model}')
         vae = VAE(im_channels=dataset_config['im_channels'], model_config=autoencoder_model_config).to(device)
         vae.eval()
-        vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vae', 'vae.pth'), map_location=device))
+        vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vae', f'vae_best_{best_model}.pth'), map_location=device))
 
     if 'vqvae' in os.listdir(trial_folder):
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
@@ -135,14 +138,14 @@ def train(par_dir, conf, trial):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
     parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco')
-    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for the VAE trained model')
+    parser.add_argument('--vae_trial', type=str, default='trial_1', help='trial name for the trained VAE  model')
     args = parser.parse_args()
 
     current_directory = os.path.dirname(__file__)
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
-    save_folder = os.path.join(par_dir, 'trained_model', args.trial)
+    save_folder = os.path.join(par_dir, 'trained_model', args.vae_trial)
     train(par_dir = par_dir,
         conf = configuration, 
-        trial = args.trial)
+        trial = args.vae_trial)

@@ -31,7 +31,7 @@ pip install -e .
 ### Diffusion
 
 #### Autoencoder
-The initial step entails training the Variational Autoencoder model with the objective of reconstructing images from the training set using a latent space. The model can be either a Variational Autoencoder (VAE) or a Vector Quantized Variational Autoencoder (VQVAE)
+The initial step entails training the *Variational Autoencoder* model with the objective of reconstructing images from the training set using a latent space. The model can be either a Variational Autoencoder (VAE) or a Vector Quantized Variational Autoencoder (VQVAE)
 To train autoecoder model use the following comand:
 
 ```bash
@@ -45,6 +45,17 @@ python infer_vae.py --data eco --trail trail_n
 ```
 
 #### Latent Diffusion Model
+
+*The Latent Diffusion Model (LDM)* is a denoising model that operates on the latent space extracted from the autoencoder, rather than on the pixel space like DDPM. It's important to note that for training the LDM, the training set must be the **same** as that used for the autoencoder. Pay attention to the batch size during training.
+
+Run the following code for the training
+
+```bash
+python train_ldm --data eco --vae_train train_#n
+```
+where `--vae_train` is related to the train_#n folder of trained VAE model.
+
+
 
 
 
