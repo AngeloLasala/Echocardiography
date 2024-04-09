@@ -29,7 +29,7 @@ def train(conf, save_folder):
             config = yaml.safe_load(file)
         except yaml.YAMLError as exc:
             print(exc)
-    print(config)
+    # print(config)
     dataset_config = config['dataset_params']
     autoencoder_config = config['autoencoder_params']
     train_config = config['train_params']
@@ -58,6 +58,10 @@ def train(conf, save_folder):
     data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']),
                           im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'] , phase=dataset_config['phase'])
     data_loader = DataLoader(data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
+
+    val_data = im_dataset_cls(split='val', size=(dataset_config['im_size'], dataset_config['im_size']),
+                            im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'] , phase=dataset_config['phase'])
+    val_data_loader = DataLoader(val_data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
     
     ## generate save folder
     save_dir = os.path.join(save_folder, dataset_config['name'])
@@ -72,6 +76,7 @@ def train(conf, save_folder):
       
     # Create the loss and optimizer
     num_epochs = train_config['autoencoder_epochs']
+    best_vloss = 1_000_000.
 
     recon_criterion = torch.nn.MSELoss()            # L1/L2 loss for Reconstruction
     disc_criterion = torch.nn.MSELoss()            # Disc Loss can even be BCEWithLogits MSELoss()
@@ -92,6 +97,7 @@ def train(conf, save_folder):
     # image_save_steps = train_config['autoencoder_img_save_steps']
     image_save_steps = len(data) // train_config['autoencoder_batch_size'] 
     losses_epoch = {'recon': [], 'kl': [], 'lpips': [], 'disc': [], 'gen': []}
+    val_losses_epoch = {'recon': [], 'lpips': []}
 
     for epoch_idx in range(num_epochs):
         recon_losses = []
@@ -169,25 +175,53 @@ def train(conf, save_folder):
             optimizer_g.step()
             optimizer_g.zero_grad()
 
+        ## UPDATE: add the part to validate the model based on the validation set
+        model.eval()
+        with torch.no_grad():
+            val_recon_losses = []
+            val_perceptual_losses = []
+            for im in tqdm(val_data_loader):
+                im = im.float().to(device)
+                model_output = model(im)
+                output, encoder_out = model_output
+                mean, logvar = torch.chunk(encoder_out, 2, dim=1) 
+
+                val_recon_loss = recon_criterion(output, im)
+                val_recon_losses.append(val_recon_loss.item())
+
+                val_lpips_loss = torch.mean(lpips_model(output, im)) 
+                val_perceptual_losses.append(train_config['perceptual_weight'] * val_lpips_loss.item())
+
+        # Track best performance, and save the model's state
+        if np.mean(val_recon_losses) < best_vloss:
+            best_vloss = np.mean(val_recon_losses)
+            torch.save(model.state_dict(), os.path.join(save_dir, f'vae_best_{epoch_idx+1}.pth'))
+            torch.save(discriminator.state_dict(), os.path.join(save_dir, f'discriminator_best_{epoch_idx+1}.pth'))
+
         ## Print epoch
         if len(disc_losses) > 0:
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Recon Loss: {np.mean(recon_losses):.4f}| KL Loss: {np.mean(kl_losses):.4f}| LPIPS Loss: {np.mean(perceptual_losses):.4f}| G Loss: {np.mean(gen_losses):.4f}| D Loss: {np.mean(disc_losses):.4f}')
+            print(f'Epoch {epoch_idx+1}/{num_epochs}) Valid Recon Loss: {np.mean(val_recon_losses):.4f}| Valid LPIPS Loss: {np.mean(val_perceptual_losses):.4f}')
             losses_epoch['recon'].append(np.mean(recon_losses))
             losses_epoch['kl'].append(np.mean(kl_losses))
             losses_epoch['lpips'].append(np.mean(perceptual_losses))
             losses_epoch['disc'].append(np.mean(disc_losses))
             losses_epoch['gen'].append(np.mean(gen_losses))
+
+            val_losses_epoch['recon'].append(np.mean(val_recon_losses))
+            val_losses_epoch['lpips'].append(np.mean(val_perceptual_losses))
         else:
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Recon Loss: {np.mean(recon_losses):.4f}| KL Loss: {np.mean(kl_losses):.4f}| LPIPS Loss: {np.mean(perceptual_losses):.4f})')
+            print(f'Epoch {epoch_idx+1}/{num_epochs}) Valid Recon Loss: {np.mean(val_recon_losses):.4f}| Valid LPIPS Loss: {np.mean(val_perceptual_losses):.4f}')
             losses_epoch['recon'].append(np.mean(recon_losses))
             losses_epoch['kl'].append(np.mean(kl_losses))
             losses_epoch['lpips'].append(np.mean(perceptual_losses))
             losses_epoch['disc'].append(0)
             losses_epoch['gen'].append(0)
-        # plt.show()
 
-    torch.save(model.state_dict(), os.path.join(save_dir, 'vae.pth'))                                            
-    torch.save(discriminator.state_dict(), os.path.join(save_dir, 'discriminator.pth'))
+            val_losses_epoch['recon'].append(np.mean(val_recon_losses))
+            val_losses_epoch['lpips'].append(np.mean(val_perceptual_losses))
+        # plt.show()
 
     ## save json file of losses
     with open(os.path.join(save_dir, 'losses.json'), 'w') as f:
@@ -210,6 +244,21 @@ def train(conf, save_folder):
         ax[i].tick_params(axis='both', which='major', labelsize=15)
         ax[i].legend(fontsize=15)
     plt.savefig(os.path.join(save_dir, 'losses.png'))
+
+    fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10, 6), num='Validation Losses')
+    ax[0].plot(np.array(losses_epoch['recon']), label='train_recon')
+    ax[0].plot(np.array(val_losses_epoch['recon']), label='val_recon')
+
+    ax[1].plot(np.array(losses_epoch['lpips']), label='train_lpips')
+    ax[1].plot(np.array(val_losses_epoch['lpips']), label='val_lpips')
+
+    for i in range(2):
+        ax[i].set_xlabel('Epochs', fontsize=15)
+        ax[i].set_ylabel('Loss', fontsize=15)
+        ax[i].tick_params(axis='both', which='major', labelsize=15)
+        ax[i].legend(fontsize=15)
+    plt.savefig(os.path.join(save_dir, 'val_losses.png'))
+
 
 
 
