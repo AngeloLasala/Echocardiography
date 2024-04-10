@@ -67,7 +67,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         else:
             im = data
 
-        xt = torch.randn((train_config['ldm_batch_size'],
+        xt = torch.randn((im.shape[0],
                       autoencoder_model_config['z_channels'],
                       im_size,
                       im_size)).to(device)
