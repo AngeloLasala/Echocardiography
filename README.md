@@ -46,7 +46,7 @@ python infer_vae.py --data eco --triall trial_n
 
 #### Latent Diffusion Model
 
-*The Latent Diffusion Model (LDM)* is a denoising model that operates on the latent space extracted from the autoencoder, rather than on the pixel space like DDPM. It's important to note that for training the LDM, the training set must be the **same** as that used for the autoencoder. Pay attention to the batch size during training.
+The *Latent Diffusion Model (LDM)* is a denoising model that operates on the latent space extracted from the autoencoder, rather than on the pixel space like DDPM. It's important to note that for training the LDM, the training set must be the **same** as that used for the autoencoder. Pay attention to the batch size during training.
 
 Run the following code for the training
 
@@ -60,6 +60,19 @@ To sample a set of synthetic images use the following comand line
 ```bash
 python tools/sample_ldm.py --data eco --trial trial_#n --epoch #_epoch
 ```
+
+The *condition Latent Diffusion Model (condLDM)* sample a condiotional distrubution given the heatmaps of LVPW, LVID and IVS keypoints. To train the condLDM run the following code
+
+```bash
+python tools/train_cond_ldm --data eco_image_cond --vae_train train_#n
+```
+
+for the sampling:
+
+```bash
+python tools/sample_cond_ldm.py --data eco_image_cond --trial trial_#n --epoch #epoch
+```
+
 
 
 
