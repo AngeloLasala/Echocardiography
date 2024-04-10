@@ -19,7 +19,10 @@ from echocardiography.diffusion.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from echocardiography.diffusion.tools.infer_vae import get_best_model
 from torch.utils.data import DataLoader
+import torch.multiprocessing as mp
+
 import matplotlib.pyplot as plt
+import cv2
 
 
 
@@ -34,13 +37,6 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
     """
     im_size = dataset_config['im_size'] // 2 ** sum(autoencoder_model_config['down_sample'])
     
-    ########### Sample random noise latent ##########
-    # For now fixing generation with one sample
-    xt = torch.randn((1,
-                      autoencoder_model_config['z_channels'],
-                      im_size,
-                      im_size)).to(device)
-    ###############################################
     
     ############ Create Conditional input ###############
     ## FUTURE WORK: Add text-like conditioning
@@ -62,55 +58,94 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
                               dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
                               condition_config=condition_config)
+    data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=False, num_workers=8)
 
-    print('xt shape', xt.shape)
-    mask_idx = random.randint(0, len(data_img))
-    mask = data_img[0][1]['image'].unsqueeze(0).to(device)
-
-    # plt image and mask
-    plt.figure()
-    # print the mask cobvertd in to the numpy
-    plt.imshow(mask.squeeze().cpu().numpy()[0], cmap='jet')
-    print(f'Using mask index {mask_idx}')
-    plt.show()
-    
-    uncond_input = {
-        # 'text': empty_text_embed,
-        'image': torch.zeros_like(mask)
-    }
-    cond_input = {
-        # 'text': text_prompt_embed,
-        'image': mask
-    }
-    # ###############################################
-    
-    
-    ################# Sampling Loop ########################
-    for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
-        # Get prediction of noise
-        t = (torch.ones((xt.shape[0],)) * i).long().to(device)
-        noise_pred_cond = model(xt, t, cond_input)
-        
-        noise_pred = noise_pred_cond
-        
-        # Use scheduler to get x0 and xt-1
-        xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
-        
-        # Save x0
-        if i == 0:
-            # Decode ONLY the final image to save time
-            ims = vae.decode(xt)
+    for btc, data in enumerate(data_loader):
+        cond_input = None
+        if condition_config is not None:
+            im, cond_input = data  # im is the image (batch_size=8), cond_input is the conditional input ['image for the mask']
         else:
-            ims = x0_pred
-        
-        ims = torch.clamp(ims, -1., 1.).detach().cpu()
-        ims = (ims + 1) / 2
-        grid = make_grid(ims, nrow=10)
-        img = torchvision.transforms.ToPILImage()(grid)
-        
-        img.save(os.path.join(save_folder, 'x0_{}.png'.format(i)))
-        img.close()
-    #############################################################
+            im = data
+
+        xt = torch.randn((train_config['ldm_batch_size'],
+                      autoencoder_model_config['z_channels'],
+                      im_size,
+                      im_size)).to(device)
+
+        ################# Sampling Loop ########################
+        for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
+            # Get prediction of noise
+            t = (torch.ones((xt.shape[0],)) * i).long().to(device)
+            noise_pred_cond = model(xt, t, cond_input)
+            
+            noise_pred = noise_pred_cond
+            
+            # Use scheduler to get x0 and xt-1
+            xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
+            
+            # Save x0
+            if i == 0:
+                # Decode ONLY the final image to save time
+                ims = vae.decode(xt)
+            else:
+                ims = x0_pred
+            
+            ims = torch.clamp(ims, -1., 1.).detach().cpu()
+            ims = (ims + 1) / 2
+
+        for i in range(ims.shape[0]):
+            cv2.imwrite(os.path.join(save_folder, f'x0_{btc * train_config["ldm_batch_size"] + i}.png'), ims[i].numpy()[0]*255)
+
+
+    ###### OLD PART - SAVE THE SAMPLE PROCESS OF LATENT SPACE FOR SINGLE IMAGE ###########
+    if False: 
+        ########### Sample random noise latent ##########
+        # For now fixing generation with one sample
+        xt = torch.randn((1,
+                        autoencoder_model_config['z_channels'],
+                        im_size,
+                        im_size)).to(device)
+        ###############################################
+
+        mask_idx = random.randint(0, len(data_img))
+        mask = data_img[0][1]['image'].unsqueeze(0).to(device)
+
+        uncond_input = {
+            # 'text': empty_text_embed,
+            'image': torch.zeros_like(mask)
+        }
+        cond_input = {
+            # 'text': text_prompt_embed,
+            'image': mask
+        }
+        # ###############################################
+
+        ################# Sampling Loop ########################
+        for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
+            # Get prediction of noise
+            t = (torch.ones((xt.shape[0],)) * i).long().to(device)
+            noise_pred_cond = model(xt, t, cond_input)
+            
+            noise_pred = noise_pred_cond
+            
+            # Use scheduler to get x0 and xt-1
+            xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
+            
+            # Save x0
+            if i == 0:
+                # Decode ONLY the final image to save time
+                ims = vae.decode(xt)
+            else:
+                ims = x0_pred
+            
+            ims = torch.clamp(ims, -1., 1.).detach().cpu()
+            ims = (ims + 1) / 2
+            grid = make_grid(ims, nrow=10)
+            img = torchvision.transforms.ToPILImage()(grid)
+            
+            img.save(os.path.join(save_folder, 'x0_{}.png'.format(i)))
+            img.close()
+        #############################################################
 
 def infer(par_dir, conf, trial, epoch):
     # Read the config file #
@@ -202,6 +237,8 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco') 
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
     parser.add_argument('--epoch', type=int, default=49, help='epoch to sample')
+
+    mp.set_start_method("spawn")
 
     args = parser.parse_args()
 

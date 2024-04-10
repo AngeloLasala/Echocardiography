@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 def create_gif(image_folder, gif_name):
     images = []
-    frames = np.arange(999, -1, -1)
+    frames = np.arange(999, 1, -1)
     for im in frames:
         im_path = os.path.join(image_folder, f'x0_{im}.png')
         images.append(imageio.imread(im_path))
