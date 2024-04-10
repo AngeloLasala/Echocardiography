@@ -11,9 +11,11 @@ from PIL import Image
 from tqdm import tqdm
 from echocardiography.diffusion.models.unet_base import Unet
 from echocardiography.diffusion.scheduler import LinearNoiseScheduler
+from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE
 from echocardiography.diffusion.tools.infer_vae import get_best_model
+import cv2
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -26,34 +28,73 @@ def sample(model, scheduler, train_config, diffusion_model_config,
     We save the x0 predictions
     """
     im_size = dataset_config['im_size'] // 2**sum(autoencoder_model_config['down_sample'])
-    xt = torch.randn((train_config['num_samples'],
-                      autoencoder_model_config['z_channels'],
-                      im_size,
-                      im_size)).to(device)
 
-    save_count = 0
-    for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
-        # Get prediction of noise
-        noise_pred = model(xt, torch.as_tensor(i).unsqueeze(0).to(device))
-        
-        # Use scheduler to get x0 and xt-1
-        xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
+    # Get the spatial conditional mask, i.e. the heatmaps
+    im_dataset_cls = {
+        'mnist': MnistDataset,
+        'celebhq': CelebDataset,
+        'eco': EcoDataset,
+    }.get(dataset_config['name'])
 
-        # Save x0
-        #ims = torch.clamp(xt, -1., 1.).detach().cpu()
-        if i == 0:
-            # Decode ONLY the final iamge to save time
-            ims = vae.decode(xt)
-        else:
-            ims = xt
-        
-        ims = torch.clamp(ims, -1., 1.).detach().cpu()
-        ims = (ims + 1) / 2
-        grid = make_grid(ims, nrow=train_config['num_grid_rows'])
-        img = torchvision.transforms.ToPILImage()(grid)
-        
-        img.save(os.path.join(save_folder, 'x0_{}.png'.format(i)))
-        img.close()
+
+    data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size'], dataset_config['im_size']), 
+                              im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'])
+    
+    for jj in range(len(data_img)):
+        xt = torch.randn((1,
+                        autoencoder_model_config['z_channels'],
+                        im_size,
+                        im_size)).to(device)
+        for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
+            # Get prediction of noise
+            noise_pred = model(xt, torch.as_tensor(i).unsqueeze(0).to(device))
+            
+            # Use scheduler to get x0 and xt-1
+            xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
+
+            # Save x0
+            #ims = torch.clamp(xt, -1., 1.).detach().cpu()
+            if i == 0:
+                # Decode ONLY the final iamge to save time
+                ims = vae.decode(xt)
+            else:
+                ims = xt
+            
+            ims = torch.clamp(ims, -1., 1.).detach().cpu()
+            ims = (ims + 1) / 2
+
+        cv2.imwrite(os.path.join(save_folder, f'x0_{jj}.png'), ims[i].numpy()[0]*255)
+
+    ## OLD CODE - EXAMPLE OF GENERATION FOR SINGLE IMAGE #####################################À
+    if False: 
+        xt = torch.randn((1,
+                        autoencoder_model_config['z_channels'],
+                        im_size,
+                        im_size)).to(device)
+
+        save_count = 0
+        for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
+            # Get prediction of noise
+            noise_pred = model(xt, torch.as_tensor(i).unsqueeze(0).to(device))
+            
+            # Use scheduler to get x0 and xt-1
+            xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
+
+            # Save x0
+            #ims = torch.clamp(xt, -1., 1.).detach().cpu()
+            if i == 0:
+                # Decode ONLY the final iamge to save time
+                ims = vae.decode(xt)
+            else:
+                ims = xt
+            
+            ims = torch.clamp(ims, -1., 1.).detach().cpu()
+            ims = (ims + 1) / 2
+            grid = make_grid(ims, nrow=train_config['num_grid_rows'])
+            img = torchvision.transforms.ToPILImage()(grid)
+            
+            img.save(os.path.join(save_folder, 'x0_{}.png'.format(i)))
+            img.close()
 
 
 def infer(par_dir, conf, trial, epoch):
