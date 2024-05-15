@@ -48,7 +48,7 @@ def get_coordinate_from_heatmap_torch(heatmap):
     Parameters
     ----------
     heatmap : torch.Tensor
-        Tensor containing the heatmap (B x C * W * H)
+        Tensor containing the heatmap (B,C,W,H)
 
     Returns
     -------
@@ -56,11 +56,9 @@ def get_coordinate_from_heatmap_torch(heatmap):
         List containing the coordinates
     """
     label_list = []
-    print(heatmap.shape)
     for ch in range(heatmap.shape[1]):
-        max_value, max_index = torch.max(heatmap[ch].view(-1), dim=0)
-        print(max_value, max_index)
-        coor = torch.nonzero(heatmap[ch] == max_value)
+        max_value, max_index = torch.max(heatmap[0,ch,:,:].view(-1), dim=0)
+        coor = torch.nonzero(heatmap[0,ch,:,:] == max_value)
         label_list.append(coor[0][1].item())
         label_list.append(coor[0][0].item())
     return label_list

@@ -29,7 +29,7 @@ ldm_params:
   num_mid_layers : 2
   num_up_layers : 2
   condition_config:
-    condition_types: [ 'image' ]      # could be also ['class', 'text', 'image' ]
+    condition_types: [ 'class' ]      # could be also ['class', 'text', 'image' ]: PUT THE DEFAULT VALUE AS 'image'
     text_condition_config:
       text_embed_model: 'clip'
       train_text_embed_model: False
@@ -42,8 +42,8 @@ ldm_params:
       image_condition_w : 256
       cond_drop_prob: 0.1
     class_condition_config :     ## this is for the class conditioning of different type of hypertrophy 
-      num_classes : 10           # numebr of classes
-      cond_drop_prob : 0.1
+      num_classes : 4           # numebr of classes, for now it is 4
+      cond_drop_prob : 0.1       # probability of dropping class labels
 
 autoencoder_params:
   z_channels: 3

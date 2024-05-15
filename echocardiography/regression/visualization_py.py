@@ -1,3 +1,7 @@
+"""
+Visualize the hypertrophy dataset as starting point of sampling task with latent diffusion model
+"""
+
 import os
 import argparse
 import numpy as np
@@ -71,7 +75,42 @@ if Save_list:
 else:
     hypertrofy_list = np.load('hypertrofy_list.npy')    
 
+## 2D scatter plots #####################################################################################################
 
+## only colored scatter plot
+fig, ax = plt.subplots(figsize=(10, 10))
+color = np.where((hypertrofy_list[:, 0] < 200) & (hypertrofy_list[:, 1] < 0.42), 'green',
+                 np.where((hypertrofy_list[:, 0] >= 200) & (hypertrofy_list[:, 1] < 0.42), 'olive',
+                          np.where((hypertrofy_list[:, 0] < 200) & (hypertrofy_list[:, 1] >= 0.42), 'orange', 'red')))
+ax.scatter(hypertrofy_list[:, 0], hypertrofy_list[:, 1], c=color, marker='o', alpha=0.2)
+ax.fill_between([0, 200], 0, 0.42, color='green', alpha=0.3)
+ax.fill_between([200, 1000], 0, 0.42, color='olive', alpha=0.3)
+ax.fill_between([0, 200], 0.42, 2, color='orange', alpha=0.3)
+ax.fill_between([200, 1000], 0.42, 2, color='red', alpha=0.3)
+
+ax.grid(linestyle='--', linewidth=0.5)
+ax.set_xlabel('Left Ventricular Mass', fontsize=18)
+ax.set_ylabel('Relative Wall Thickness', fontsize=18)
+ax.tick_params(axis='x', labelsize=15)
+ax.tick_params(axis='y', labelsize=15)
+
+## colored zone with b/w scatter
+fig, ax = plt.subplots(figsize=(10, 10))
+ax.scatter(hypertrofy_list[:, 0], hypertrofy_list[:, 1], c='gray', marker='o', alpha=0.1)
+ax.fill_between([0, 200], 0, 0.42, color='green', alpha=0.4)
+ax.fill_between([200, 1000], 0, 0.42, color='olive', alpha=0.4)
+ax.fill_between([0, 200], 0.42, 2, color='orange', alpha=0.4)
+ax.fill_between([200, 1000], 0.42, 2, color='red', alpha=0.4)
+
+ax.grid(linestyle='--', linewidth=0.5)
+ax.set_xlabel('Left Ventricular Mass', fontsize=18)
+ax.set_ylabel('Relative Wall Thickness', fontsize=18)
+ax.tick_params(axis='x', labelsize=15)
+ax.tick_params(axis='y', labelsize=15)
+
+
+
+##  3D histogram plot ####################################################################
 fig = plt.figure(figsize=(15, 15))
 ax = fig.add_subplot(projection='3d')
 x = np.array(hypertrofy_list)[:, 0] # Left Ventricular Mass
@@ -95,13 +134,13 @@ dz = hist.ravel()
 ax.bar3d(xpos, ypos, zpos, dx, dy, dz, zsort='average', alpha=0.5, color=np.where((xpos < 200) & (ypos < 0.42), 'green',
                                                                          np.where((xpos >= 200) & (ypos < 0.42), 'olive', 
                                                                          np.where((xpos < 200) & (ypos >= 0.42), 'orange', 'red'))))
-ax.set_xlabel('Left Ventricular Mass', fontsize=18)
-ax.set_ylabel('Relative Wall Thickness', fontsize=18)
-ax.set_xlabel('Left Ventricular Mass', fontsize=18)
-ax.set_ylabel('Relative Wall Thickness', fontsize=18)
+ax.set_xlabel('\n Left Ventricular Mass', fontsize=18)
+ax.set_ylabel('\n Relative Wall Thickness', fontsize=18)
+ax.set_zlabel('\n Number of patient', fontsize=18)
 ax.tick_params(axis='x', labelsize=15)
 ax.tick_params(axis='y', labelsize=15)
 ax.tick_params(axis='z', labelsize=15)
+####################################################################################################
 
 plt.show()
     
