@@ -35,12 +35,15 @@ ldm_params:
       train_text_embed_model: False
       text_embed_dim: 512
       cond_drop_prob: 0.1
-    image_condition_config:
-      image_condition_input_channels: 6   # total number of spatial channels in the conditional heatmaps
+    image_condition_config:                 ## this is for the image conditioning - seg/heatmaps stacked on the input
+      image_condition_input_channels: 6     # total number of spatial channels in the conditional heatmaps
       image_condition_output_channels: 3
       image_condition_h : 256
       image_condition_w : 256
       cond_drop_prob: 0.1
+    class_condition_config :     ## this is for the class conditioning of different type of hypertrophy 
+      num_classes : 10           # numebr of classes
+      cond_drop_prob : 0.1
 
 autoencoder_params:
   z_channels: 3
