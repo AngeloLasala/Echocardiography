@@ -55,13 +55,16 @@ class Unet(nn.Module):
             condition_types = self.condition_config['condition_types']
             if 'class' in condition_types:
                 # validate_class_config(self.condition_config)
+                print('sto dentro: class')
                 self.class_cond = True
                 self.num_classes = self.condition_config['class_condition_config']['num_classes']
             if 'text' in condition_types:
                 # validate_text_config(self.condition_config)
+                print('sto dentro: text')
                 self.text_cond = True
                 self.text_embed_dim = self.condition_config['text_condition_config']['text_embed_dim']
             if 'image' in condition_types:
+                print('sto dentro: image')
                 self.image_cond = True
                 self.im_cond_input_ch = self.condition_config['image_condition_config'][
                     'image_condition_input_channels']
@@ -85,7 +88,7 @@ class Unet(nn.Module):
                                             self.down_channels[0], kernel_size=3, padding=1)
         else:
             self.conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=1)
-        self.cond = self.text_cond or self.image_cond or self.class_cond
+        self.cond = self.text_cond or self.image_cond or self.class_cond ## check if at least one condition is activate
         ###################################
         
         # Initial projection from sinusoidal time embedding
@@ -162,8 +165,12 @@ class Unet(nn.Module):
         
         ######## Class Conditioning ########
         if self.class_cond:
-            validate_class_conditional_input(cond_input, x, self.num_classes)
+            # validate_class_conditional_input(cond_input, x, self.num_classes)
+            # print(self.class_emb.weight.shape)
+            # print(cond_input['class'].shape)
             class_embed = einsum(cond_input['class'].float(), self.class_emb.weight, 'b n, n d -> b d')
+            # print(class_embed.shape)
+            # print(t_emb.shape)
             t_emb += class_embed
         ####################################
             
@@ -194,42 +201,42 @@ class Unet(nn.Module):
         # out B x C x H x W
         return out
 
-# if __name__ == '__main__':
-    # model_config = {
-    #     'down_channels': [ 128, 256, 256, 256],
-    #     'mid_channels': [ 256, 256],
-    #     'down_sample': [ False, False, False ],
-    #     'attn_down' : [True, True, True],
-    #     'time_emb_dim': 256,
-    #     'norm_channels' : 32,
-    #     'num_heads' : 16,
-    #     'conv_out_channels' : 128,
-    #     'num_down_layers': 2,
-    #     'num_mid_layers': 2,
-    #     'num_up_layers': 2,
-    #     'condition_config': {
-    #         'condition_types': [ 'image'],
-    #         'class_condition_config': {
-    #             'num_classes': 10
-    #         },
-    #         'text_condition_config': {
-    #             'text_embed_model': 'clip',
-    #             'train_text_embed_model': False,
-    #             'text_embed_dim': 512,
-    #             'cond_drop_prob': 0.1,
-    #         },
-    #         'image_condition_config': {
-    #             'image_condition_input_channels': 6,
-    #             'image_condition_output_channels': 3,
-    #         }
-    #     }
-    # }
+if __name__ == '__main__':
+    model_config = {
+        'down_channels': [ 128, 256, 256, 256],
+        'mid_channels': [ 256, 256],
+        'down_sample': [ False, False, False ],
+        'attn_down' : [True, True, True],
+        'time_emb_dim': 256,
+        'norm_channels' : 32,
+        'num_heads' : 16,
+        'conv_out_channels' : 128,
+        'num_down_layers': 2,
+        'num_mid_layers': 2,
+        'num_up_layers': 2,
+        'condition_config': {
+            'condition_types': [ 'class'],
+            'class_condition_config': {
+                'num_classes': 4
+            },
+            'text_condition_config': {
+                'text_embed_model': 'clip',
+                'train_text_embed_model': False,
+                'text_embed_dim': 512,
+                'cond_drop_prob': 0.1,
+            },
+            'image_condition_config': {
+                'image_condition_input_channels': 6,
+                'image_condition_output_channels': 3,
+            }
+        }
+    }
     
-    # model = Unet(1, model_config)
-    # x = torch.randn(4, 1, 32, 32)
-    # t = torch.randint(0, 100, (4,))
-    # class_cond = torch.randint(0, 10, (4,))
-    # text_cond = torch.randn(4, 256)
-    # mask_cond = torch.randn(4, 6, 32, 32)
-    # out = model(x, t, {'image': mask_cond})
-    # print(out.shape)
+    model = Unet(1, model_config)
+    x = torch.randn(5, 1, 32, 32)
+    t = torch.randint(0, 100, (5,))
+    text_cond = torch.randn(5, 256)
+    mask_cond = torch.randn(5, 6, 32, 32)
+    class_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
+    out = model(x, t, {'class': class_cond})
+    print(out.shape)

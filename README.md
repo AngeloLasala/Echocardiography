@@ -41,7 +41,7 @@ python train_vae.py --data eco
 `infer_vae.py` file enable you to visualize some recostruction and the latent space. The trained model is saved during the training in a `trial_n` folder.
 
 ```bash
-python infer_vae.py --data eco --triall trial_n
+python infer_vae.py --data eco --triall trial_#n
 ```
 
 #### Latent Diffusion Model
@@ -64,7 +64,7 @@ python tools/sample_ldm.py --data eco --trial trial_#n --epoch #_epoch
 The *condition Latent Diffusion Model (condLDM)* sample a condiotional distrubution given the heatmaps of LVPW, LVID and IVS keypoints. To train the condLDM run the following code
 
 ```bash
-python tools/train_cond_ldm --data eco_image_cond --vae_train train_#n
+python tools/train_cond_ldm.py --data eco_image_cond --vae_train train_#n
 ```
 
 for the sampling:

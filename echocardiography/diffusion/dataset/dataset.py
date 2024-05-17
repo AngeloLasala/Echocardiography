@@ -151,6 +151,7 @@ class EcoDataset():
             ###### CLASS CONDITION ##############################################
             if 'class' in self.condition_types:
                 # process the image
+                im = im.resize(self.size)
                 im = im.convert('L')
                 im_tensor = torchvision.transforms.ToTensor()(im)
                 im_tensor = (2 * im_tensor) - 1
@@ -546,5 +547,13 @@ if __name__ == '__main__':
     # print(data.patient_files[1])
     # print(data.data_dir, data.data_dir_label)
     print()
-    print(data[13])
+    print(data[13][0].shape)
+    print(data[13][1]['image'].shape)
     
+
+    
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.imshow(data[13][0].squeeze(0).detach().numpy(), cmap='gray')
+    # plt.imshow(data[13][1]['image'][5].detach().numpy(), cmap='jet', alpha=0.5)
+    plt.show()

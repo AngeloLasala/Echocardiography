@@ -29,6 +29,13 @@ def drop_image_condition(image_condition, im, im_drop_prob):
     else:
         return image_condition
 
+def drop_class_condition(class_condition, class_drop_prob, im):
+    if class_drop_prob > 0:
+        class_drop_mask = torch.zeros((im.shape[0], 1), device=im.device).float().uniform_(0,1) > class_drop_prob
+        return class_condition * class_drop_mask
+    else:
+        return class_condition
+
 def train(par_dir, conf, trial):
    # Read the config file #
     with open(conf, 'r') as file:
@@ -98,13 +105,16 @@ def train(par_dir, conf, trial):
 
     save_folder = os.path.join(trial_folder, 'cond_ldm')
     if not os.path.exists(save_folder):
+        save_folder = os.path.join(trial_folder, 'cond_ldm_1')
         os.makedirs(save_folder)
     else:
-        overwrite = input("The save folder already exists. Do you want to overwrite it? (y/n): ")
-        if overwrite.lower() != 'y':
-            print("Training aborted.")
-            exit()
-
+        ## count how many folder start with cond_ldm
+        count = 0
+        for folder in os.listdir(trial_folder):
+            if folder.startswith('cond_ldm'):
+                count += 1
+        save_folder = os.path.join(trial_folder, f'cond_ldm_{count+1}')
+        os.makedirs(save_folder)
 
     num_epochs = train_config['ldm_epochs']
     optimizer = Adam(model.parameters(), lr=train_config['ldm_lr'])
@@ -134,6 +144,14 @@ def train(par_dir, conf, trial):
                 # Drop condition
                 im_drop_prob = get_config_value(condition_config['image_condition_config'], 'cond_drop_prob', 0.)
                 cond_input['image'] = drop_image_condition(cond_input_image, im, im_drop_prob)
+
+            if 'class' in condition_types:
+                assert 'class' in cond_input, 'Conditioning Type Class but no class conditioning input present'
+                class_condition = cond_input['class'].to(device)
+                class_drop_prob = get_config_value(condition_config['class_condition_config'],
+                                                   'cond_drop_prob', 0.)
+                # Drop condition
+                cond_input['class'] = drop_class_condition(class_condition, class_drop_prob, im)
             #########################################################################################
                 
                 
