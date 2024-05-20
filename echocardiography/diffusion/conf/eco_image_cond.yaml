@@ -29,7 +29,7 @@ ldm_params:
   num_mid_layers : 2
   num_up_layers : 2
   condition_config:
-    condition_types: [ 'class' ]      # could be also ['class', 'text', 'image' ]: PUT THE DEFAULT VALUE AS 'image'
+    condition_types: [ 'image' ]      # could be also ['class', 'text', 'image' ]: PUT THE DEFAULT VALUE AS 'image'
     text_condition_config:
       text_embed_model: 'clip'
       train_text_embed_model: False

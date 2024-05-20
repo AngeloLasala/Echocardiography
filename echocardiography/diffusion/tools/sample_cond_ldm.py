@@ -53,6 +53,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         'eco': EcoDataset,
     }.get(dataset_config['name'])
 
+    print(condition_config)
 
     data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size'], dataset_config['im_size']), 
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
@@ -64,6 +65,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         cond_input = None
         if condition_config is not None:
             im, cond_input = data  # im is the image (batch_size=8), cond_input is the conditional input ['image for the mask']
+            cond_input['image'] = cond_input['image'].to(device)
         else:
             im = data
 
@@ -71,11 +73,17 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
                       autoencoder_model_config['z_channels'],
                       im_size,
                       im_size)).to(device)
+        print(cond_input['image'].shape)
 
+        # plt the first image
+        plt.imshow(cond_input['image'][0][0].cpu().numpy())
+        plt.show()
+        
         ################# Sampling Loop ########################
         for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
             # Get prediction of noise
             t = (torch.ones((xt.shape[0],)) * i).long().to(device)
+            
             noise_pred_cond = model(xt, t, cond_input)
             
             noise_pred = noise_pred_cond
@@ -147,7 +155,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
             img.close()
         #############################################################
 
-def infer(par_dir, conf, trial, epoch):
+def infer(par_dir, conf, trial, experiment, epoch):
     # Read the config file #
     with open(conf, 'r') as file:
         try:
@@ -192,7 +200,7 @@ def infer(par_dir, conf, trial, epoch):
     ########## Load Unet #############
     model = Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
     model.eval()
-    model_dir = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial, 'cond_ldm')
+    model_dir = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial, experiment)
     model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
    
     #####################################
@@ -234,9 +242,11 @@ def infer(par_dir, conf, trial, epoch):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
-    parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco') 
-    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
-    parser.add_argument('--epoch', type=int, default=49, help='epoch to sample')
+    parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco, eco_image_cond') 
+    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model, it is the trial folde that contain the VAE model')
+    parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
+                                                                              hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
+    parser.add_argument('--epoch', type=int, default=49, help='epoch to sample, this is the epoch of cond ldm model')
 
     mp.set_start_method("spawn")
 
@@ -246,6 +256,6 @@ if __name__ == '__main__':
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
     save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = par_dir, conf=configuration, trial=args.trial, epoch=args.epoch)
+    infer(par_dir = par_dir, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch)
     plt.show()
 

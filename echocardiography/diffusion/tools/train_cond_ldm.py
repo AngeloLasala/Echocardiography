@@ -176,6 +176,9 @@ def train(par_dir, conf, trial):
             torch.save(model.state_dict(), os.path.join(save_folder, f'ldm_{epoch_idx}.pth'))
     
     print('Done Training ...')
+    ## save the config file
+    with open(os.path.join(save_folder, 'config.yaml'), 'w') as f:
+        yaml.dump(config, f)
 
 
 if __name__ == '__main__':
