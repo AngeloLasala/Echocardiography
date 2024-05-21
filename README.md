@@ -1,6 +1,14 @@
 # Echocardiography
 Analysis of PLAX echocardiography is conducted on the available dataset [Echonet-LVH](https://echonet.github.io/lvh/). The repository contains two modules: regression and diffusion. The regression module is designed for keypoints regression in the left ventricle, while the diffusion module is intended for unconditional/conditional generation using the Latent Diffusion Model.
 
+The generation of a new PLAX view can be achieved by anatomically conditioning:
+- Chamber dimensions: dimensions of IVS, LVID, and LVPW
+- Classification of hypertrophy:
+    - Concentric hypertrophy: [1,0,0,0]
+    - Concentric remodeling:  [0,1,0,0]
+    - Eccentric hypertrophy:  [0,0,1,0]
+    - Normal geometry:        [0,0,0,1]
+
 ## Install
 Setting up a virtual environment and installing PyTorch following the [official guidelines](https://pytorch.org/get-started/locally/)
 
