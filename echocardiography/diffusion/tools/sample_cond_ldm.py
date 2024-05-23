@@ -65,7 +65,8 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         cond_input = None
         if condition_config is not None:
             im, cond_input = data  # im is the image (batch_size=8), cond_input is the conditional input ['image for the mask']
-            cond_input['image'] = cond_input['image'].to(device)
+            for key in cond_input.keys(): ## for all the type of condition, we move the  tensor on the device
+                cond_input[key] = cond_input[key].to(device)
         else:
             im = data
 
@@ -73,11 +74,11 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
                       autoencoder_model_config['z_channels'],
                       im_size,
                       im_size)).to(device)
-        print(cond_input['image'].shape)
+        print(cond_input[key].shape)
 
         # plt the first image
-        plt.imshow(cond_input['image'][0][0].cpu().numpy())
-        plt.show()
+        # plt.imshow(cond_input[key][0][0].cpu().numpy())
+        # plt.show()
         
         ################# Sampling Loop ########################
         for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
