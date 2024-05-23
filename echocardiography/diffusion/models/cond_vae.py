@@ -1,5 +1,5 @@
 """
-Variational Autoencorder (VAE) model design for the Latent Diffusion Model (LDM)
+Conditional Variational Autoencorder (VAE) model design for the Latent Diffusion Model (LDM)
 """
 
 import torch
@@ -8,8 +8,8 @@ from echocardiography.diffusion.models.blocks import DownBlock, MidBlock, UpBloc
 from torchsummary import summary 
 
 
-class VAE(nn.Module):
-    def __init__(self, im_channels, model_config):
+class condVAE(nn.Module):
+    def __init__(self, im_channels, model_config, condition_config):
         super().__init__()
         self.down_channels = model_config['down_channels']
         self.mid_channels = model_config['mid_channels']
@@ -18,8 +18,10 @@ class VAE(nn.Module):
         self.num_mid_layers = model_config['num_mid_layers']
         self.num_up_layers = model_config['num_up_layers']
 
-        self.class_conditioning = True #### add to to the configuration
-        self.num_classes = 4 #### add to to the configuration
+        self.class_conditioning = True if condition_config['condition_types'] is not None else False
+        self.num_classes =  condition_config['class_condition_config']['num_classes']
+        print(f'Number of classes: {self.num_classes}')
+        print(f'Class conditioning: {self.class_conditioning}')
         
         # To disable attention in Downblock of Encoder and Upblock of Decoder
         self.attns = model_config['attn_down']
@@ -225,9 +227,9 @@ class VAE(nn.Module):
         # print('input',x.shape)
         z, encoder_output = self.encode(x, y)
         out = self.decode(z, y)
-        # print('encoder_output',z.shape)
-        
-        # print('output',out.shape)
+        # print('z',z.shape)
+        # print('encoder_output',encoder_output.shape)    
+        # print('decoder output',out.shape)
         return out, encoder_output
 
 if __name__ == '__main__':
