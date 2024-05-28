@@ -54,6 +54,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
     }.get(dataset_config['name'])
 
     print(condition_config)
+    print('DIMENSION OF THE LATENT SPACE: ', autoencoder_model_config['z_channels'])
 
     data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size'], dataset_config['im_size']), 
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],

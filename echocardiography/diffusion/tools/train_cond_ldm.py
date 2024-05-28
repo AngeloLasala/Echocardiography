@@ -103,7 +103,7 @@ def train(par_dir, conf, trial):
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vqvae', 'vqvae.pth'),map_location=device))
 
-    save_folder = os.path.join(trial_folder, 'cond_ldm')
+    save_folder = os.path.join(trial_folder, 'cond_ldm_1')
     if not os.path.exists(save_folder):
         save_folder = os.path.join(trial_folder, 'cond_ldm_1')
         os.makedirs(save_folder)

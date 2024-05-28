@@ -4,10 +4,10 @@ Analysis of PLAX echocardiography is conducted on the available dataset [Echonet
 The generation of a new PLAX view can be achieved by anatomically conditioning:
 - Chamber dimensions: dimensions of IVS, LVID, and LVPW
 - Classification of hypertrophy:
-    - Concentric hypertrophy: [1,0,0,0]
-    - Concentric remodeling:  [0,1,0,0]
-    - Eccentric hypertrophy:  [0,0,1,0]
-    - Normal geometry:        [0,0,0,1]
+    - Concentric hypertrophy: [1,0,0,0]- (rwt>  lvm< : color red)
+    - Concentric remodeling:  [0,1,0,0]- (rwt>  lvm< : color orange)
+    - Eccentric hypertrophy:  [0,0,1,0] - (rwt<  lvm> : color olive)
+    - Normal geometry:        [0,0,0,1] - (rwt<  lvm< : color green)
 
 ## Install
 Setting up a virtual environment and installing PyTorch following the [official guidelines](https://pytorch.org/get-started/locally/)
