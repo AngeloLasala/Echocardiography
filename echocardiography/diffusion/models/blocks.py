@@ -135,10 +135,13 @@ class DownBlock(nn.Module):
             if self.attn:
                 # Attention block of Unet
                 batch_size, channels, h, w = out.shape
+                # print(f'     Attention block {i}) input shape: {out.shape}')
                 in_attn = out.reshape(batch_size, channels, h * w)
                 in_attn = self.attention_norms[i](in_attn)
                 in_attn = in_attn.transpose(1, 2)
+                # print(f'     Attention block {i}) in_attn: {in_attn.shape} reshape and normalize')
                 out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
+                # print(f'     Attention block {i}) out_attn: {out_attn.shape} ')
                 out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
                 out = out + out_attn
             

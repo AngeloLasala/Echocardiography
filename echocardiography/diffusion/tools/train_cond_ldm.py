@@ -32,6 +32,7 @@ def drop_image_condition(image_condition, im, im_drop_prob):
 def drop_class_condition(class_condition, class_drop_prob, im):
     if class_drop_prob > 0:
         class_drop_mask = torch.zeros((im.shape[0], 1), device=im.device).float().uniform_(0,1) > class_drop_prob
+        # print(class_drop_mask)
         return class_condition * class_drop_mask
     else:
         return class_condition

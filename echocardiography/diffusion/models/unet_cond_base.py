@@ -55,12 +55,12 @@ class Unet(nn.Module):
             condition_types = self.condition_config['condition_types']
             if 'class' in condition_types:
                 # validate_class_config(self.condition_config)
-                print('sto dentro: class')
+                # print('sto dentro: class')
                 self.class_cond = True
                 self.num_classes = self.condition_config['class_condition_config']['num_classes']
             if 'text' in condition_types:
                 # validate_text_config(self.condition_config)
-                print('sto dentro: text')
+                # print('sto dentro: text')
                 self.text_cond = True
                 self.text_embed_dim = self.condition_config['text_condition_config']['text_embed_dim']
             if 'image' in condition_types:
@@ -141,23 +141,28 @@ class Unet(nn.Module):
         # Shapes assuming downblocks are [C1, C2, C3, C4]
         # Shapes assuming midblocks are [C4, C4, C3]
         # Shapes assuming downsamples are [True, True, False]
+        # print(f'Input) {x.shape}')
         if self.cond:
             assert cond_input is not None, "Model initialized with conditioning so cond_input cannot be None"
         if self.image_cond:
+            # print('sto dentro al image_cond')
             ######## Mask Conditioning ########
             # validate_image_conditional_input(cond_input, x)
             im_cond = cond_input['image']
+            # print(im_cond.shape)
             im_cond = torch.nn.functional.interpolate(im_cond, size=x.shape[-2:])
             im_cond = self.cond_conv_in(im_cond)
             assert im_cond.shape[-2:] == x.shape[-2:]
             x = torch.cat([x, im_cond], dim=1)
             # B x (C+N) x H x W
             out = self.conv_in_concat(x)
+            # print(f'conv_in_concat) {out.shape}')
             #####################################
         else:
             # B x C x H x W
             out = self.conv_in(x)
         # B x C1 x H x W
+        # print(f'first conv) {out.shape}')
         
         # t_emb -> B x t_emb_dim
         t_emb = get_time_embedding(torch.as_tensor(t).long(), self.t_emb_dim)
@@ -181,17 +186,26 @@ class Unet(nn.Module):
             context_hidden_states = cond_input['text']
         down_outs = []
         
+        # print('DOWN BLOCKS')
         for idx, down in enumerate(self.downs):
             down_outs.append(out)
+            # print(f'idx: {idx} - out: {out.shape} - t_emb: {t_emb.shape} - context_hidden_states: {context_hidden_states.shape}')
             out = down(out, t_emb, context_hidden_states)
+            
+
         # down_outs  [B x C1 x H x W, B x C2 x H/2 x W/2, B x C3 x H/4 x W/4]
         # out B x C4 x H/4 x W/4
+        # print()
         
-        for mid in self.mids:
+        # print('MID BLOCKS')
+        for idx, mid in enumerate(self.mids):
             out = mid(out, t_emb, context_hidden_states)
+            # print(f'idx: {idx} - out: {out.shape} - t_emb: {t_emb.shape} - context_hidden_states: {context_hidden_states.shape}')
         # out B x C3 x H/4 x W/4
+        # print()
         
-        for up in self.ups:
+        # print('UP BLOCKS')
+        for idx,up in enumerate(self.ups):
             down_out = down_outs.pop()
             out = up(out, down_out, t_emb, context_hidden_states)
             # out [B x C2 x H/4 x W/4, B x C1 x H/2 x W/2, B x 16 x H x W]
@@ -215,7 +229,7 @@ if __name__ == '__main__':
         'num_mid_layers': 2,
         'num_up_layers': 2,
         'condition_config': {
-            'condition_types': [ 'class'],
+            'condition_types': [ 'text'],
             'class_condition_config': {
                 'num_classes': 4
             },
@@ -238,5 +252,5 @@ if __name__ == '__main__':
     text_cond = torch.randn(5, 256)
     mask_cond = torch.randn(5, 6, 32, 32)
     class_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
-    out = model(x, t, {'class': class_cond})
-    print(out.shape)
+    out = model(x, t, {'text': mask_cond})
+    # print(out.shape)
