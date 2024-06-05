@@ -170,6 +170,11 @@ def train(par_dir, conf, trial):
             losses.append(loss.item())
             loss.backward()
             optimizer.step()
+        # end of the epoch
+        
+        ## Validation - computation of the FID score between real images (train) and generated images (validation)
+        # Real images: from the datasete loader of the training set
+        # Generated images: from the dataset loader of the validation set on wich i apply the diffusion and the decoder
         print(f'Finished epoch:{epoch_idx+1} | Loss : {np.mean(losses):.4f}')
 
         # Save the model

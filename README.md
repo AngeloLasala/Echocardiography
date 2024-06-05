@@ -52,6 +52,13 @@ python train_vae.py --data eco
 python infer_vae.py --data eco --triall trial_#n
 ```
 
+##### Evaluation
+To evaluate how the VAE encode the information in the latent space, use this code:
+
+```bash
+python investigate_vae.py --data eco --trial trial_#8
+```
+
 #### Latent Diffusion Model
 
 The *Latent Diffusion Model (LDM)* is a denoising model that operates on the latent space extracted from the autoencoder, rather than on the pixel space like DDPM. It's important to note that for training the LDM, the training set must be the **same** as that used for the autoencoder. Pay attention to the batch size during training.
@@ -79,6 +86,13 @@ for the sampling:
 
 ```bash
 python tools/sample_cond_ldm.py --data eco_image_cond --trial trial_#n --epoch #epoch
+```
+
+##### Evaluation
+The main score to evaluate the quality of generated images is Fréchet Inception Distance (FID). In this work we use the implementation in [official Pythorch implementation](https://github.com/mseitzer/pytorch-fid/tree/master?tab=readme-ov-file):
+
+```bash
+python -m pytorch_fid.fid_score path_real path_gen
 ```
 
 
