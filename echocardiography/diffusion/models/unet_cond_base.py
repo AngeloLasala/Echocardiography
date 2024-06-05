@@ -58,13 +58,13 @@ class Unet(nn.Module):
                 # print('sto dentro: class')
                 self.class_cond = True
                 self.num_classes = self.condition_config['class_condition_config']['num_classes']
-            if 'text' in condition_types:
+            if 'cross' in condition_types:
                 # validate_text_config(self.condition_config)
                 # print('sto dentro: text')
                 self.text_cond = True
-                self.text_embed_dim = self.condition_config['text_condition_config']['text_embed_dim']
+                self.text_embed_dim = self.condition_config['text_condition_config']['image_condition_h'] * self.condition_config['text_condition_config']['image_condition_w']
+                # self.text_embed_dim = self.condition_config['text_condition_config']['text_embed_dim']
             if 'image' in condition_types:
-                print('sto dentro: image')
                 self.image_cond = True
                 self.im_cond_input_ch = self.condition_config['image_condition_config'][
                     'image_condition_input_channels']
@@ -183,7 +183,7 @@ class Unet(nn.Module):
         if self.text_cond:
             assert 'text' in cond_input, \
                 "Model initialized with text conditioning but cond_input has no text information"
-            context_hidden_states = cond_input['text']
+            context_hidden_states = cond_input['text']        
         down_outs = []
         
         # print('DOWN BLOCKS')
@@ -229,15 +229,15 @@ if __name__ == '__main__':
         'num_mid_layers': 2,
         'num_up_layers': 2,
         'condition_config': {
-            'condition_types': [ 'text'],
+            'condition_types': [ 'cross'],
             'class_condition_config': {
                 'num_classes': 4
             },
             'text_condition_config': {
-                'text_embed_model': 'clip',
-                'train_text_embed_model': False,
-                'text_embed_dim': 512,
-                'cond_drop_prob': 0.1,
+                'image_condition_input_channels': 1,  
+                'image_condition_h' : 256,
+                'image_condition_w' : 256,
+                
             },
             'image_condition_config': {
                 'image_condition_input_channels': 6,
@@ -249,8 +249,8 @@ if __name__ == '__main__':
     model = Unet(1, model_config)
     x = torch.randn(5, 1, 32, 32)
     t = torch.randint(0, 100, (5,))
-    text_cond = torch.randn(5, 256)
+    text_cond = torch.randn(5, 1, 256, 256)
     mask_cond = torch.randn(5, 6, 32, 32)
     class_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
-    out = model(x, t, {'text': mask_cond})
+    out = model(x, t, {'text': text_cond})
     # print(out.shape)

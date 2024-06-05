@@ -159,6 +159,20 @@ class EcoDataset():
                 class_label = self.get_class_hypertrophy(keypoints_label, calc_value_list)
                 cond_inputs['class'] = class_label
             #####################################################################
+
+            ###### TEXT CONDITION ###############################################
+            # here the part of cross attention with the image, similar to the 'text' condition
+            # for now is not the embedding of a pretrained model but the direct cross attention between image and input
+            if 'cross' in self.condition_types:
+                heatmaps_label = self.get_heatmap(index)
+                im_tensor, heatmaps_label = self.trasform(im, heatmaps_label)
+                calc_value_list = torch.tensor(calc_value_list)
+                heatmaps_label = torch.sum(heatmaps_label, dim=0)
+                heatmaps_label = heatmaps_label.unsqueeze(0)
+                heatmaps_label = (heatmaps_label - heatmaps_label.min()) / (heatmaps_label.max() - heatmaps_label.min())
+                ## plot the heatmap
+
+                cond_inputs['cross'] = heatmaps_label    
             
             return im_tensor, cond_inputs   
 
@@ -532,12 +546,13 @@ class CelebDataset(Dataset):
 if __name__ == '__main__':
     import yaml
     
-    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_image_cond.yaml'
+    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_cross_cond.yaml'
     with open(conf, 'r') as file:
         try:
             config = yaml.safe_load(file)
         except yaml.YAMLError as exc:
             print(exc)
+    print(config['ldm_params']['condition_config'])
 
     data = EcoDataset(split='train', size=(256,256), im_path='DATA', dataset_batch='Batch3', phase='diastole', 
                       dataset_batch_regression='Batch2', trial='trial_2', condition_config=config['ldm_params']['condition_config']) #, condition_config=False)
@@ -548,12 +563,13 @@ if __name__ == '__main__':
     # print(data.data_dir, data.data_dir_label)
     print()
     print(data[13][0].shape)
-    print(data[13][1]['image'].shape)
+    print(data[13][1]['cross'].shape)
+    print(data[13][1]['class'])
     
 
     
     import matplotlib.pyplot as plt
     plt.figure()
     plt.imshow(data[13][0].squeeze(0).detach().numpy(), cmap='gray')
-    # plt.imshow(data[13][1]['image'][5].detach().numpy(), cmap='jet', alpha=0.5)
+    plt.imshow(data[13][1]['cross'][0].detach().numpy(), cmap='jet', alpha=0.5)
     plt.show()
