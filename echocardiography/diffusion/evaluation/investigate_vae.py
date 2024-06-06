@@ -49,21 +49,31 @@ def plot_image_latent(image, latent):
     Plot the latent space of the image
     """
     latent_dict = {}
-    latent = torchvision.transforms.Resize((image.shape[2], image.shape[3]))(latent)
+
+    ## plot the latent space
+    latent_original = latent[0,:,:,:].cpu().permute(1,2,0).numpy()
+    print(latent_original.shape)
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8), tight_layout=True)
+    ax.set_title('Image - latent space', fontsize=20)
+    ax.axis('off')
+    ax.imshow(latent_original, cmap='jet')
+
+
+    laten_img = torchvision.transforms.Resize((image.shape[2], image.shape[3]))(latent)
     
-    fig, ax = plt.subplots(1, latent.shape[1], figsize=(21, 8), tight_layout=True)
-    for i in range(latent.shape[1]):
+    fig, ax = plt.subplots(1, laten_img.shape[1], figsize=(21, 8), tight_layout=True)
+    for i in range(laten_img.shape[1]):
         ax[i].set_title(f'Image - ch latent {i}', fontsize=20)
         ax[i].imshow(image[0, 0, :, :].cpu().numpy(), cmap='gray')
-        ax[i].imshow(latent[0, i, :, :].cpu().numpy(), cmap='jet', alpha=0.2)
+        ax[i].imshow(laten_img[0, i, :, :].cpu().numpy(), cmap='jet', alpha=0.2)
 
     for axis in ax:
         axis.axis('off')
 
     ## 
     if latent.shape[1] == 4:
-        latent_1 = latent[0, 0, :, :].cpu().numpy() + latent[0, 2, :, :].cpu().numpy() 
-        latent_2 = latent[0, 1, :, :].cpu().numpy() + latent[0, 3, :, :].cpu().numpy()
+        latent_1 = laten_img[0, 0, :, :].cpu().numpy() + laten_img[0, 2, :, :].cpu().numpy() 
+        latent_2 = laten_img[0, 1, :, :].cpu().numpy() + laten_img[0, 3, :, :].cpu().numpy()
         #normalize the latent in the range 0-1
         latent_1 = (latent_1 - np.min(latent_1)) / (np.max(latent_1) - np.min(latent_1))
         latent_2 = (latent_2 - np.min(latent_2)) / (np.max(latent_2) - np.min(latent_2))
@@ -81,7 +91,7 @@ def plot_image_latent(image, latent):
 
     plt.show()
 
-def infer(par_dir, conf, trial):
+def infer(par_dir, conf, trial, show_plot=False):
     ######## Read the config file #######
     with open(conf, 'r') as file:
         try:
@@ -175,7 +185,7 @@ def infer(par_dir, conf, trial):
             encoded_output = torch.clamp(encoded_output, -1., 1.)
             encoded_output = (encoded_output + 1) / 2
             
-            plot_image_latent(im, encoded_output)
+            if show_plot: plot_image_latent(im, encoded_output)
             
             encoded_output = encoded_output[0,:,:,:].flatten()
             encoded_output_list.append(encoded_output.cpu().numpy())
@@ -263,6 +273,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for vq vae inference')
     parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco, eco_image_cond')  
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
+    parser.add_argument('--show_plot', action='store_true', help="show the latent space imgs, default=False")
+    
     args = parser.parse_args()
 
     current_directory = os.path.dirname(__file__)
@@ -270,4 +282,4 @@ if __name__ == '__main__':
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
     save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = par_dir, conf = configuration, trial = args.trial)
+    infer(par_dir = par_dir, conf = configuration, trial = args.trial, show_plot=args.show_plot)
