@@ -15,8 +15,8 @@ from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset,
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE
 from echocardiography.diffusion.tools.infer_vae import get_best_model
+from torch.utils.data import DataLoader
 import cv2
-
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -39,12 +39,15 @@ def sample(model, scheduler, train_config, diffusion_model_config,
 
     data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size'], dataset_config['im_size']), 
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'])
-    
-    for jj in range(len(data_img)):
-        xt = torch.randn((1,
+    data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=False, num_workers=8)
+
+    for btc, img in enumerate(data_loader):
+        print(img.shape)
+        xt = torch.randn((img.shape[0],
                         autoencoder_model_config['z_channels'],
                         im_size,
                         im_size)).to(device)
+
         for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
             # Get prediction of noise
             noise_pred = model(xt, torch.as_tensor(i).unsqueeze(0).to(device))
@@ -62,8 +65,9 @@ def sample(model, scheduler, train_config, diffusion_model_config,
             
             ims = torch.clamp(ims, -1., 1.).detach().cpu()
             ims = (ims + 1) / 2
-
-        cv2.imwrite(os.path.join(save_folder, f'x0_{jj}.png'), ims[i].numpy()[0]*255)
+        
+        for i in range(ims.shape[0]):
+            cv2.imwrite(os.path.join(save_folder, f'x0_{btc * train_config["ldm_batch_size"] + i}.png'), ims[i].numpy()[0]*255)
 
     ## OLD CODE - EXAMPLE OF GENERATION FOR SINGLE IMAGE #####################################À
     if False: 
@@ -97,7 +101,7 @@ def sample(model, scheduler, train_config, diffusion_model_config,
             img.close()
 
 
-def infer(par_dir, conf, trial, epoch):
+def infer(par_dir, conf, trial, experiment, epoch):
     # Read the config file #
     with open(conf, 'r') as file:
         try:
@@ -122,7 +126,7 @@ def infer(par_dir, conf, trial, epoch):
     model = Unet(im_channels=autoencoder_model_config['z_channels'],
                  model_config=diffusion_model_config).to(device)
     model.eval()
-    model_dir = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial, 'ldm')
+    model_dir = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial, experiment)
     model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device))
     
     trial_folder = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
@@ -163,7 +167,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
     parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco') 
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for the trained model')
-    parser.add_argument('--epoch', type=int, default=49, help='epoch of trained LDM model')
+    parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the  hyperparameters (file .yaml) that is used for the training, it can be ldm_1, ldm_2""")
+    parser.add_argument('--epoch', type=int, default=100, help='epoch of trained LDM model')
 
     args = parser.parse_args()
 
@@ -171,5 +176,6 @@ if __name__ == '__main__':
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
     save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = par_dir, conf=configuration, trial=args.trial, epoch=args.epoch)
+    infer(par_dir = par_dir, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch)
+    plt.show()
 

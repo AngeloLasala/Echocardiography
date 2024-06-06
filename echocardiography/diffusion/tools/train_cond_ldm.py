@@ -37,6 +37,13 @@ def drop_class_condition(class_condition, class_drop_prob, im):
     else:
         return class_condition
 
+def drop_text_condition(text_condition, im, text_drop_prob):
+    if text_drop_prob > 0:
+        text_drop_mask = torch.zeros((im.shape[0], 1, 1, 1), device=im.device).float().uniform_(0,1) > text_drop_prob
+        return text_condition * text_drop_mask
+    else:
+        return text_condition
+
 def train(par_dir, conf, trial):
    # Read the config file #
     with open(conf, 'r') as file:
@@ -153,6 +160,15 @@ def train(par_dir, conf, trial):
                                                    'cond_drop_prob', 0.)
                 # Drop condition
                 cond_input['class'] = drop_class_condition(class_condition, class_drop_prob, im)
+
+            if 'cross' in condition_types:
+                assert 'cross' in cond_input, 'Conditioning Type Text but no text conditioning input present'
+                cross_condition = cond_input['cross'].to(device)
+                print(cross_condition.shape)
+                text_drop_prob = get_config_value(condition_config['text_condition_config'],
+                                                    'cond_drop_prob', 0.)
+                text_condition = drop_text_condition(cross_condition, im, text_drop_prob)
+                cond_input['text'] = text_condition
             #########################################################################################
                 
                 
@@ -179,7 +195,7 @@ def train(par_dir, conf, trial):
 
         # Save the model
         if (epoch_idx+1) % train_config['save_frequency'] == 0:
-            torch.save(model.state_dict(), os.path.join(save_folder, f'ldm_{epoch_idx}.pth'))
+            torch.save(model.state_dict(), os.path.join(save_folder, f'ldm_{epoch_idx+1}.pth'))
     
     print('Done Training ...')
     ## save the config file
@@ -189,7 +205,7 @@ def train(par_dir, conf, trial):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
-    parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco')
+    parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
     args = parser.parse_args()
 

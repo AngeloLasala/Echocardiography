@@ -181,9 +181,9 @@ class Unet(nn.Module):
             
         context_hidden_states = None
         if self.text_cond:
-            assert 'text' in cond_input, \
+            assert 'cross' in cond_input, \
                 "Model initialized with text conditioning but cond_input has no text information"
-            context_hidden_states = cond_input['text']        
+            context_hidden_states = cond_input['cross']        
         down_outs = []
         
         # print('DOWN BLOCKS')

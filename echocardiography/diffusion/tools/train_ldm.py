@@ -88,15 +88,18 @@ def train(par_dir, conf, trial):
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vqvae', 'vqvae.pth'),map_location=device))
 
-    save_folder = os.path.join(trial_folder, 'ldm')
+    save_folder = os.path.join(trial_folder, 'ldm_1')
     if not os.path.exists(save_folder):
+        save_folder = os.path.join(trial_folder, 'ldm_1')
         os.makedirs(save_folder)
     else:
-        overwrite = input("The save folder already exists. Do you want to overwrite it? (y/n): ")
-        if overwrite.lower() != 'y':
-            print("Training aborted.")
-            exit()
-
+        ## count how many folder start with ldm 
+        count = 0
+        for folder in os.listdir(trial_folder):
+            if folder.startswith('ldm'):
+                count += 1
+        save_folder = os.path.join(trial_folder, f'ldm_{count+1}')
+        os.makedirs(save_folder)
 
     num_epochs = train_config['ldm_epochs']
     optimizer = Adam(model.parameters(), lr=train_config['ldm_lr'])
@@ -130,22 +133,25 @@ def train(par_dir, conf, trial):
 
         # Save the model
         if (epoch_idx+1) % train_config['save_frequency'] == 0:
-            torch.save(model.state_dict(), os.path.join(save_folder, f'ldm_{epoch_idx}.pth'))
+            torch.save(model.state_dict(), os.path.join(save_folder, f'ldm_{epoch_idx+1}.pth'))
     
     print('Done Training ...')
+    ## save the config file
+    with open(os.path.join(save_folder, 'config.yaml'), 'w') as f:
+        yaml.dump(config, f)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
-    parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco')
-    parser.add_argument('--vae_trial', type=str, default='trial_1', help='trial name for the trained VAE  model')
+    parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco')
+    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for the trained VAE  model')
     args = parser.parse_args()
 
     current_directory = os.path.dirname(__file__)
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
-    save_folder = os.path.join(par_dir, 'trained_model', args.vae_trial)
+    save_folder = os.path.join(par_dir, 'trained_model', args.trial)
     train(par_dir = par_dir,
         conf = configuration, 
-        trial = args.vae_trial)
+        trial = args.trial)
