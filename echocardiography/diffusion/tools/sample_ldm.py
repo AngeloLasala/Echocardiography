@@ -177,5 +177,4 @@ if __name__ == '__main__':
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
     save_folder = os.path.join(par_dir, 'trained_model', args.trial)
     infer(par_dir = par_dir, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch)
-    plt.show()
 
