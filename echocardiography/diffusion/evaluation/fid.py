@@ -322,7 +322,7 @@ def fid_experiment(conf, experiment_dir, batch_size=50, device=None, dims=2048, 
     for epoch in epoch_list:
         data_fake = os.path.join(experiment_dir, f'samples_ep_{epoch}')
         fid_value = calculate_fid_given_paths([data_real, data_fake], batch_size, device, dims, num_workers)
-        fid_values[epoch+1] = fid_value
+        fid_values[epoch] = fid_value
 
     return fid_values
 

@@ -58,6 +58,13 @@ def plot_image_latent(image, latent):
     ax.axis('off')
     ax.imshow(latent_original, cmap='jet')
 
+    ## plot only the original images
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8), tight_layout=True)
+    ax.set_title('Image', fontsize=20)
+    ax.axis('off')
+    ax.imshow(image[0, 0, :, :].cpu().numpy(), cmap='gray')
+    
+
 
     laten_img = torchvision.transforms.Resize((image.shape[2], image.shape[3]))(latent)
     
@@ -197,6 +204,7 @@ def infer(par_dir, conf, trial, show_plot=False):
     print("PCA reduction...")
     pca = PCA(n_components=3)
     encoded_output_pca = pca.fit_transform(encoded_output_list)
+    encoded_output_pca = (encoded_output_pca - np.min(encoded_output_pca)) / (np.max(encoded_output_pca) - np.min(encoded_output_pca))
     explained_variance_ratio = pca.explained_variance_ratio_
     print("Explained Variance Ratio PCA:", explained_variance_ratio)
     print()
@@ -205,6 +213,7 @@ def infer(par_dir, conf, trial, show_plot=False):
     print("LDA reduction...")
     lda = LinearDiscriminantAnalysis(n_components=3)
     encoded_output_lda = lda.fit_transform(encoded_output_list, hypertrophy_list)
+    encoded_output_lda = (encoded_output_lda - np.min(encoded_output_lda)) / (np.max(encoded_output_lda) - np.min(encoded_output_lda))
     print("Explained Variance Ratio LDA:", lda.explained_variance_ratio_)
     print()
 
@@ -212,6 +221,7 @@ def infer(par_dir, conf, trial, show_plot=False):
     print("TSNE reduction...")
     tsne = TSNE(n_components=2, random_state=0)
     encoded_output_tsne = tsne.fit_transform(encoded_output_list)
+    encoded_output_tsne = (encoded_output_tsne - np.min(encoded_output_tsne)) / (np.max(encoded_output_tsne) - np.min(encoded_output_tsne))
     print(encoded_output_tsne.shape)
     print()
 
@@ -231,37 +241,39 @@ def infer(par_dir, conf, trial, show_plot=False):
 
 
     # plot the 2D scatter plot of each point
-    plt.figure(figsize=(10,10), num=f'{type_model} - PCA of latent space of PLAX')
+    plt.figure(figsize=(8,8), num=f'{type_model} - PCA of latent space of PLAX')
     plt.scatter(encoded_output_pca[:,0], encoded_output_pca[:,1], c=color)
-    plt.xlabel('PCA 1', fontsize=16)
-    plt.ylabel('PCA 2', fontsize=16)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.xlabel('PCA 1', fontsize=20)
+    plt.ylabel('PCA 2', fontsize=20)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
     # plt.show()
 
     ## plt the 3d scatter plot of LDA 
-    fig = plt.figure(figsize=(10,10), num=f'{type_model} - 3D LDA of latent space of PLAX')
+    fig = plt.figure(figsize=(8,8), num=f'{type_model} - 3D LDA of latent space of PLAX')
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(encoded_output_lda[:,0], encoded_output_lda[:,1], encoded_output_lda[:,2], c=color)
-    ax.set_xlabel('LDA 1', fontsize=16)
-    ax.set_ylabel('LDA 2', fontsize=16)
-    ax.set_zlabel('LDA 3', fontsize=16)
-    ax.tick_params(labelsize=14)
+    ax.set_xlabel('LDA 1', fontsize=20)
+    ax.set_ylabel('LDA 2', fontsize=20)
+    ax.set_zlabel('LDA 3', fontsize=20)
+    ax.tick_params(labelsize=18)
 
     # plot the 2D scatter plot of each point
-    plt.figure(figsize=(10,10), num=f'{type_model} - LDA of latent space of PLAX')
+    plt.figure(figsize=(8,8), num=f'{type_model} - LDA of latent space of PLAX')
     # color = [f'C{i}' for i in hypertrophy_list]
     plt.scatter(encoded_output_lda[:,0], encoded_output_lda[:,1], c=color)
-    plt.xlabel('LDA 1', fontsize=16)
-    plt.ylabel('LDA 2', fontsize=16)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.xlabel('LDA 1', fontsize=20)
+    plt.ylabel('LDA 2', fontsize=20)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
 
     ## plt the 2d scatter plot of tsne
-    plt.figure(figsize=(10,10), num=f'{type_model} - TSNE of latent space of PLAX')
+    plt.figure(figsize=(8,8), num=f'{type_model} - TSNE of latent space of PLAX')
     plt.scatter(encoded_output_tsne[:,0], encoded_output_tsne[:,1], c=color)
-    plt.xlabel('TSNE 1', fontsize=16)
-    plt.ylabel('TSNE 2', fontsize=16)
+    plt.xlabel('TSNE 1', fontsize=20)
+    plt.ylabel('TSNE 2', fontsize=20)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
     plt.show()
 
 

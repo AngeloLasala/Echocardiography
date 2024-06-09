@@ -546,7 +546,7 @@ class CelebDataset(Dataset):
 if __name__ == '__main__':
     import yaml
     
-    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_cross_cond.yaml'
+    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_image/class_cond.yaml'
     with open(conf, 'r') as file:
         try:
             config = yaml.safe_load(file)
@@ -563,7 +563,7 @@ if __name__ == '__main__':
     # print(data.data_dir, data.data_dir_label)
     print()
     print(data[13][0].shape)
-    print(data[13][1]['cross'].shape)
+    print(data[13][1]['image'].shape)
     print(data[13][1]['class'])
     
 

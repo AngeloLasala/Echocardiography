@@ -78,24 +78,25 @@ else:
 ## 2D scatter plots #####################################################################################################
 
 ## only colored scatter plot
-fig, ax = plt.subplots(figsize=(10, 10))
+fig, ax = plt.subplots(figsize=(10, 10),  tight_layout=True)
 color = np.where((hypertrofy_list[:, 0] < 200) & (hypertrofy_list[:, 1] < 0.42), 'green',
                  np.where((hypertrofy_list[:, 0] >= 200) & (hypertrofy_list[:, 1] < 0.42), 'olive',
                           np.where((hypertrofy_list[:, 0] < 200) & (hypertrofy_list[:, 1] >= 0.42), 'orange', 'red')))
 ax.scatter(hypertrofy_list[:, 0], hypertrofy_list[:, 1], c=color, marker='o', alpha=0.2)
-ax.fill_between([0, 200], 0, 0.42, color='green', alpha=0.3)
-ax.fill_between([200, 1000], 0, 0.42, color='olive', alpha=0.3)
-ax.fill_between([0, 200], 0.42, 2, color='orange', alpha=0.3)
-ax.fill_between([200, 1000], 0.42, 2, color='red', alpha=0.3)
+ax.fill_between([0, 200], 0, 0.42, color='green', alpha=0.3, label='Normal Geometry')
+ax.fill_between([200, 1000], 0, 0.42, color='olive', alpha=0.3, label='Eccentric Hypertrophy')
+ax.fill_between([0, 200], 0.42, 2, color='orange', alpha=0.3, label='Concentric Remodeling')
+ax.fill_between([200, 1000], 0.42, 2, color='red', alpha=0.3, label='Concentric Hypertrophy')
 
 ax.grid(linestyle='--', linewidth=0.5)
-ax.set_xlabel('Left Ventricular Mass', fontsize=18)
-ax.set_ylabel('Relative Wall Thickness', fontsize=18)
-ax.tick_params(axis='x', labelsize=15)
-ax.tick_params(axis='y', labelsize=15)
+ax.set_xlabel('Left Ventricular Mass (LVM)', fontsize=22)
+ax.set_ylabel('Relative Wall Thickness (RWT)', fontsize=22)
+ax.tick_params(axis='x', labelsize=18)
+ax.tick_params(axis='y', labelsize=18)
+ax.legend(fontsize=18)
 
 ## colored zone with b/w scatter
-fig, ax = plt.subplots(figsize=(10, 10))
+fig, ax = plt.subplots(figsize=(8, 8))
 ax.scatter(hypertrofy_list[:, 0], hypertrofy_list[:, 1], c='gray', marker='o', alpha=0.1)
 ax.fill_between([0, 200], 0, 0.42, color='green', alpha=0.4)
 ax.fill_between([200, 1000], 0, 0.42, color='olive', alpha=0.4)
@@ -103,10 +104,10 @@ ax.fill_between([0, 200], 0.42, 2, color='orange', alpha=0.4)
 ax.fill_between([200, 1000], 0.42, 2, color='red', alpha=0.4)
 
 ax.grid(linestyle='--', linewidth=0.5)
-ax.set_xlabel('Left Ventricular Mass', fontsize=18)
-ax.set_ylabel('Relative Wall Thickness', fontsize=18)
-ax.tick_params(axis='x', labelsize=15)
-ax.tick_params(axis='y', labelsize=15)
+ax.set_xlabel('Left Ventricular Mass (LVM)', fontsize=22)
+ax.set_ylabel('Relative Wall Thickness (RWT)', fontsize=22)
+ax.tick_params(axis='x', labelsize=18)
+ax.tick_params(axis='y', labelsize=18)
 
 
 
