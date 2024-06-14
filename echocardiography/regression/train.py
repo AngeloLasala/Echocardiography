@@ -8,6 +8,7 @@ import torch
 from torchvision import transforms
 import time
 import tqdm
+import random
 
 import json
 import numpy as np
@@ -35,6 +36,7 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
         
         optimizer.zero_grad()                           # Zero your gradients for every batch!
         outputs = model(inputs)                         # Make predictions for this batch
+        if len(outputs) == 2: outputs = outputs[-1]
 
         loss = loss_fn(outputs.float(), labels.float()) # Compute the loss and its gradientsù
         # print(f'loss: {loss}')
@@ -106,7 +108,9 @@ def fit(training_loader, validation_loader,
                 vinputs = vinputs.to(device)
                 vlabels = vlabels.to(device)
 
-                voutputs = model(vinputs).to(device)
+                voutputs = model(vinputs)
+                if len(voutputs) == 2: voutputs = voutputs[-1]
+                voutputs = voutputs.to(device)
                 vloss = loss_fn(voutputs, vlabels).item()
                 running_vloss += vloss
 
@@ -139,6 +143,7 @@ if __name__ == '__main__':
     parser.add_argument('--threshold_wloss', type=float, default=0.5, help='Threshold for the weighted loss, if 0. all the weights are 1 and the lass fall back to regular ones')
     parser.add_argument('--save_dir', type=str, default='TRAINED_MODEL', help='Directory to save the model')
     parser.add_argument('--model', type=str, default=None, help='model architecture to use, e.g. resnet50, unet, plaxmodel')
+    parser.add_argument('--seed', type=int, default=42, help='Seed for reproducibility')
     args = parser.parse_args()
     
     ## device and reproducibility    
@@ -161,7 +166,7 @@ if __name__ == '__main__':
     print('start creating the dataloader...')
     training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
-
+    
     ## TRAIN
     print('start training...')
     loss_fn = cfg['loss']
