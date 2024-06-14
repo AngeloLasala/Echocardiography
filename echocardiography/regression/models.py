@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from pathlib import Path
 from torchsummary import summary 
 from torch.distributions.multivariate_normal import MultivariateNormal
+import timm
 from scipy import ndimage
 import cv2
 import numpy as np
@@ -18,22 +19,51 @@ import math
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class ResNet50Regression(nn.Module):
-    def __init__(self, 
-                input_channels=3, 
-                num_labels=12):
+    def __init__(self, input_channels, num_labels):
         super(ResNet50Regression, self).__init__()
+
+        self.input_channels = input_channels
+        self.num_labels = num_labels
+
         # Load the pre-trained ResNet50 model
         resnet50 = models.resnet50(weights='DEFAULT')
          
         # Add a new regression layer
-        self.resnet50 = resnet50    
-        self.resnet50.fc = nn.Sequential(nn.Linear(resnet50.fc.in_features, num_labels),
+        self.resnet50 = resnet50  
+        self.resnet50.conv1 = nn.Conv2d(self.input_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)  
+        self.resnet50.fc = nn.Sequential(nn.Linear(resnet50.fc.in_features, self.num_labels),
                                                     nn.Sigmoid())
 
     def forward(self, x):
         x = self.resnet50(x)
         x = x.view(x.size(0), -1)
         return x
+
+class SwinTransformerTiny(nn.Module):
+    """
+    Swin trasformed v2 modela with a modified first convolutional layer to accept the desired number of input channels.
+    """
+    def __init__(self, input_channels, num_labels):
+        super(SwinTransformerTiny, self).__init__()
+        self.input_channels = input_channels
+        self.num_classes = num_labels
+
+        # Load the pre-trained Swin Transformer Tiny model
+        self.model = timm.create_model('swinv2_tiny_window8_256', pretrained=True, num_classes=self.num_classes)
+
+        # Modify the first convolutional layer to accept the desired number of input channels
+        self.model.patch_embed.proj = nn.Conv2d(self.input_channels, self.model.patch_embed.proj.out_channels,
+                                                kernel_size=(4, 4), stride=(4, 4))
+
+    def forward(self, x):
+
+        # Obtain the features from the backbone, normalized but not with the pooling
+        features = self.model.forward_features(x)
+        
+        # Obtain the final classification output
+        output = self.model.head(features)
+
+        return features, output
 
 
 class PlaxModel(torch.nn.Module):
@@ -53,11 +83,12 @@ class PlaxModel(torch.nn.Module):
         return torch.sigmoid(self.model(x)['out'])
 
 class UNet_up(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, input_channels, num_classes):
         super().__init__()
-        
+        self.input_channels = input_channels
+
         # Encoder
-        self.e11 = nn.Conv2d(3, 64, kernel_size=3, padding=1) # output: 570x570x64
+        self.e11 = nn.Conv2d(self.input_channels, 64, kernel_size=3, padding=1) # output: 570x570x64
         self.bn11 = nn.BatchNorm2d(64)
         self.e12 = nn.Conv2d(64, 64, kernel_size=3, padding=1) # output: 568x568x64
         self.bn12 = nn.BatchNorm2d(64)
@@ -178,11 +209,12 @@ class UNet_up(nn.Module):
         return out
 
 class UNet(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, input_channels, num_classes):
         super().__init__()
-        
+        self.input_channels = input_channels
+
         # Encoder
-        self.e11 = nn.Conv2d(3, 64, kernel_size=3, padding=1) # output: 570x570x64
+        self.e11 = nn.Conv2d(self.input_channels, 64, kernel_size=3, padding=1) # output: 570x570x64
         self.bn12 = nn.BatchNorm2d(64)
         self.e12 = nn.Conv2d(64, 64, kernel_size=3, padding=1) # output: 568x568x64
         self.bn12 = nn.BatchNorm2d(64)
@@ -515,10 +547,11 @@ class UNet_up_hm(nn.Module):
         
 
 if __name__ == '__main__':
-    # ## SimpleRegression model
-    # model = ResNet50Regression()
-    # x = torch.randn(1, 3, 256, 256)
-    # print(model(x))
+    ## SimpleRegression model
+    model = ResNet50Regression(input_channels=1, num_labels=12)
+    x = torch.randn(1, 1, 256, 256)
+    print(model)
+    print()
 
 
     # ## PLAX model
