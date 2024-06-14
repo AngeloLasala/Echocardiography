@@ -77,6 +77,7 @@ class EchoNetDataset(Dataset):
             else:
                 resize = transforms.Resize(size=self.size)
                 image = resize(image)
+                image = image.convert('L')
                 label = torch.tensor(label)
                 image = transforms.functional.to_tensor(image)
                 # image = transforms.functional.normalize(image, (0.5), (0.5))  
@@ -91,6 +92,7 @@ class EchoNetDataset(Dataset):
             else:
                 resize = transforms.Resize(size=self.size)
                 image = resize(image)
+                image = image.convert('L')
                 label = torch.tensor(label)
                 image = transforms.functional.to_tensor(image)
                 # image = transforms.functional.normalize(image, (0.5), (0.5))  
@@ -136,6 +138,7 @@ class EchoNetDataset(Dataset):
         label = np.array([np.array(ch) for ch in label])
         label = torch.tensor(label)
 
+        image = image.convert('L')
         image = transforms.functional.to_tensor(image)
         # image = transforms.functional.normalize(image, (0.5), (0.5))
         # im_tensor = torchvision.transforms.ToTensor()(im)
@@ -191,6 +194,7 @@ class EchoNetDataset(Dataset):
         label = np.array([np.array(ch) for ch in label])
         label = torch.tensor(label)
 
+        image = image.convert('L')
         image = transforms.functional.to_tensor(image)
         # image = transforms.functional.normalize(image, (0.5), (0.5))
         # im_tensor = torchvision.transforms.ToTensor()(im)
@@ -245,6 +249,7 @@ class EchoNetDataset(Dataset):
         ## Convert to tensor and normalize
         label = torch.tensor(label)
 
+        image = image.convert('L')
         image = transforms.functional.to_tensor(image)
         # image = transforms.functional.normalize(image, (0.5), (0.5))
         # im_tensor = torchvision.transforms.ToTensor()(im)
