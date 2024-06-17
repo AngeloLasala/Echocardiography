@@ -37,9 +37,11 @@ pip install -e .
 ### Regression
 The initial step of analissi of PLAX images is the identification of the keypoints of IVS, LVID, and LVPW. Up to date, the repository implemented three differents approaches:
 
-    - **direct regression**: regression of the coordinates. Models: ResNet50, Swinv2
-    - **heatmaps regression**: The regression of gaussian heatmaps centerde in the coordinates. Models: Unet (up sampling and up conv)
-    - **mask segmentation**: Segmentation of a thresholded heaptmaps. Models: Unet (up sampling and up conv)
+1) **direct regression**: regression of the coordinates. Models: ResNet50, Swinv2
+
+2) **heatmaps regression**: The regression of gaussian heatmaps centerde in the coordinates. Models: Unet (up sampling and up conv)
+
+3) **mask segmentation**: Segmentation of a thresholded heaptmaps. Models: Unet (up sampling and up conv)
 
 ### Diffusion
 
