@@ -24,6 +24,10 @@ from scipy import ndimage
 import cv2
 import math
 import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+
+
 
 from echocardiography.regression.utils import get_corrdinate_from_heatmap, echocardiografic_parameters
 from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable
@@ -237,12 +241,39 @@ def echo_parameter_error(label, output, target):
 
     return parameter_label, parameter_out
 
+def linear_fit(label, output, num='Regression plot'):
+    """
+    Compute the linear regression of the label vs output
+    """
+    x = label
+    y = output
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+
+    # Calculate R-squared
+    r_squared = r_value**2
+
+    # Calculate y_fit
+    y_fit = slope * x + intercept
+
+    # Calculate Chi-squared
+    chi_squared = np.sum(((y - y_fit) ** 2) / y_fit)
+
+    return slope, intercept, r_squared, chi_squared
+
+    
+    
+
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
     parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
     parser.add_argument('--batch', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
     parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial number to analyse')
+    parser.add_argument('--split', type=str, default='test', help='select split: val or test, default = test')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -256,11 +287,12 @@ if __name__ == '__main__':
     cfg = train_config(trained_args['target'], 
                        threshold_wloss=trained_args['threshold_wloss'], 
                        model=trained_args['model'],
+                       input_channels=trained_args['input_channels'],                       
                        device=device)
 
 
-    test_set = EchoNetDataset(batch=args.batch, split='test', phase=args.phase, label_directory=None,
-                              target=trained_args['target'], augmentation=False)
+    test_set = EchoNetDataset(batch=args.batch, split=args.split, phase=args.phase, label_directory=None,
+                              target=trained_args['target'], input_channels=cfg['input_channels'], augmentation=False)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=8, shuffle=False, num_workers=4, pin_memory=True)
 
     ## load the model
@@ -268,7 +300,7 @@ if __name__ == '__main__':
     print(f"Model: {trained_args['model']}, Best model: {best_model}")
     model_dir = os.path.join('TRAINED_MODEL', args.batch, args.phase, args.trial)
     model = cfg['model'].to(device)
-    print(model)
+    # print(model)
     model.load_state_dict(torch.load(os.path.join(train_dir, f'model_{best_model}')))
     model.to(device)
 
@@ -282,7 +314,9 @@ if __name__ == '__main__':
             images, labels = data
             images = images.to(device)
             labels = labels.to(device)
-            outputs = model(images).to(device)
+            outputs = model(images)
+            if len(outputs) == 2: outputs = outputs[-1]
+            outputs = outputs.to(device)
 
             ## convert images in numpy
             images = images.cpu().numpy().transpose((0, 2, 3, 1))
@@ -318,21 +352,33 @@ if __name__ == '__main__':
     rst_error = np.abs(parameters_label_list[:,1] - parameters_output_list[:,1])
     print(f'RWT error: mean={np.mean(rwt_error):.4f},  median={np.median(rwt_error):.4f} - 1 quintile {np.quantile(rwt_error, 0.25):.4f} - 3 quintile {np.quantile(rwt_error, 0.75):.4f}')
     print(f'RST error: mean={np.mean(rst_error):.4f},  median={np.median(rst_error):.4f} - 1 quintile {np.quantile(rst_error, 0.25):.4f} - 3 quintile {np.quantile(rst_error, 0.75):.4f}')
+    print()
 
     ## Mean Percentage error and Positional error
     mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
     mpe = np.mean(mpe, axis=0)
     positional_error = np.mean(keypoints_error_list, axis=0)
-    import matplotlib.pyplot as plt
 
-    print(f'Mean Percantace Error: {mpe}')
+    print(f'Mean Percantace Error:  LVPW={mpe[0]:.4f}, LVID={mpe[1]:.4f}, IVS={mpe[2]:.4f}')
     print(f'Positional_error: {positional_error}')
+    print()
 
     ## Regression plt label vs output
-    plt.figure(figsize=(8,8), num=f'{trained_args["target"]} - Regression plot', tight_layout=True)
-    plt.scatter(parameters_label_list[:,0], parameters_output_list[:,0], s=100, c='C0', label='RWT')
-    plt.plot(parameters_label_list[:,0],parameters_label_list[:,0], c='black')
-    plt.scatter(parameters_label_list[:,1], parameters_output_list[:,1], s=100, c='C1',label='RSD')
+    # compute the linear regression
+    slope_RWT, intercept_RWT, r_squared_RWT, chi_squared_RWT = linear_fit(parameters_label_list[:,0], parameters_output_list[:,0])
+    slope_RST, intercept_RST, r_squared_RST, chi_squared_RST = linear_fit(parameters_label_list[:,1], parameters_output_list[:,1])
+    print('Linear regression of the echocardiografic parameters:')
+    print(f'RWT: slope={slope_RWT:.4f}, intercept={intercept_RWT:.4f}, R-squared={r_squared_RWT:.4f}, Chi-squared={chi_squared_RWT:.4f}')
+    print(f'RST: slope={slope_RST:.4f}, intercept={intercept_RST:.4f}, R-squared={r_squared_RST:.4f}, Chi-squared={chi_squared_RST:.4f}')
+    print()
+
+
+    plt.figure(figsize=(10,10), num=f'{trained_args["target"]} - Regression plot', tight_layout=True)
+    plt.scatter(parameters_label_list[:,0], parameters_output_list[:,0], s=100, c='C0', label='RWT', alpha=0.5)
+    plt.plot(parameters_label_list[:,0], slope_RWT * parameters_label_list[:,0] + intercept_RWT, c='C0', label=f'fit RWT',)
+    plt.plot(parameters_label_list[:,0],parameters_label_list[:,0], c='black', linewidth=2)
+    plt.scatter(parameters_label_list[:,1], parameters_output_list[:,1], s=100, c='C1',label='RSD', alpha=0.5)
+    plt.plot(parameters_label_list[:,1], slope_RST * parameters_label_list[:,1] + intercept_RST, c='C1', label=f'fit RST',)
     plt.axvline(x=0.42, color='r', linestyle='--')
     plt.grid('dotted')
     plt.legend()
