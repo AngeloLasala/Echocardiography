@@ -33,11 +33,10 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
     loss = 0.           ## this have to be update with the last_loss
     for i, (inputs, labels) in enumerate(training_loader):
         inputs, labels = inputs.to(device), labels.to(device)       # Every data instance is an input + label pair
-        
+
         optimizer.zero_grad()                           # Zero your gradients for every batch!
         outputs = model(inputs)                         # Make predictions for this batch
         if len(outputs) == 2: outputs = outputs[-1]
-
         loss = loss_fn(outputs.float(), labels.float()) # Compute the loss and its gradientsù
         # print(f'loss: {loss}')
         loss.backward()
@@ -143,6 +142,7 @@ if __name__ == '__main__':
     parser.add_argument('--threshold_wloss', type=float, default=0.5, help='Threshold for the weighted loss, if 0. all the weights are 1 and the lass fall back to regular ones')
     parser.add_argument('--save_dir', type=str, default='TRAINED_MODEL', help='Directory to save the model')
     parser.add_argument('--model', type=str, default=None, help='model architecture to use, e.g. resnet50, unet, plaxmodel')
+    parser.add_argument('--input_channels', type=int, default=1, help='Number of input channels, default=1 for grayscale images, 3 for the RGB')
     parser.add_argument('--seed', type=int, default=42, help='Seed for reproducibility')
     args = parser.parse_args()
     
@@ -153,15 +153,15 @@ if __name__ == '__main__':
     random.seed(args.seed)
     if device == 'cuda':
         torch.cuda.manual_seed_all(args.seed)
-    cfg = train_config(args.target, threshold_wloss=args.threshold_wloss, model=args.model, device=device)
+    cfg = train_config(args.target, threshold_wloss=args.threshold_wloss, model=args.model, input_channels=args.input_channels, device=device)
     print(f'Using device: {device}')
     
     print('start creating the dataset...')
     train_set = EchoNetDataset(batch=args.batch_dir, split='train', phase=args.phase, label_directory=None,
-                              target=args.target, augmentation=True)
+                              target=args.target, input_channels=args.input_channels, augmentation=True)
 
     validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, 
-                              target=args.target, augmentation=False)
+                              target=args.target, input_channels=args.input_channels, augmentation=False)
 
     print('start creating the dataloader...')
     training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
