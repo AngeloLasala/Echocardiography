@@ -4,10 +4,10 @@ Analysis of PLAX echocardiography is conducted on the available dataset [Echonet
 The generation of a new PLAX view can be achieved by anatomically conditioning:
 - Chamber dimensions: dimensions of IVS, LVID, and LVPW
 - Classification of hypertrophy:
-    - Concentric hypertrophy: [1,0,0,0]- (rwt>  lvm< : color red)
-    - Concentric remodeling:  [0,1,0,0]- (rwt>  lvm< : color orange)
-    - Eccentric hypertrophy:  [0,0,1,0] - (rwt<  lvm> : color olive)
-    - Normal geometry:        [0,0,0,1] - (rwt<  lvm< : color green)
+    - Concentric hypertrophy: [1,0,0,0]- (rwt>0.42  lvm<200 : color red)
+    - Concentric remodeling:  [0,1,0,0]- (rwt>0.42  lvm<200 : color orange)
+    - Eccentric hypertrophy:  [0,0,1,0] - (rwt<0.42  lvm>200 : color olive)
+    - Normal geometry:        [0,0,0,1] - (rwt<0.42  lvm<200 : color green)
 
 ## Install
 Setting up a virtual environment and installing PyTorch following the [official guidelines](https://pytorch.org/get-started/locally/)
@@ -35,6 +35,11 @@ pip install -e .
 ## Usage
 
 ### Regression
+The initial step of analissi of PLAX images is the identification of the keypoints of IVS, LVID, and LVPW. Up to date, the repository implemented three differents approaches:
+
+    - **direct regression**: regression of the coordinates. Models: ResNet50, Swinv2
+    - **heatmaps regression**: The regression of gaussian heatmaps centerde in the coordinates. Models: Unet (up sampling and up conv)
+    - **mask segmentation**: Segmentation of a thresholded heaptmaps. Models: Unet (up sampling and up conv)
 
 ### Diffusion
 
