@@ -274,6 +274,7 @@ if __name__ == '__main__':
     parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial number to analyse')
     parser.add_argument('--split', type=str, default='test', help='select split: val or test, default = test')
+    parser.add_argument('--show_plot', action='store_true', help="show the prediction, default=False")
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -327,13 +328,15 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                # show_prediction(image, label, output, target=trained_args['target'])
+                
                 
                 
                 dist_label, dist_output = percentage_error(label, output, target=trained_args['target'])
                 err = keypoints_error(label, output, target=trained_args['target'])
                 parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'])
-                # plt.show()
+                if args.show_plot:
+                    show_prediction(image, label, output, target=trained_args['target'])
+                    plt.show()
                 
                 distances_label_list.append(dist_label)
                 distances_output_list.append(dist_output)
@@ -341,15 +344,18 @@ if __name__ == '__main__':
                 parameters_label_list.append(parameter_label)
                 parameters_output_list.append(parameter_out)
 
-    distances_label_list = np.array(distances_label_list)
-    distances_output_list = np.array(distances_output_list)
+    distances_label_list = np.array(distances_label_list)     ## LVWP, LVID, IVS annotation
+    distances_output_list = np.array(distances_output_list)   ## LVWP, LVID, IVS prediction
     keypoints_error_list = np.array(keypoints_error_list)
-    parameters_label_list = np.array(parameters_label_list)
-    parameters_output_list = np.array(parameters_output_list)
+    parameters_label_list = np.array(parameters_label_list)   ## RWT, RST annotation
+    parameters_output_list = np.array(parameters_output_list) ## RWT, RST prediction
 
+    
+  
     ## echo parameters error
     rwt_error = np.abs(parameters_label_list[:,0] - parameters_output_list[:,0])
     rst_error = np.abs(parameters_label_list[:,1] - parameters_output_list[:,1])
+    print('ECHOCARDIOGRAPHY PARAMETERS: RWT, RST')
     print(f'RWT error: mean={np.mean(rwt_error):.4f},  median={np.median(rwt_error):.4f} - 1 quintile {np.quantile(rwt_error, 0.25):.4f} - 3 quintile {np.quantile(rwt_error, 0.75):.4f}')
     print(f'RST error: mean={np.mean(rst_error):.4f},  median={np.median(rst_error):.4f} - 1 quintile {np.quantile(rst_error, 0.25):.4f} - 3 quintile {np.quantile(rst_error, 0.75):.4f}')
     print()
@@ -359,10 +365,51 @@ if __name__ == '__main__':
     mpe = np.mean(mpe, axis=0)
     positional_error = np.mean(keypoints_error_list, axis=0)
 
+    slope_lvpw, intercept_lvpw, r_squared_lvpw, chi_squared_lvpw = linear_fit(distances_label_list[:,0], distances_output_list[:,0])
+    slope_lvid, intercept_lvid, r_squared_lvid, chi_squared_lvid = linear_fit(distances_label_list[:,1], distances_output_list[:,1])
+    slope_ivs, intercept_ivs, r_squared_ivs, chi_squared_ivs = linear_fit(distances_label_list[:,2], distances_output_list[:,2])
     print(f'Mean Percantace Error:  LVPW={mpe[0]:.4f}, LVID={mpe[1]:.4f}, IVS={mpe[2]:.4f}')
+    print(f'LVPW: slope={slope_lvpw:.4f}, intercept={intercept_lvpw:.4f}, R-squared={r_squared_lvpw:.4f}, Chi-squared={chi_squared_lvpw:.4f}')
+    print(f'LVID: slope={slope_lvid:.4f}, intercept={intercept_lvid:.4f}, R-squared={r_squared_lvid:.4f}, Chi-squared={chi_squared_lvid:.4f}')
+    print(f'IVS: slope={slope_ivs:.4f}, intercept={intercept_ivs:.4f}, R-squared={r_squared_ivs:.4f}, Chi-squared={chi_squared_ivs:.4f}')
+    print()
     print(f'Positional_error: {positional_error}')
     print()
 
+    ## regression plt distance label vs output
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(21,8), num=f'{trained_args["target"]} - Regression plot heart - {args.split}', tight_layout=True)
+    
+    # Scatter plot for LVPW
+    
+    ax[0].scatter(distances_label_list[:,0], distances_output_list[:,0], s=100, c='C3', label='LVPW', alpha=0.5)
+    ax[0].plot(distances_label_list[:,0], slope_lvpw * distances_label_list[:,0] + intercept_lvpw, c='C3', label=f'fit LVPW',)
+    ax[0].plot(distances_label_list[:,0],distances_label_list[:,0], c='black', linewidth=2)
+    ax[0].grid('dotted')
+    ax[0].set_xlabel('Real measure (px)', fontsize=20)
+    ax[0].set_ylabel('Predicted measure (px)', fontsize=20)
+    ax[0].legend(fontsize=20)
+    
+    # Scatter plot for LVID
+    ax[1].scatter(distances_label_list[:,1], distances_output_list[:,1], s=100, c='C4',label='LVID', alpha=0.5)
+    ax[1].plot(distances_label_list[:,1], slope_lvid * distances_label_list[:,1] + intercept_lvid, c='C4', label=f'fit LVID',)
+    ax[1].plot(distances_label_list[:,1],distances_label_list[:,1], c='black', linewidth=2)
+    ax[1].grid('dotted')
+    ax[1].set_xlabel('Real measure (px)', fontsize=20)
+    ax[1].set_ylabel('Predicted measure (px)', fontsize=20)
+    ax[1].legend(fontsize=20)
+    
+    # Scatter plot for IVS
+    ax[2].scatter(distances_label_list[:,2], distances_output_list[:,2], s=100, c='C5',label='IVS', alpha=0.5)
+    ax[2].plot(distances_label_list[:,2], slope_ivs * distances_label_list[:,2] + intercept_ivs, c='C5', label=f'fit IVS',)
+    ax[2].plot(distances_label_list[:,2],distances_label_list[:,2], c='black', linewidth=2)
+    ax[2].grid('dotted')
+    ax[2].set_xlabel('Real measure (px)', fontsize=20)
+    ax[2].set_ylabel('Predicted measure (px)', fontsize=20)
+    ax[2].legend(fontsize=20)
+    for a in ax:
+        a.tick_params(axis='both', which='major', labelsize=18)
+    plt.savefig(os.path.join(train_dir, f'{trained_args["target"]} - Regression plot heart - {args.split}'))
+    
     ## Regression plt label vs output
     # compute the linear regression
     slope_RWT, intercept_RWT, r_squared_RWT, chi_squared_RWT = linear_fit(parameters_label_list[:,0], parameters_output_list[:,0])
@@ -372,8 +419,7 @@ if __name__ == '__main__':
     print(f'RST: slope={slope_RST:.4f}, intercept={intercept_RST:.4f}, R-squared={r_squared_RST:.4f}, Chi-squared={chi_squared_RST:.4f}')
     print()
 
-
-    plt.figure(figsize=(10,10), num=f'{trained_args["target"]} - Regression plot', tight_layout=True)
+    plt.figure(figsize=(10,10), num=f'{trained_args["target"]} - Regression plot - {args.split}', tight_layout=True)
     plt.scatter(parameters_label_list[:,0], parameters_output_list[:,0], s=100, c='C0', label='RWT', alpha=0.5)
     plt.plot(parameters_label_list[:,0], slope_RWT * parameters_label_list[:,0] + intercept_RWT, c='C0', label=f'fit RWT',)
     plt.plot(parameters_label_list[:,0],parameters_label_list[:,0], c='black', linewidth=2)
@@ -387,22 +433,37 @@ if __name__ == '__main__':
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
     plt.legend(fontsize=20)
+    plt.savefig(os.path.join(train_dir, f'{trained_args["target"]} - Regression plot - {args.split}.png'))
+
+    ## create a file txt with all the printed string
+    with open(os.path.join(train_dir, f'{trained_args["target"]}_results.txt'), 'w') as f:
+        f.write(f'Batch: {args.batch}, Phase: {args.phase}, Trial: {args.trial}, Split: {args.split}\n')
+        f.write(f'Model: {trained_args["model"]}, Best model: {best_model}\n')
+        f.write(f'Mean Percantace Error:  LVPW={mpe[0]:.4f}, LVID={mpe[1]:.4f}, IVS={mpe[2]:.4f}\n')
+        f.write(f'LVPW: slope={slope_lvpw:.4f}, intercept={intercept_lvpw:.4f}, R-squared={r_squared_lvpw:.4f}, Chi-squared={chi_squared_lvpw:.4f}\n')
+        f.write(f'LVID: slope={slope_lvid:.4f}, intercept={intercept_lvid:.4f}, R-squared={r_squared_lvid:.4f}, Chi-squared={chi_squared_lvid:.4f}\n')
+        f.write(f'IVS: slope={slope_ivs:.4f}, intercept={intercept_ivs:.4f}, R-squared={r_squared_ivs:.4f}, Chi-squared={chi_squared_ivs:.4f}\n')
+        f.write(f'RWT error: mean={np.mean(rwt_error):.4f},  median={np.median(rwt_error):.4f} - 1 quintile {np.quantile(rwt_error, 0.25):.4f} - 3 quintile {np.quantile(rwt_error, 0.75):.4f}\n')
+        f.write(f'RST error: mean={np.mean(rst_error):.4f},  median={np.median(rst_error):.4f} - 1 quintile {np.quantile(rst_error, 0.25):.4f} - 3 quintile {np.quantile(rst_error, 0.75):.4f}\n')
+        
     
 
 
     ## Plot some plots to visualize the error
-    title_name = {0:'LVPW', 1:'LVID', 2:'IVS'}
-    for point in range(3):
-        plt.figure(figsize=(14,14), num=f'Positional error histogram {title_name[point]}', tight_layout=True)
-        plt.title(f'Error of the keypoints {title_name[point]}', fontsize=20)
-        plt.hist(keypoints_error_list[:,point*4], alpha=0.5, label='x1')
-        plt.hist(keypoints_error_list[:,(point*4)+1], alpha=0.5, label='y1')
-        plt.hist(keypoints_error_list[:,(point*4)+2], alpha=0.5, label='x2')
-        plt.hist(keypoints_error_list[:,(point*4)+3], bins=50, alpha=0.5, label='y2')
-        plt.xlabel('Error', fontsize=20)
-        plt.ylabel('Frequency', fontsize=20)
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-        plt.legend(fontsize=20)
-        plt.grid()
+    plot_additional = False
+    if plot_additional:
+        title_name = {0:'LVPW', 1:'LVID', 2:'IVS'}
+        for point in range(3):
+            plt.figure(figsize=(14,14), num=f'Positional error histogram {title_name[point]}', tight_layout=True)
+            plt.title(f'Error of the keypoints {title_name[point]}', fontsize=20)
+            plt.hist(keypoints_error_list[:,point*4], alpha=0.5, label='x1')
+            plt.hist(keypoints_error_list[:,(point*4)+1], alpha=0.5, label='y1')
+            plt.hist(keypoints_error_list[:,(point*4)+2], alpha=0.5, label='x2')
+            plt.hist(keypoints_error_list[:,(point*4)+3], bins=50, alpha=0.5, label='y2')
+            plt.xlabel('Error', fontsize=20)
+            plt.ylabel('Frequency', fontsize=20)
+            plt.xticks(fontsize=20)
+            plt.yticks(fontsize=20)
+            plt.legend(fontsize=20)
+            plt.grid()
     plt.show()
