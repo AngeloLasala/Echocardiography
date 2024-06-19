@@ -39,6 +39,48 @@ class ResNet50Regression(nn.Module):
         x = x.view(x.size(0), -1)
         return x
 
+class ResNet101Regression(nn.Module):
+    def __init__(self, input_channels, num_labels):
+        super(ResNet101Regression, self).__init__()
+
+        self.input_channels = input_channels
+        self.num_labels = num_labels
+
+        # Load the pre-trained ResNet50 model
+        resnet101 = models.resnet101(weights='DEFAULT')
+         
+        # Add a new regression layer
+        self.resnet101 = resnet101  
+        self.resnet101.conv1 = nn.Conv2d(self.input_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)  
+        self.resnet101.fc = nn.Sequential(nn.Linear(resnet101.fc.in_features, self.num_labels),
+                                                    nn.Sigmoid())
+
+    def forward(self, x):
+        x = self.resnet101(x)
+        x = x.view(x.size(0), -1)
+        return x
+
+class ResNet152Regression(nn.Module):
+    def __init__(self, input_channels, num_labels):
+        super(ResNet152Regression, self).__init__()
+
+        self.input_channels = input_channels
+        self.num_labels = num_labels
+
+        # Load the pre-trained ResNet152 model
+        resnet152 = models.resnet152(pretrained=True)
+         
+        # Add a new regression layer
+        self.resnet152 = resnet152  
+        self.resnet152.conv1 = nn.Conv2d(self.input_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)  
+        self.resnet152.fc = nn.Sequential(nn.Linear(resnet152.fc.in_features, self.num_labels),
+                                                    nn.Sigmoid())
+
+    def forward(self, x):
+        x = self.resnet152(x)
+        x = x.view(x.size(0), -1)
+        return x
+
 class SwinTransformerTiny(nn.Module):
     """
     Swin trasformed v2 modela with a modified first convolutional layer to accept the desired number of input channels.
@@ -50,6 +92,58 @@ class SwinTransformerTiny(nn.Module):
 
         # Load the pre-trained Swin Transformer Tiny model
         self.model = timm.create_model('swinv2_tiny_window8_256', pretrained=True, num_classes=self.num_classes)
+
+        # Modify the first convolutional layer to accept the desired number of input channels
+        self.model.patch_embed.proj = nn.Conv2d(self.input_channels, self.model.patch_embed.proj.out_channels,
+                                                kernel_size=(4, 4), stride=(4, 4))
+
+    def forward(self, x):
+
+        # Obtain the features from the backbone, normalized but not with the pooling
+        features = self.model.forward_features(x)
+        
+        # Obtain the final classification output
+        output = self.model.head(features)
+
+        return features, output
+
+class SwinTransformerSmall(nn.Module):
+    """
+    Swin trasformed v2 modela with a modified first convolutional layer to accept the desired number of input channels.
+    """
+    def __init__(self, input_channels, num_labels):
+        super(SwinTransformerSmall, self).__init__()
+        self.input_channels = input_channels
+        self.num_classes = num_labels
+
+        # Load the pre-trained Swin Transformer Tiny model
+        self.model = timm.create_model('swinv2_small_window8_256', pretrained=True, num_classes=self.num_classes)
+
+        # Modify the first convolutional layer to accept the desired number of input channels
+        self.model.patch_embed.proj = nn.Conv2d(self.input_channels, self.model.patch_embed.proj.out_channels,
+                                                kernel_size=(4, 4), stride=(4, 4))
+
+    def forward(self, x):
+
+        # Obtain the features from the backbone, normalized but not with the pooling
+        features = self.model.forward_features(x)
+        
+        # Obtain the final classification output
+        output = self.model.head(features)
+
+        return features, output
+
+class SwinTransformerBase(nn.Module):
+    """
+    Swin trasformed v2 Base model with a modified first convolutional layer to accept the desired number of input channels.
+    """
+    def __init__(self, input_channels, num_labels):
+        super(SwinTransformerBase, self).__init__()
+        self.input_channels = input_channels
+        self.num_classes = num_labels
+
+        # Load the pre-trained Swin Transformer Tiny model
+        self.model = timm.create_model('swinv2_base_window8_256', pretrained=True, num_classes=self.num_classes)
 
         # Modify the first convolutional layer to accept the desired number of input channels
         self.model.patch_embed.proj = nn.Conv2d(self.input_channels, self.model.patch_embed.proj.out_channels,
@@ -544,14 +638,609 @@ class UNet_up_hm(nn.Module):
 
         return out, heatmaps
         
+class DownBlock(nn.Module):
+    """
+    Down conv block with attention.
+    Sequence of following block
+    1. Resnet block 
+    2. Attention block
+    3. Downsample
+
+    Parameters
+    ----------
+    in_channels: Number of input channels
+    out_channels: Number of output channels
+    """
+    
+    def __init__(self, in_channels, out_channels, down_sample, num_heads, num_layers, attn, norm_channels):
+        super().__init__()
+        self.num_layers = num_layers
+        self.down_sample = down_sample
+        self.attn = attn
+        
+        self.resnet_conv_first = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.GroupNorm(norm_channels, in_channels if i == 0 else out_channels),
+                    nn.SiLU(),
+                    nn.Conv2d(in_channels if i == 0 else out_channels, out_channels,
+                              kernel_size=3, stride=1, padding=1),
+                )
+                for i in range(num_layers)
+            ]
+        )
+        
+        self.resnet_conv_second = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.GroupNorm(norm_channels, out_channels),
+                    nn.SiLU(),
+                    nn.Conv2d(out_channels, out_channels,
+                              kernel_size=3, stride=1, padding=1),
+                )
+                for _ in range(num_layers)
+            ]
+        )
+        
+        if self.attn:
+            self.attention_norms = nn.ModuleList(
+                [nn.GroupNorm(norm_channels, out_channels)
+                 for _ in range(num_layers)]
+            )
+            
+            self.attentions = nn.ModuleList(
+                [nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
+                 for _ in range(num_layers)]
+            )
         
 
+        self.residual_input_conv = nn.ModuleList(
+            [
+                nn.Conv2d(in_channels if i == 0 else out_channels, out_channels, kernel_size=1)
+                for i in range(num_layers)
+            ]
+        )
+        self.down_sample_conv = nn.Conv2d(out_channels, out_channels,
+                                          4, 2, 1) if self.down_sample else nn.Identity()
+    
+    def forward(self, x, t_emb=None, context=None):
+        out = x
+        for i in range(self.num_layers):
+            # Resnet block of Unet
+            resnet_input = out
+            out = self.resnet_conv_first[i](out)
+            out = self.resnet_conv_second[i](out)
+            out = out + self.residual_input_conv[i](resnet_input)
+            
+            if self.attn:
+                # Attention block of Unet
+                batch_size, channels, h, w = out.shape
+                # print(f'     Attention block {i}) input shape: {out.shape}')
+                in_attn = out.reshape(batch_size, channels, h * w)
+                in_attn = self.attention_norms[i](in_attn)
+                in_attn = in_attn.transpose(1, 2)
+                # print(f'     Attention block {i}) in_attn: {in_attn.shape} reshape and normalize')
+                out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
+                # print(f'     Attention block {i}) out_attn: {out_attn.shape} ')
+                out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
+                out = out + out_attn
+                    
+        # Downsample
+        out = self.down_sample_conv(out)
+        return out
+
+class MidBlock(nn.Module):
+    """
+    Mid conv block with attention.
+    Sequence of following blocks
+    1. Resnet block with time embedding
+    2. Attention block
+    3. Resnet block with time embedding
+    """
+    
+    def __init__(self, in_channels, out_channels, num_heads, num_layers, norm_channels):
+        super().__init__()
+        self.num_layers = num_layers
+
+        self.resnet_conv_first = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.GroupNorm(norm_channels, in_channels if i == 0 else out_channels),
+                    nn.SiLU(),
+                    nn.Conv2d(in_channels if i == 0 else out_channels, out_channels, kernel_size=3, stride=1,
+                              padding=1),
+                )
+                for i in range(num_layers + 1)
+            ]
+        )
+        
+        
+        self.resnet_conv_second = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.GroupNorm(norm_channels, out_channels),
+                    nn.SiLU(),
+                    nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+                )
+                for _ in range(num_layers + 1)
+            ]
+        )
+        
+        self.attention_norms = nn.ModuleList(
+            [nn.GroupNorm(norm_channels, out_channels)
+             for _ in range(num_layers)]
+        )
+        
+        self.attentions = nn.ModuleList(
+            [nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
+             for _ in range(num_layers)]
+        )
+        
+        self.residual_input_conv = nn.ModuleList(
+            [
+                nn.Conv2d(in_channels if i == 0 else out_channels, out_channels, kernel_size=1)
+                for i in range(num_layers + 1)
+            ]
+        )
+
+    def forward(self, x, t_emb=None, context=None):
+        out = x
+        
+        # First resnet block
+        resnet_input = out
+        out = self.resnet_conv_first[0](out)
+        out = self.resnet_conv_second[0](out)
+        out = out + self.residual_input_conv[0](resnet_input)
+        
+        for i in range(self.num_layers):
+            # Attention Block
+            batch_size, channels, h, w = out.shape
+            in_attn = out.reshape(batch_size, channels, h * w)
+            in_attn = self.attention_norms[i](in_attn)
+            in_attn = in_attn.transpose(1, 2)
+            out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
+            out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
+            out = out + out_attn
+            
+            # Resnet Block
+            resnet_input = out
+            out = self.resnet_conv_first[i + 1](out)
+            out = self.resnet_conv_second[i + 1](out)
+            out = out + self.residual_input_conv[i + 1](resnet_input)
+        
+        return out
+
+class UpBlock(nn.Module):
+    """
+    Up conv block with attention.
+    Sequence of following blocks
+    1. Upsample
+    1. Concatenate Down block output
+    2. Resnet block 
+    3. Attention Block
+    """
+    
+    def __init__(self, in_channels, out_channels, up_sample, num_heads, num_layers, attn, norm_channels):
+        super().__init__()
+        self.num_layers = num_layers
+        self.up_sample = up_sample
+        self.attn = attn
+
+        self.resnet_conv_first = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.GroupNorm(norm_channels, in_channels if i == 0 else out_channels),
+                    nn.SiLU(),
+                    nn.Conv2d(in_channels if i == 0 else out_channels, out_channels, kernel_size=3, stride=1,
+                              padding=1),
+                )
+                for i in range(num_layers)
+            ]
+        )
+                
+        self.resnet_conv_second = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.GroupNorm(norm_channels, out_channels),
+                    nn.SiLU(),
+                    nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+                )
+                for _ in range(num_layers)
+            ]
+        )
+
+        if self.attn:
+            self.attention_norms = nn.ModuleList(
+                [
+                    nn.GroupNorm(norm_channels, out_channels)
+                    for _ in range(num_layers)
+                ]
+            )
+            
+            self.attentions = nn.ModuleList(
+                [
+                    nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
+                    for _ in range(num_layers)
+                ]
+            )
+            
+        self.residual_input_conv = nn.ModuleList(
+            [
+                nn.Conv2d(in_channels if i == 0 else out_channels, out_channels, kernel_size=1)
+                for i in range(num_layers)
+            ]
+        )
+        self.up_sample_conv = nn.ConvTranspose2d(in_channels, in_channels,
+                                                 4, 2, 1) \
+            if self.up_sample else nn.Identity()
+    
+    def forward(self, x, out_down=None):
+        # Upsample
+        x = self.up_sample_conv(x)
+        
+        # Concat with Downblock output
+        if out_down is not None:
+            print(x.shape, out_down.shape  )
+            x = torch.cat([x, out_down], dim=1)
+
+        out = x
+        for i in range(self.num_layers):
+            # Resnet Block
+            resnet_input = out
+            out = self.resnet_conv_first[i](out)
+            out = self.resnet_conv_second[i](out)
+            out = out + self.residual_input_conv[i](resnet_input)
+            
+            # Self Attention
+            if self.attn:
+                batch_size, channels, h, w = out.shape
+                in_attn = out.reshape(batch_size, channels, h * w)
+                in_attn = self.attention_norms[i](in_attn)
+                in_attn = in_attn.transpose(1, 2)
+                out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
+                out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
+                out = out + out_attn
+        return out
+
+
+class UpBlockUnet(nn.Module):
+    """
+    Up conv block with attention.
+    Sequence of following blocks
+    1. Upsample
+    1. Concatenate Down block output
+    2. Resnet block with time embedding
+    3. Attention Block
+    """
+    
+    def __init__(self, in_channels, out_channels, up_sample, num_heads, num_layers, attn, norm_channels):
+        super().__init__()
+        self.num_layers = num_layers
+        self.up_sample = up_sample
+        self.attn = attn
+
+        self.resnet_conv_first = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.GroupNorm(norm_channels, in_channels if i == 0 else out_channels),
+                    nn.SiLU(),
+                    nn.Conv2d(in_channels if i == 0 else out_channels, out_channels, kernel_size=3, stride=1,
+                              padding=1),
+                )
+                for i in range(num_layers)
+            ]
+        )
+        
+            
+        self.resnet_conv_second = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.GroupNorm(norm_channels, out_channels),
+                    nn.SiLU(),
+                    nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+                )
+                for _ in range(num_layers)
+            ]
+        )
+        
+        if self.attn:
+            self.attention_norms = nn.ModuleList(
+                [
+                    nn.GroupNorm(norm_channels, out_channels)
+                    for _ in range(num_layers)
+                ]
+            )
+            
+            self.attentions = nn.ModuleList(
+                [
+                    nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
+                    for _ in range(num_layers)
+                ]
+            )
+            
+       
+        self.residual_input_conv = nn.ModuleList(
+            [
+                nn.Conv2d(in_channels if i == 0 else out_channels, out_channels, kernel_size=1)
+                for i in range(num_layers)
+            ]
+        )
+        self.up_sample_conv = nn.ConvTranspose2d(in_channels // 2, in_channels // 2,
+                                                 4, 2, 1) \
+            if self.up_sample else nn.Identity()
+    
+    def forward(self, x, out_down=None, t_emb=None, context=None):
+        
+        x = self.up_sample_conv(x)
+        if out_down is not None:
+            x = torch.cat([x, out_down], dim=1)
+        
+        out = x
+        for i in range(self.num_layers):
+            # Resnet
+            resnet_input = out
+            out = self.resnet_conv_first[i](out)
+            out = self.resnet_conv_second[i](out)
+            out = out + self.residual_input_conv[i](resnet_input)
+            # Self Attention
+            if self.attn:
+                batch_size, channels, h, w = out.shape
+                in_attn = out.reshape(batch_size, channels, h * w)
+                in_attn = self.attention_norms[i](in_attn)
+                in_attn = in_attn.transpose(1, 2)
+                out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
+                out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
+                out = out + out_attn
+
+        
+        return out
+
+class UNet_ResNoSkip(nn.Module):
+    def __init__(self, im_channels, num_classes, model_config):
+        super().__init__()
+        self.down_channels = model_config['down_channels']
+        self.down_sample = model_config['down_sample']
+        self.num_down_layers = model_config['num_down_layers']
+        self.num_up_layers = model_config['num_up_layers']
+        
+        # To disable attention in Downblock of Encoder and Upblock of Decoder
+        self.attns = model_config['attn_down']
+        
+        # Latent Dimension
+        self.norm_channels = model_config['norm_channels']
+        self.num_heads = model_config['num_heads']
+        
+        # Assertion to validate the channel information
+        assert len(self.down_sample) == len(self.down_channels) - 1
+        assert len(self.attns) == len(self.down_channels) - 1
+        
+
+        # Wherever we use downsampling in encoder correspondingly use
+        # upsampling in decoder
+        
+        #print(f"VAE MODEL")
+        self.up_sample = list(reversed(self.down_sample))
+        
+        ##################### Encoder ######################
+        self.encoder_conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=(1, 1))
+        
+        #print(f'input channel {im_channels}, first out channel Conv2d {self.down_channels[0]}')
+        
+        #print('--------------------------------')
+        
+        # Downblock + Midblock
+        
+        #print('ENCODER')
+        self.encoder_layers = nn.ModuleList([])
+        for i in range(len(self.down_channels) - 1):
+            
+            #print(f'layer {i}) input channel {self.down_channels[i]}, out channel Conv2d {self.down_channels[i + 1]}')
+            self.encoder_layers.append(DownBlock(self.down_channels[i], self.down_channels[i + 1], 
+                                                 down_sample=self.down_sample[i],
+                                                 num_heads=self.num_heads,
+                                                 num_layers=self.num_down_layers,
+                                                 attn=self.attns[i],
+                                                 norm_channels=self.norm_channels))
+        
+        
+        ##################### Decoder ######################   
+        #print('Decoder Layers')
+        self.decoder_layers = nn.ModuleList([])
+        for i in reversed(range(1, len(self.down_channels))):
+            
+            #print(f'layer {i}) input channel {self.down_channels[i]}, out channel Conv2d {self.down_channels[i - 1]}')
+            self.decoder_layers.append(UpBlock(self.down_channels[i] , self.down_channels[i - 1],
+                                               up_sample=self.down_sample[i - 1],
+                                               num_heads=self.num_heads,
+                                               num_layers=self.num_up_layers,
+                                               attn=self.attns[i - 1],
+                                               norm_channels=self.norm_channels))
+        
+        self.decoder_norm_out = nn.GroupNorm(self.norm_channels, self.down_channels[0])
+        
+        #print(f'GroupNorm {self.norm_channels}, last out channel Conv2d {self.down_channels[0]}')
+        self.decoder_conv_out = nn.Conv2d(self.down_channels[0], num_classes, kernel_size=3, padding=1)
+        
+        #print(f'output channel Conv2d {im_channels}')
+    
+    def encode(self, x):
+        # print('Input')
+        out = self.encoder_conv_in(x)
+        # print(f'input channel {x.shape}, first out channel Conv2d {out.shape}')
+        
+        #print('first Conv2d',out.shape)
+        # print('Encoder')
+        for idx, down in enumerate(self.encoder_layers):
+            # print(f'Encoder layer {idx} - input channel {out.shape}')
+            out = down(out)
+            # print(f'Encoder layer {idx} - out channel {out.shape}')
+            # print()
+        return out
+    
+    def decode(self, z):
+        out = z
+                   
+        for idx, up in enumerate(self.decoder_layers):
+            # print(f'Decoder layer {idx} - input channel {out.shape}')
+            out = up(out)
+            # print(f'Decoder layer {idx} - out channel {out.shape}')
+            
+            
+
+        out = self.decoder_norm_out(out)
+        
+        #print('GroupNorm',out.shape)
+        out = nn.SiLU()(out)
+        out = self.decoder_conv_out(out)
+        out = torch.sigmoid(out)    
+        # print('Decoder Output',out.shape)
+        return out
+
+    def forward(self, x):
+        
+        #print('FORWARD PASS')
+        
+        #print('input',x.shape)
+        encoder_output = self.encode(x)
+        out = self.decode(encoder_output)
+                
+        #print('output',out.shape)
+        return encoder_output, out
+
+class Unet_ResSkip(nn.Module):
+    """
+    Unet model comprising
+    Down blocks, Midblocks and Uplocks
+    """
+    
+    def __init__(self, im_channels, num_classes, model_config):
+        super().__init__()
+        self.down_channels = model_config['down_channels']
+        self.mid_channels = model_config['mid_channels']
+        self.down_sample = model_config['down_sample']
+        self.num_down_layers = model_config['num_down_layers']
+        self.num_mid_layers = model_config['num_mid_layers']
+        self.num_up_layers = model_config['num_up_layers']
+        self.attns = model_config['attn_down']
+        self.norm_channels = model_config['norm_channels']
+        self.num_heads = model_config['num_heads']
+        self.conv_out_channels = model_config['conv_out_channels']
+        
+        assert self.mid_channels[0] == self.down_channels[-1]
+        assert self.mid_channels[-1] == self.down_channels[-2]
+        assert len(self.down_sample) == len(self.down_channels) - 1
+        assert len(self.attns) == len(self.down_channels) - 1
+        
+        
+        self.up_sample = list(reversed(self.down_sample))
+        self.conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=1)
+        
+        self.downs = nn.ModuleList([])
+        for i in range(len(self.down_channels) - 1):
+            self.downs.append(DownBlock(self.down_channels[i], self.down_channels[i + 1],
+                                        down_sample=self.down_sample[i],
+                                        num_heads=self.num_heads,
+                                        num_layers=self.num_down_layers,
+                                        attn=self.attns[i], norm_channels=self.norm_channels))
+        
+        self.mids = nn.ModuleList([])
+        for i in range(len(self.mid_channels) - 1):
+            self.mids.append(MidBlock(self.mid_channels[i], self.mid_channels[i + 1], 
+                                      num_heads=self.num_heads,
+                                      num_layers=self.num_mid_layers,
+                                      norm_channels=self.norm_channels))
+        
+        self.ups = nn.ModuleList([])
+        for i in reversed(range(len(self.down_channels) - 1)):
+            self.ups.append(UpBlockUnet(self.down_channels[i] * 2, self.down_channels[i - 1] if i != 0 else self.conv_out_channels,
+                                        up_sample=self.down_sample[i],
+                                        num_heads=self.num_heads,
+                                        attn=self.attns[i - 1],
+                                        num_layers=self.num_up_layers,
+                                        norm_channels=self.norm_channels))
+        
+        self.norm_out = nn.GroupNorm(self.norm_channels, self.conv_out_channels)
+        self.conv_out = nn.Conv2d(self.conv_out_channels, num_classes, kernel_size=3, padding=1)
+    
+    def forward(self, x):
+        # Shapes assuming downblocks are [C1, C2, C3, C4]
+        # Shapes assuming midblocks are [C4, C4, C3]
+        # Shapes assuming downsamples are [True, True, False]
+        # B x C x H x W
+        # print('input',x.shape)
+        out = self.conv_in(x)
+        # B x C1 x H x W
+        # print('conv_in',out.shape)
+        
+        down_outs = []
+        for idx, down in enumerate(self.downs):
+            down_outs.append(out)
+            out = down(out)
+            # print(f'down {idx})',out.shape)
+        # down_outs  [B x C1 x H x W, B x C2 x H/2 x W/2, B x C3 x H/4 x W/4]
+        # out B x C4 x H/4 x W/4
+        
+        for idx, mid in enumerate(self.mids):
+            out = mid(out)
+            # print(f'mid {idx})',out.shape)
+        # out B x C3 x H/4 x W/4
+        
+        for idx, up in enumerate(self.ups):
+            down_out = down_outs.pop()
+            # print(f'up {idx}) input',out.shape, down_out.shape)
+            out = up(out, down_out)
+            # print(f'up {idx})',out.shape)
+            # out [B x C2 x H/4 x W/4, B x C1 x H/2 x W/2, B x 16 x H x W]
+            
+        out = self.norm_out(out)
+        out = nn.SiLU()(out)
+        out = self.conv_out(out)
+        out = torch.sigmoid(out)
+        # print('output',out.shape)
+        # out B x C x H x W
+        return out
 if __name__ == '__main__':
     ## SimpleRegression model
-    model = ResNet50Regression(input_channels=1, num_labels=12)
-    x = torch.randn(1, 1, 256, 256)
-    print(model)
+    # model = ResNet101Regression(input_channels=3, num_labels=12)
+    # x = torch.randn(1, 3, 256, 256)
+    # print(model)
     print()
+
+    ## UNet_Res model
+    model_config = {
+        'down_channels': [32, 64, 128, 256],
+        'down_sample': [True, True, True],
+        'attn_down': [False, False, False],
+        'norm_channels': 32,
+        'num_heads': 16,
+        'num_down_layers': 1,
+        'num_mid_layers': 1,
+        'num_up_layers': 1
+    }
+
+    unet_res = UNet_ResNoSkip(im_channels=1, num_classes=6, model_config=model_config)
+    x = torch.randn(1, 1, 256, 256)
+    out = unet_res(x)
+    # print(unet_res)
+    print(out[0].shape, out[1].shape)
+
+    model_config = {
+        'down_channels': [ 32, 64, 256, 256],
+        'mid_channels': [ 256, 256],
+        'down_sample': [ True, True, True ],
+        'attn_down' : [False,False,False],
+        'norm_channels' : 16,
+        'num_heads' : 8,
+        'conv_out_channels' : 128,
+        'num_down_layers': 2,
+        'num_mid_layers': 2,
+        'num_up_layers': 2,
+    }
+    unet_res_skip = Unet_ResSkip(im_channels=1, num_classes=6, model_config=model_config)
+    x = torch.randn(1, 1, 256, 256)
+    out = unet_res_skip(x)
+    print(out.shape)
+    ## print the summary
 
 
     # ## PLAX model
