@@ -26,6 +26,7 @@ import math
 import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+from thop import profile, clever_format
 
 
 
@@ -262,10 +263,15 @@ def linear_fit(label, output, num='Regression plot'):
     return slope, intercept, r_squared, chi_squared
 
     
+def get_macs_parms(model, config):
+    """
+    Compute the MACs and parameters of the model
+    """
+    x_try = torch.randn(1, config['input_channels'], 256, 256).to(device)
+    macs, params = profile(model, inputs=(x_try,))
+    macs, params = clever_format([macs, params], "%.3f")
+    return macs, params
     
-
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
@@ -296,11 +302,16 @@ if __name__ == '__main__':
                               target=trained_args['target'], input_channels=cfg['input_channels'], augmentation=False)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=8, shuffle=False, num_workers=4, pin_memory=True)
 
+    # for idx, i in enumerate(test_set):
+    #     print(idx, len(i))
+    
     ## load the model
     best_model = get_best_model(train_dir)
     print(f"Model: {trained_args['model']}, Best model: {best_model}")
     model_dir = os.path.join('TRAINED_MODEL', args.batch, args.phase, args.trial)
     model = cfg['model'].to(device)
+    
+
     # print(model)
     model.load_state_dict(torch.load(os.path.join(train_dir, f'model_{best_model}')))
     model.to(device)
@@ -389,6 +400,7 @@ if __name__ == '__main__':
     ax[0].set_ylabel('Predicted measure (px)', fontsize=20)
     ax[0].legend(fontsize=20)
     
+    
     # Scatter plot for LVID
     ax[1].scatter(distances_label_list[:,1], distances_output_list[:,1], s=100, c='C4',label='LVID', alpha=0.5)
     ax[1].plot(distances_label_list[:,1], slope_lvid * distances_label_list[:,1] + intercept_lvid, c='C4', label=f'fit LVID',)
@@ -435,10 +447,17 @@ if __name__ == '__main__':
     plt.legend(fontsize=20)
     plt.savefig(os.path.join(train_dir, f'{trained_args["target"]} - Regression plot - {args.split}.png'))
 
+
+    macs, params = get_macs_parms(model, cfg)
+    print(f'MACS: {macs}, Parameters: {params}')
+    
+
     ## create a file txt with all the printed string
     with open(os.path.join(train_dir, f'{trained_args["target"]}_results.txt'), 'w') as f:
         f.write(f'Batch: {args.batch}, Phase: {args.phase}, Trial: {args.trial}, Split: {args.split}\n')
         f.write(f'Model: {trained_args["model"]}, Best model: {best_model}\n')
+        f.write(f'MACS: {macs}, Parameters: {params}\n')
+        f.write('==================================================================================\n')
         f.write(f'Mean Percantace Error:  LVPW={mpe[0]:.4f}, LVID={mpe[1]:.4f}, IVS={mpe[2]:.4f}\n')
         f.write(f'LVPW: slope={slope_lvpw:.4f}, intercept={intercept_lvpw:.4f}, R-squared={r_squared_lvpw:.4f}, Chi-squared={chi_squared_lvpw:.4f}\n')
         f.write(f'LVID: slope={slope_lvid:.4f}, intercept={intercept_lvid:.4f}, R-squared={r_squared_lvid:.4f}, Chi-squared={chi_squared_lvid:.4f}\n')

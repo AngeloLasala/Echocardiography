@@ -58,18 +58,15 @@ class Unet(nn.Module):
                 # print('sto dentro: class')
                 self.class_cond = True
                 self.num_classes = self.condition_config['class_condition_config']['num_classes']
-            if 'cross' in condition_types:
+            if 'text' in condition_types:
                 # validate_text_config(self.condition_config)
                 # print('sto dentro: text')
                 self.text_cond = True
-                self.text_embed_dim = self.condition_config['text_condition_config']['image_condition_h'] * self.condition_config['text_condition_config']['image_condition_w']
-                # self.text_embed_dim = self.condition_config['text_condition_config']['text_embed_dim']
+                self.text_embed_dim = self.condition_config['text_condition_config']['text_embed_dim']
             if 'image' in condition_types:
                 self.image_cond = True
-                self.im_cond_input_ch = self.condition_config['image_condition_config'][
-                    'image_condition_input_channels']
-                self.im_cond_output_ch = self.condition_config['image_condition_config'][
-                    'image_condition_output_channels']
+                self.im_cond_input_ch = self.condition_config['image_condition_config']['image_condition_input_channels']
+                self.im_cond_output_ch = self.condition_config['image_condition_config']['image_condition_output_channels']
 
         if self.class_cond:
             # Rather than using a special null class we dont add the
@@ -181,9 +178,9 @@ class Unet(nn.Module):
             
         context_hidden_states = None
         if self.text_cond:
-            assert 'cross' in cond_input, \
+            assert 'text' in cond_input, \
                 "Model initialized with text conditioning but cond_input has no text information"
-            context_hidden_states = cond_input['cross']        
+            context_hidden_states = cond_input['text']        
         down_outs = []
         
         # print('DOWN BLOCKS')
@@ -229,14 +226,14 @@ if __name__ == '__main__':
         'num_mid_layers': 2,
         'num_up_layers': 2,
         'condition_config': {
-            'condition_types': [ 'cross'],
+            'condition_types': [ 'text'],
             'class_condition_config': {
                 'num_classes': 4
             },
             'text_condition_config': {
                 'image_condition_input_channels': 1,  
-                'image_condition_h' : 256,
-                'image_condition_w' : 256,
+                'text_embed_dim' : 768,
+                'text_embed_prob' : 0.1,
                 
             },
             'image_condition_config': {
@@ -249,8 +246,8 @@ if __name__ == '__main__':
     model = Unet(1, model_config)
     x = torch.randn(5, 1, 32, 32)
     t = torch.randint(0, 100, (5,))
-    text_cond = torch.randn(5, 1, 256, 256)
+    text_cond = torch.randn(5, 8, 8, 768)
     mask_cond = torch.randn(5, 6, 32, 32)
     class_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
     out = model(x, t, {'text': text_cond})
-    # print(out.shape)
+    print(out.shape)

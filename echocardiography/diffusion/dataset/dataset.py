@@ -18,6 +18,8 @@ import cv2
 from echocardiography.regression.test import get_best_model, show_prediction
 from echocardiography.regression.utils import echocardiografic_parameters
 from echocardiography.regression.cfg import train_config
+from echocardiography.diffusion.models.unet_cond_base import get_config_value
+
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -162,17 +164,15 @@ class EcoDataset():
 
             ###### TEXT CONDITION ###############################################
             # here the part of cross attention with the image, similar to the 'text' condition
-            # for now is not the embedding of a pretrained model but the direct cross attention between image and input
-            if 'cross' in self.condition_types:
-                heatmaps_label = self.get_heatmap(index)
-                im_tensor, heatmaps_label = self.trasform(im, heatmaps_label)
-                calc_value_list = torch.tensor(calc_value_list)
-                heatmaps_label = torch.sum(heatmaps_label, dim=0)
-                heatmaps_label = heatmaps_label.unsqueeze(0)
-                heatmaps_label = (heatmaps_label - heatmaps_label.min()) / (heatmaps_label.max() - heatmaps_label.min())
-                ## plot the heatmap
+            # up to date, the embedding comes from the regression model to predict the keypoints
+            # so in this case, the conditioning is the real image
+            if 'text' in self.condition_types:
+                im = im.resize(self.size)
+                im = im.convert('L')
+                im_tensor = torchvision.transforms.ToTensor()(im)
+                im_tensor = (2 * im_tensor) - 1
 
-                cond_inputs['cross'] = heatmaps_label    
+                cond_inputs['text'] = im_tensor   
             
             return im_tensor, cond_inputs   
 
@@ -379,6 +379,7 @@ class EcoDataset():
         if self.dataset_batch_regression == self.dataset_batch:
             raise ValueError('The dataset_batch_regression value is equal to the dataset_batch value, please provide a different value for dataset_batch_regression')
 
+        
         ## get the current directory
         current_dir = os.getcwd()
         while current_dir.split('/')[-1] != 'echocardiography':
@@ -388,15 +389,51 @@ class EcoDataset():
         train_dir = os.path.join(data_dir, 'TRAINED_MODEL', self.dataset_batch_regression, self.phase, self.trial) ## change this to the path of the trained model
         with open(os.path.join(train_dir, 'args.json')) as json_file:
             trained_args = json.load(json_file)
-        cfg = train_config(trained_args['target'],
-                        threshold_wloss=trained_args['threshold_wloss'],
-                        model=trained_args['model'],
-                        device=device)
+        cfg = train_config(trained_args['target'], 
+                       threshold_wloss=trained_args['threshold_wloss'], 
+                       model=trained_args['model'],
+                       input_channels=trained_args['input_channels'],                       
+                       device=device)
 
         best_model = get_best_model(train_dir)
         model = cfg['model'].to(device)
         model.load_state_dict(torch.load(os.path.join(train_dir, f'model_{best_model}')))
         model.to(device)
+        return model
+
+    def get_model_embedding(self, batch_emb, trial_emb):
+        """
+        get the model for the text-like cross attention mechanism
+        """
+        # Possible error
+        if len(self.condition_types) == 0:
+            raise ValueError('the model is initialized as a uncoditional ldm, please give the condition for the cond ldm')
+       
+        if 'text' in self.condition_types:
+
+        
+            ## get the current directory
+            current_dir = os.getcwd()
+            while current_dir.split('/')[-1] != 'echocardiography':
+                current_dir = os.path.dirname(current_dir)
+            data_dir = os.path.join(current_dir, 'regression')
+
+            train_dir = os.path.join(data_dir, 'TRAINED_MODEL', batch_emb, self.phase, trial_emb) ## change this to the path of the trained model
+            with open(os.path.join(train_dir, 'args.json')) as json_file:
+                trained_args = json.load(json_file)
+            cfg = train_config(trained_args['target'], 
+                        threshold_wloss=trained_args['threshold_wloss'], 
+                        model=trained_args['model'],
+                        input_channels=trained_args['input_channels'],                       
+                        device=device)
+
+            best_model = get_best_model(train_dir)
+            model = cfg['model'].to(device)
+            model.load_state_dict(torch.load(os.path.join(train_dir, f'model_{best_model}')))
+            model.to(device)
+
+        else:
+            raise ValueError('Text condition is not initialized')
         return model
 
 class CelebDataset(Dataset):

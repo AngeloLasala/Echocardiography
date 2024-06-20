@@ -2,7 +2,7 @@
 Analysis of PLAX echocardiography is conducted on the available dataset [Echonet-LVH](https://echonet.github.io/lvh/). The repository contains two modules: regression and diffusion. The regression module is designed for keypoints regression in the left ventricle, while the diffusion module is intended for unconditional/conditional generation using the Latent Diffusion Model.
 
 The generation of a new PLAX view can be achieved by anatomically conditioning:
-- Chamber dimensions: dimensions of IVS, LVID, and LVPW
+- Chamber dimensions: dimensions of LVPW, LVID, and IVS (**!! important !!**: this is the order of the keyponts)
 - Classification of hypertrophy:
     - Concentric hypertrophy: [1,0,0,0]- (rwt>0.42  lvm<200 : color red)
     - Concentric remodeling:  [0,1,0,0]- (rwt>0.42  lvm<200 : color orange)
@@ -42,6 +42,19 @@ he initial step of analyzing PLAX images is the identification of the key points
 2) **Heatmaps regression**: Regression of Gaussian heatmaps centered on the coordinates. Models: Unet (up-sampling and up-conv)
 
 3) **Mask segmentation**: Segmentation of thresholded heatmaps. Models: Unet (up-sampling and up-conv)
+
+
+In accordance with various approaches, use the following command line to train the model:
+
+```bash
+python train.py --target keypoints --epochs 50 --batch_size=16 --lr 0.0001 --weight_decay 0.00001 --threshold_wloss 0.0 --model resnet101 --input_channels 1
+
+python train.py --target heatmaps --epochs 50 --batch_size=8 --lr 0.0001 --weight_decay 0.00001 --threshold_wloss 0.0 --model unet_up --input_channels 1
+```
+
+Note that the goal is also to have a model capable of giving us an embedding representation of the images to be used as a condition in the sampling process of the latent diffusion model. For this reason, it is preferable to use ```--input_channels=1```
+
+
 
 ### Diffusion
 
@@ -101,10 +114,4 @@ The main score to evaluate the quality of generated images is Fréchet Inception
 ```bash
 python -m pytorch_fid.fid_score path_real path_gen
 ```
-
-
-
-
-
-
 

@@ -1201,9 +1201,10 @@ class Unet_ResSkip(nn.Module):
         return out
 if __name__ == '__main__':
     ## SimpleRegression model
-    # model = ResNet101Regression(input_channels=3, num_labels=12)
-    # x = torch.randn(1, 3, 256, 256)
-    # print(model)
+    model = SwinTransformerSmall(input_channels=1, num_labels=12)
+    x = torch.randn(1, 1, 256, 256)
+    embedd, out = model(x)
+    print(embedd.shape, out.shape)
     print()
 
     ## UNet_Res model

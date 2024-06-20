@@ -69,7 +69,7 @@ class EchoNetDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        image, label = self.get_image_label(idx)
+        image, label, calc_value = self.get_image_label(idx)
 
         ## trasform the label based on target: keypoints, heatmaps, segmentations
         if self.target == 'keypoints': 
@@ -263,7 +263,7 @@ class EchoNetDataset(Dataset):
         """
         given a index of the patient return the 6D heatmap of the keypoints
         """
-        image, labels = self.get_image_label(idx)
+        image, labels, calc_value = self.get_image_label(idx)
 
         ## mulptiple the labels by the image size
         converter = np.tile([image.size[0], image.size[1]], 6)
@@ -309,17 +309,20 @@ class EchoNetDataset(Dataset):
         image = Image.open(os.path.join(self.data_dir, 'image', patient+'.png')) 
         
         # read the label  
-        keypoints_label = []
+        keypoints_label, calc_value_list = [], []
         for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
             if patient_label[heart_part] is not None:
                 x1_heart_part = patient_label[heart_part]['x1'] / image.size[0]
                 y1_heart_part = patient_label[heart_part]['y1'] / image.size[1]
                 x2_heart_part = patient_label[heart_part]['x2'] / image.size[0]
                 y2_heart_part = patient_label[heart_part]['y2'] / image.size[1]
+                heart_part_value = patient_label[heart_part]['calc_value']
                 keypoints_label.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
+                calc_value_list.append(heart_part_value)
 
         keypoints_label = (np.array(keypoints_label)).flatten()
-        return image, keypoints_label
+        calc_value_list = np.array(calc_value_list).flatten()
+        return image, keypoints_label, calc_value_list
 
         
     def get_keypoint(self, patient_hash):
@@ -484,7 +487,6 @@ class EchoNetLVH(Dataset):
                     if patient_label['split'] == self.split:
                         diastole_patient.append(patient)
         return diastole_patient
-        
     
     def show_img_with_keypoints(self, idx):
         """

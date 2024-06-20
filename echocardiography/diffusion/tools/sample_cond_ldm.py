@@ -86,6 +86,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
             # Get prediction of noise
             t = (torch.ones((xt.shape[0],)) * i).long().to(device)
             
+            # print(cond_input)
             noise_pred_cond = model(xt, t, cond_input)
             
             noise_pred = noise_pred_cond

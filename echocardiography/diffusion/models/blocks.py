@@ -151,8 +151,9 @@ class DownBlock(nn.Module):
                 in_attn = out.reshape(batch_size, channels, h * w)
                 in_attn = self.cross_attention_norms[i](in_attn)
                 in_attn = in_attn.transpose(1, 2)
-                assert context.shape[0] == x.shape[0] and context.shape[-1]*context.shape[-2] == self.context_dim
-                context_proj = self.context_proj[i](context.reshape(batch_size, context.shape[1], self.context_dim))
+                assert context.shape[0] == x.shape[0] and context.shape[-1] == self.context_dim
+                ## the embedding for the swin trasformer is (B, H/nn, W/nn, Embedd), i whatnt to have (B, H/nn * W/nn, Embedd)
+                context_proj = self.context_proj[i](context.reshape(batch_size, context.shape[1] * context.shape[2], self.context_dim))
                 out_attn, _ = self.cross_attentions[i](in_attn, context_proj, context_proj)
                 out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
                 out = out + out_attn
@@ -265,8 +266,9 @@ class MidBlock(nn.Module):
                 in_attn = out.reshape(batch_size, channels, h * w)
                 in_attn = self.cross_attention_norms[i](in_attn)
                 in_attn = in_attn.transpose(1, 2)
-                assert context.shape[0] == x.shape[0] and context.shape[-1]*context.shape[-2] == self.context_dim
-                context_proj = self.context_proj[i](context.reshape(batch_size, context.shape[1], self.context_dim))
+                assert context.shape[0] == x.shape[0] and context.shape[-1] == self.context_dim
+                ## the embedding for the swin trasformer is (B, H/nn, W/nn, Embedd), i whatnt to have (B, H/nn * W/nn, Embedd)
+                context_proj = self.context_proj[i](context.reshape(batch_size, context.shape[1]*context.shape[2], self.context_dim))
                 out_attn, _ = self.cross_attentions[i](in_attn, context_proj, context_proj)
                 out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
                 out = out + out_attn
@@ -505,9 +507,11 @@ class UpBlockUnet(nn.Module):
                 in_attn = in_attn.transpose(1, 2)
                 # assert len(context.shape) == 3, \
                 #     "Context shape does not match B,_,CONTEXT_DIM"
-                assert context.shape[0] == x.shape[0] and context.shape[-1]*context.shape[-2] == self.context_dim,\
+                assert context.shape[0] == x.shape[0] and context.shape[-1] == self.context_dim,\
                     "Context shape does not match B,_,CONTEXT_DIM"
-                context_proj = self.context_proj[i](context.reshape(batch_size, context.shape[1], self.context_dim))
+                ## the embedding for the swin trasformer is (B, H/nn, W/nn, Embedd), i whatnt to have (B, H/nn * W/nn, Embedd)
+                context_proj = self.context_proj[i](context.reshape(batch_size, context.shape[1]*context.shape[2], self.context_dim))
+                
                 out_attn, _ = self.cross_attentions[i](in_attn, context_proj, context_proj)
                 out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
                 out = out + out_attn

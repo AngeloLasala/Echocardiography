@@ -37,12 +37,23 @@ def drop_class_condition(class_condition, class_drop_prob, im):
     else:
         return class_condition
 
-def drop_text_condition(text_condition, im, text_drop_prob):
+def drop_text_condition(text_condition, text_drop_prob):
     if text_drop_prob > 0:
-        text_drop_mask = torch.zeros((im.shape[0], 1, 1, 1), device=im.device).float().uniform_(0,1) > text_drop_prob
+        text_drop_mask = torch.zeros((text_condition.shape[0], 1, 1, 1), device=text_condition.device).float().uniform_(0,1) > text_drop_prob
         return text_condition * text_drop_mask
     else:
         return text_condition
+
+def get_text_embeddeing(text, model, device):
+    """
+    given the text-line condition extrapolate the text embedding
+    """
+    text = text.to(device)
+    model = model.to(device)
+    with torch.no_grad():
+        text_embedding, prediction = model(text)
+    return text_embedding
+
 
 def train(par_dir, conf, trial):
    # Read the config file #
@@ -59,6 +70,7 @@ def train(par_dir, conf, trial):
     train_config = config['train_params']
     condition_config = get_config_value(diffusion_model_config, key='condition_config', default_value=None)
     print(condition_config)
+    print()
     if condition_config is not None:
         assert 'condition_types' in condition_config, \
             "condition type missing in conditioning config"
@@ -111,6 +123,12 @@ def train(par_dir, conf, trial):
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vqvae', 'vqvae.pth'),map_location=device))
 
+    ## if the condition is 'text' i have to load the text model
+    if 'text' in condition_types:
+        text_configuration = condition_config['text_condition_config']
+        regression_model = data_img.get_model_embedding(text_configuration['text_embed_model'], text_configuration['text_embed_trial'])
+        regression_model.eval()
+
     save_folder = os.path.join(trial_folder, 'cond_ldm_1')
     if not os.path.exists(save_folder):
         save_folder = os.path.join(trial_folder, 'cond_ldm_1')
@@ -148,7 +166,6 @@ def train(par_dir, conf, trial):
             if 'image' in condition_types:
                 assert 'image' in cond_input, 'Conditioning Type Image but no image conditioning input present'
                 cond_input_image = cond_input['image'].to(device) 
-
                 # Drop condition
                 im_drop_prob = get_config_value(condition_config['image_condition_config'], 'cond_drop_prob', 0.)
                 cond_input['image'] = drop_image_condition(cond_input_image, im, im_drop_prob)
@@ -156,21 +173,18 @@ def train(par_dir, conf, trial):
             if 'class' in condition_types:
                 assert 'class' in cond_input, 'Conditioning Type Class but no class conditioning input present'
                 class_condition = cond_input['class'].to(device)
-                class_drop_prob = get_config_value(condition_config['class_condition_config'],
-                                                   'cond_drop_prob', 0.)
+                class_drop_prob = get_config_value(condition_config['class_condition_config'],'cond_drop_prob', 0.)
                 # Drop condition
                 cond_input['class'] = drop_class_condition(class_condition, class_drop_prob, im)
 
-            if 'cross' in condition_types:
-                assert 'cross' in cond_input, 'Conditioning Type Text but no text conditioning input present'
-                cross_condition = cond_input['cross'].to(device)
-                print(cross_condition.shape)
-                text_drop_prob = get_config_value(condition_config['text_condition_config'],
-                                                    'cond_drop_prob', 0.)
-                text_condition = drop_text_condition(cross_condition, im, text_drop_prob)
+            if 'text' in condition_types:
+                assert 'text' in cond_input, 'Conditioning Type Text but no text conditioning input present'
+                text_condition_input = cond_input['text'].to(device)
+                text_embedding = get_text_embeddeing(text_condition_input, regression_model, device).to(device)
+                text_drop_prob = get_config_value(condition_config['text_condition_config'], 'cond_drop_prob', 0.)
+                text_condition = drop_text_condition(text_embedding, text_drop_prob)
                 cond_input['text'] = text_condition
             #########################################################################################
-                
                 
             # Sample random noise
             noise = torch.randn_like(im).to(device)
@@ -206,7 +220,7 @@ def train(par_dir, conf, trial):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
     parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco')
-    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
+    parser.add_argument('--trial', type=str, default='trial_1', help='trial name, here you select the trained VAE to compute the latent space')
     args = parser.parse_args()
 
     current_directory = os.path.dirname(__file__)
