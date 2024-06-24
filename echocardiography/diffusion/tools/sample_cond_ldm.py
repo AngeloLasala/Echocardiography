@@ -19,6 +19,7 @@ from echocardiography.diffusion.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from echocardiography.diffusion.tools.infer_vae import get_best_model
 from torch.utils.data import DataLoader
+from echocardiography.diffusion.tools.train_cond_ldm import get_text_embeddeing
 import torch.multiprocessing as mp
 
 import matplotlib.pyplot as plt
@@ -54,6 +55,12 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
     }.get(dataset_config['name'])
 
     print(condition_config)
+    condition_config = get_config_value(diffusion_model_config, key='condition_config', default_value=None)
+    if condition_config is not None:
+        assert 'condition_types' in condition_config, \
+            "condition type missing in conditioning config"
+        condition_types = condition_config['condition_types']
+
     print('DIMENSION OF THE LATENT SPACE: ', autoencoder_model_config['z_channels'])
 
     data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size'], dataset_config['im_size']), 
@@ -61,6 +68,13 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
                               dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
                               condition_config=condition_config)
     data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=False, num_workers=8)
+
+    ## if the condition is 'text' i have to load the text model
+    if 'text' in condition_types:
+        
+        text_configuration = condition_config['text_condition_config']
+        regression_model = data_img.get_model_embedding(text_configuration['text_embed_model'], text_configuration['text_embed_trial'])
+        regression_model.eval()
 
     for btc, data in enumerate(data_loader):
         cond_input = None
@@ -71,10 +85,22 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         else:
             im = data
 
+        plt.figure()
+        plt.imshow(im[0][0].cpu().numpy())
+
+        plt.figure()
+        plt.imshow(cond_input[key][0][0].cpu().numpy())
+        plt.show()
+
         xt = torch.randn((im.shape[0],
                       autoencoder_model_config['z_channels'],
                       im_size,
                       im_size)).to(device)
+
+        if 'text' in condition_types:
+            text_condition_input = cond_input['text'].to(device)
+            text_embedding = get_text_embeddeing(text_condition_input, regression_model, device).to(device)
+            cond_input['text'] = text_embedding
         print(cond_input[key].shape)
 
         # plt the first image
@@ -251,7 +277,7 @@ if __name__ == '__main__':
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
     parser.add_argument('--epoch', type=int, default=49, help='epoch to sample, this is the epoch of cond ldm model')
 
-    mp.set_start_method("spawn")
+    # mp.set_start_method("spawn")
 
     args = parser.parse_args()
 
