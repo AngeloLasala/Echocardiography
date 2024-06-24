@@ -143,8 +143,10 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default='TRAINED_MODEL', help='Directory to save the model')
     parser.add_argument('--model', type=str, default=None, help='model architecture to use, e.g. resnet50, unet, plaxmodel')
     parser.add_argument('--input_channels', type=int, default=1, help='Number of input channels, default=1 for grayscale images, 3 for the RGB')
+    parser.add_argument('--size', nargs='+', type=int, default= [256, 256] , help='Size of image, default is (256, 256), aspect ratio (221, 295)')
     parser.add_argument('--seed', type=int, default=42, help='Seed for reproducibility')
     args = parser.parse_args()
+    args.size = tuple(args.size)
     
     ## device and reproducibility    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -158,10 +160,11 @@ if __name__ == '__main__':
     
     print('start creating the dataset...')
     train_set = EchoNetDataset(batch=args.batch_dir, split='train', phase=args.phase, label_directory=None,
-                              target=args.target, input_channels=args.input_channels, augmentation=True)
+                              target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True)
 
     validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, 
-                              target=args.target, input_channels=args.input_channels, augmentation=False)
+                              target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False)
+        
 
     print('start creating the dataloader...')
     training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
