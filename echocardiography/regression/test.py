@@ -25,6 +25,7 @@ import cv2
 import math
 import numpy as np
 import scipy.stats as stats
+from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 from thop import profile, clever_format
 
@@ -45,7 +46,7 @@ def get_best_model(train_dir):
                 best_model = int(model)
     return best_model
 
-def show_prediction(image, label, output, target):
+def show_prediction(image, label, output, target, size):
     """
     Show the prediction of PLAX keypoits based on the type of the target
 
@@ -91,8 +92,8 @@ def show_prediction(image, label, output, target):
         num_classes = [0,1,3,5] # for the visualizazion i aviod the superimpose classes
 
         ## sum the channels to have a single label and prediction
-        label_single = np.zeros((256,256))
-        output_single = np.zeros((256,256))
+        label_single = np.zeros(size)
+        output_single = np.zeros(size)
         for i in num_classes:
             label_single += label[:,:,i]
             output_single += output[:,:,i]
@@ -125,21 +126,28 @@ def show_prediction(image, label, output, target):
 
 
 
-def percentage_error(label, output, target):
+def percentage_error(label_in, output_in, target, size):
     """
     Compute the percentage error between the distance of 'LVPW', 'LVID', 'IVS'
     """
+    label_in = label_in.copy()
+    output_in = output_in.copy()
+
     if target == 'keypoints':
-        label, output = label * 256., output * 256.    
+        label_in[0::2] = label_in[0::2] * size[1]
+        label_in[1::2] = label_in[1::2] * size[0]
+        output_in[0::2] = output_in[0::2] * size[1]
+        output_in[1::2] = output_in[1::2] * size[0]
+
         distances_label, distances_output = [], []
         for i in range(3):
-            x1, y1 = label[(i*4)], label[(i*4)+1]
-            x2, y2 = label[(i*4)+2], label[(i*4)+3]
+            x1, y1 = label_in[(i*4)], label_in[(i*4)+1]
+            x2, y2 = label_in[(i*4)+2], label_in[(i*4)+3]
             distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             distances_label.append(distance)
 
-            x1, y1 = output[(i*4)], output[(i*4)+1]
-            x2, y2 = output[(i*4)+2], output[(i*4)+3]
+            x1, y1 = output_in[(i*4)], output_in[(i*4)+1]
+            x2, y2 = output_in[(i*4)+2], output_in[(i*4)+3]
             distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             distances_output.append(distance)
 
@@ -179,12 +187,17 @@ def percentage_error(label, output, target):
 
     return distances_label, distances_output
 
-def keypoints_error(label, output, target):
+def keypoints_error(label, output, target, size):
     """
     Compute the error of the position of the keypoints
     """
+    label = label.copy()
+    output = output.copy()
     if target == 'keypoints':
-        label, output = label * 256., output * 256.
+        label[0::2] = label[0::2] * size[1]
+        label[1::2] = label[1::2] * size[0]
+        output[0::2] = output[0::2] * size[1]
+        output[1::2] = output[1::2] * size[0]
         label, output = np.array(label), np.array(output)
         error = label - output
 
@@ -204,12 +217,17 @@ def keypoints_error(label, output, target):
         error = label - output
     return error
 
-def echo_parameter_error(label, output, target):
+def echo_parameter_error(label, output, target, size):
     """
     Compute the error of the echocardiografic parameters
     """
+    label = label.copy()
+    output = output.copy()
     if target == 'keypoints':
-        label, output = label * 256., output * 256.    
+        label[0::2] = label[0::2] * size[1]
+        label[1::2] = label[1::2] * size[0]
+        output[0::2] = output[0::2] * size[1]
+        output[1::2] = output[1::2] * size[0]  
 
         rwt_label, rst_label = echocardiografic_parameters(label)
         rwt_output, rst_output = echocardiografic_parameters(output)
@@ -262,12 +280,30 @@ def linear_fit(label, output, num='Regression plot'):
 
     return slope, intercept, r_squared, chi_squared
 
+def fit_linear(label, output):
+    """
+    Fit a linear regression between the label and the output
+    """
+    x = label
+    y = output
+
+    model = LinearRegression()
+    model.fit(x.reshape(-1, 1), y.reshape(-1, 1))
+    y_fit = model.predict(x.reshape(-1, 1))
+
+    ## get the slope intersectio and r-squared
+    slope = model.coef_[0][0]
+    intercept = model.intercept_[0]
+    r_squared = model.score(x.reshape(-1, 1), y.reshape(-1, 1))
+    return slope, intercept, r_squared
+   
+
     
-def get_macs_parms(model, config):
+def get_macs_parms(model, config, size):
     """
     Compute the MACs and parameters of the model
     """
-    x_try = torch.randn(1, config['input_channels'], 256, 256).to(device)
+    x_try = torch.randn(1, config['input_channels'], size[1], size[0]).to(device)
     macs, params = profile(model, inputs=(x_try,))
     macs, params = clever_format([macs, params], "%.3f")
     return macs, params
@@ -296,10 +332,12 @@ if __name__ == '__main__':
                        model=trained_args['model'],
                        input_channels=trained_args['input_channels'],                       
                        device=device)
+    size = tuple(trained_args['size'])
+
 
 
     test_set = EchoNetDataset(batch=args.batch, split=args.split, phase=args.phase, label_directory=None,
-                              target=trained_args['target'], input_channels=cfg['input_channels'], augmentation=False)
+                              target=trained_args['target'], input_channels=cfg['input_channels'], size=size ,augmentation=False)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=8, shuffle=False, num_workers=4, pin_memory=True)
 
     # for idx, i in enumerate(test_set):
@@ -340,13 +378,11 @@ if __name__ == '__main__':
                 label = labels[i]
                 output = outputs[i]
                 
-                
-                
-                dist_label, dist_output = percentage_error(label, output, target=trained_args['target'])
-                err = keypoints_error(label, output, target=trained_args['target'])
-                parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'])
+                dist_label, dist_output = percentage_error(label_in=label, output_in=output, target=trained_args['target'], size=size)
+                err = keypoints_error(label, output, target=trained_args['target'], size=size)
+                parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'], size=size)
                 if args.show_plot:
-                    show_prediction(image, label, output, target=trained_args['target'])
+                    show_prediction(image, label, output, target=trained_args['target'], size=size)
                     plt.show()
                 
                 distances_label_list.append(dist_label)
@@ -431,7 +467,7 @@ if __name__ == '__main__':
     print(f'RST: slope={slope_RST:.4f}, intercept={intercept_RST:.4f}, R-squared={r_squared_RST:.4f}, Chi-squared={chi_squared_RST:.4f}')
     print()
 
-    plt.figure(figsize=(10,10), num=f'{trained_args["target"]} - Regression plot - {args.split}', tight_layout=True)
+    plt.figure(figsize=(8,8), num=f'{trained_args["target"]} - Regression plot - {args.split}', tight_layout=True)
     plt.scatter(parameters_label_list[:,0], parameters_output_list[:,0], s=100, c='C0', label='RWT', alpha=0.5)
     plt.plot(parameters_label_list[:,0], slope_RWT * parameters_label_list[:,0] + intercept_RWT, c='C0', label=f'fit RWT',)
     plt.plot(parameters_label_list[:,0],parameters_label_list[:,0], c='black', linewidth=2)
@@ -448,7 +484,7 @@ if __name__ == '__main__':
     plt.savefig(os.path.join(train_dir, f'{trained_args["target"]} - Regression plot - {args.split}.png'))
 
 
-    macs, params = get_macs_parms(model, cfg)
+    macs, params = get_macs_parms(model, cfg, size)
     print(f'MACS: {macs}, Parameters: {params}')
     
 
