@@ -22,7 +22,7 @@ import math
 from echocardiography.regression.data_reader import read_video, read_video
 
 class EchoNetDataset(Dataset):
-    def __init__(self, batch, split, phase, target, input_channels, label_directory=None, transform=None, augmentation=False):
+    def __init__(self, batch, split, phase, target, input_channels, size, label_directory=None, transform=None, augmentation=False):
         """
         Args:
             batch (string): Batch number of video folder, e.g. 'Batch1', 'Batch2', 'Batch3', 'Batch4'.
@@ -30,6 +30,7 @@ class EchoNetDataset(Dataset):
             phase (string): diastole or systole
             target (string): keypoint, heatmap, segmentation
             input_channels (int): Number of input channels, must be 3 for RGB or 1 for grayscale
+            size (tuple): Size of the image 
             label_directory (string): Directory of the label dataset, default None that means read the file from the json file
             transform (callable, optional): Optional transform to be applied on a sample.    
             transform_target (callable, optional): Optional transform to be applied on a sample.
@@ -40,7 +41,7 @@ class EchoNetDataset(Dataset):
         self.phase = phase
         self.target = target
         self.augmentation = augmentation
-        self.size = (256, 256)
+        self.size = size
         self.input_channels = input_channels
 
         self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
