@@ -153,10 +153,9 @@ class EcoDataset():
             ###### CLASS CONDITION ##############################################
             if 'class' in self.condition_types:
                 # process the image
-                im = im.resize(self.size)
-                im = im.convert('L')
-                im_tensor = torchvision.transforms.ToTensor()(im)
-                im_tensor = (2 * im_tensor) - 1
+                resize = transforms.Resize(size=self.size)
+                image = resize(im)
+                im_tensor = (2 * image) - 1
 
                 class_label = self.get_class_hypertrophy(keypoints_label, calc_value_list)
                 cond_inputs['class'] = class_label
@@ -167,8 +166,8 @@ class EcoDataset():
             # up to date, the embedding comes from the regression model to predict the keypoints
             # so in this case, the conditioning is the real image
             if 'text' in self.condition_types:
-                im = im.resize(self.size)
-                im = im.convert('L')
+                resize = transforms.Resize(size=self.size)
+                image = resize(image)
                 im_tensor = torchvision.transforms.ToTensor()(im)
                 im_tensor = (2 * im_tensor) - 1
 
@@ -178,16 +177,33 @@ class EcoDataset():
 
         else: # no condition
             im = im.resize(self.size)
-            im = im.convert('L')
             im_tensor = torchvision.transforms.ToTensor()(im)
             im_tensor = (2 * im_tensor) - 1
             return im_tensor
 
     def get_image_label(self, index):
+        """
+        Given an index, return the image and label
+
+        Parameters
+        ----------
+        index : int
+            Index of the patient
+
+        Returns
+        -------
+        im : torch tensor
+            Image tensor shape (C, H, W)
+        keypoints_label : list
+            List containing the keypoints
+        calc_value_list : list
+            List containing the calc values
+        """
         patient_hash = self.patient_files[index]
         patient_path = os.path.join(self.data_dir, f'{patient_hash}.' + self.im_ext)
 
         im = Image.open(patient_path)
+        im = im.convert('L')
         lab = self.data_label[patient_hash]
 
         ## da questi ricava i valori normalizzati alla self.size mentre il calc no!!
@@ -203,7 +219,8 @@ class EcoDataset():
 
         keypoints_label = np.array(keypoints_label).flatten()
         calc_value_list = np.array(calc_value_list).flatten()
-
+        # convert image to tensor
+        im = torchvision.transforms.ToTensor()(im)
         return im, keypoints_label, calc_value_list
 
     def get_class_hypertrophy(self, keypoints_label, calc_value_list):
@@ -237,19 +254,18 @@ class EcoDataset():
         given a index of the patient return the 6D heatmap of the keypoints
         """
         image, labels, calc_value = self.get_image_label(idx)
-
         ## mulptiple the labels by the image size
-        converter = np.tile([image.size[0], image.size[1]], 6)
+        converter = np.tile([image.shape[2], image.shape[1]], 6)
         labels = labels * converter
 
-        x, y = np.meshgrid(np.arange(0, image.size[0]), np.arange(0, image.size[1]))
+        x, y = np.meshgrid(np.arange(0, image.shape[2]), np.arange(0, image.shape[1]))
         pos = np.dstack((x, y))
 
-        std_dev = int(image.size[0] * 0.05) 
+        std_dev = int(image.shape[2] * 0.05) 
         covariance = np.array([[std_dev * 20, 0.], [0., std_dev]])
         
         # Initialize an empty 6-channel heatmap vector
-        heatmaps_label= np.zeros((image.size[1], image.size[0], 6), dtype=np.float32)
+        heatmaps_label= np.zeros((image.shape[1], image.shape[2], 6), dtype=np.float32)
         for hp, heart_part in enumerate([labels[0:4], labels[4:8], labels[8:12]]): ## LVIDd, IVSd, LVPWd
             ## compute the angle of the heart part
             x_diff = heart_part[0:2][0] - heart_part[2:4][0]
@@ -330,7 +346,6 @@ class EcoDataset():
         Simple trasformaztion of the label and image. Resize and normalize the image and resize the label
         """
         # convert each channel in PIL image
-        image = image.convert('L')
         label = [Image.fromarray(label[:,:,ch]) for ch in range(label.shape[2])]
 
         ## Resize
@@ -342,7 +357,6 @@ class EcoDataset():
         label = np.array([np.array(ch) for ch in label])
         label = torch.tensor(label)
 
-        image = transforms.functional.to_tensor(image)
         image = (2 * image) - 1    
         return image, label
 
@@ -583,7 +597,7 @@ class CelebDataset(Dataset):
 if __name__ == '__main__':
     import yaml
     
-    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_image/class_cond.yaml'
+    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_image_class_cond.yaml'
     with open(conf, 'r') as file:
         try:
             config = yaml.safe_load(file)
@@ -591,7 +605,7 @@ if __name__ == '__main__':
             print(exc)
     print(config['ldm_params']['condition_config'])
 
-    data = EcoDataset(split='train', size=(256,256), im_path='DATA', dataset_batch='Batch3', phase='diastole', 
+    data = EcoDataset(split='train', size=(221,295), im_path='DATA', dataset_batch='Batch3', phase='diastole', 
                       dataset_batch_regression='Batch2', trial='trial_2', condition_config=config['ldm_params']['condition_config']) #, condition_config=False)
     # data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=4, timeout=10)
     # print(data.condition_types)
@@ -599,7 +613,7 @@ if __name__ == '__main__':
     # print(data.patient_files[1])
     # print(data.data_dir, data.data_dir_label)
     print()
-    print(data[13][0].shape)
+    print(data[13][0].shape, data[13][0].max(), data[13][0].min())
     print(data[13][1]['image'].shape)
     print(data[13][1]['class'])
     
@@ -608,5 +622,5 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     plt.figure()
     plt.imshow(data[13][0].squeeze(0).detach().numpy(), cmap='gray')
-    plt.imshow(data[13][1]['cross'][0].detach().numpy(), cmap='jet', alpha=0.5)
+    plt.imshow(data[13][1]['image'][0].detach().numpy(), cmap='jet', alpha=0.5)
     plt.show()
