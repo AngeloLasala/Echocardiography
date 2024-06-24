@@ -83,7 +83,7 @@ class ResNet152Regression(nn.Module):
 
 class SwinTransformerTiny(nn.Module):
     """
-    Swin trasformed v2 modela with a modified first convolutional layer to accept the desired number of input channels.
+    Swin trasformed model with a modified first convolutional layer to accept the desired number of input channels.
     """
     def __init__(self, input_channels, num_labels):
         super(SwinTransformerTiny, self).__init__()
@@ -91,47 +91,44 @@ class SwinTransformerTiny(nn.Module):
         self.num_classes = num_labels
 
         # Load the pre-trained Swin Transformer Tiny model
-        self.model = timm.create_model('swinv2_tiny_window8_256', pretrained=True, num_classes=self.num_classes)
+        self.model = models.swin_t(weights='DEFAULT')
+        for layer_idx, layer in enumerate(self.model.features.children()):
+            if layer_idx == 0:
+                for i in range(len(layer)):
+                    if i == 0:
+                        layer[i] = nn.Conv2d(self.input_channels, layer[i].out_channels, kernel_size=4, stride=4)
 
-        # Modify the first convolutional layer to accept the desired number of input channels
-        self.model.patch_embed.proj = nn.Conv2d(self.input_channels, self.model.patch_embed.proj.out_channels,
-                                                kernel_size=(4, 4), stride=(4, 4))
+        self.model.head = nn.Sequential(nn.Linear(self.model.head.in_features, self.num_classes),
+                                        nn.Sigmoid())   
+
 
     def forward(self, x):
-
-        # Obtain the features from the backbone, normalized but not with the pooling
-        features = self.model.forward_features(x)
-        
-        # Obtain the final classification output
-        output = self.model.head(features)
-
-        return features, output
+        x = self.model(x)
+        x = x.view(x.size(0), -1)
+        return x
 
 class SwinTransformerSmall(nn.Module):
     """
-    Swin trasformed v2 modela with a modified first convolutional layer to accept the desired number of input channels.
+    Swin trasformed model with a modified first convolutional layer to accept the desired number of input channels.
     """
     def __init__(self, input_channels, num_labels):
         super(SwinTransformerSmall, self).__init__()
         self.input_channels = input_channels
         self.num_classes = num_labels
 
-        # Load the pre-trained Swin Transformer Tiny model
-        self.model = timm.create_model('swinv2_small_window8_256', pretrained=True, num_classes=self.num_classes)
+        self.model = models.swin_s(weights='DEFAULT')
+        for layer_idx, layer in enumerate(self.model.features.children()):
+            if layer_idx == 0:
+                for i in range(len(layer)):
+                    if i == 0:
+                        layer[i] = nn.Conv2d(self.input_channels, layer[i].out_channels, kernel_size=4, stride=4)
 
-        # Modify the first convolutional layer to accept the desired number of input channels
-        self.model.patch_embed.proj = nn.Conv2d(self.input_channels, self.model.patch_embed.proj.out_channels,
-                                                kernel_size=(4, 4), stride=(4, 4))
-
+        self.model.head = nn.Sequential(nn.Linear(self.model.head.in_features, self.num_classes),
+                                        nn.Sigmoid())   
     def forward(self, x):
-
-        # Obtain the features from the backbone, normalized but not with the pooling
-        features = self.model.forward_features(x)
-        
-        # Obtain the final classification output
-        output = self.model.head(features)
-
-        return features, output
+        x = self.model(x)
+        x = x.view(x.size(0), -1)
+        return x
 
 class SwinTransformerBase(nn.Module):
     """
@@ -142,22 +139,20 @@ class SwinTransformerBase(nn.Module):
         self.input_channels = input_channels
         self.num_classes = num_labels
 
-        # Load the pre-trained Swin Transformer Tiny model
-        self.model = timm.create_model('swinv2_base_window8_256', pretrained=True, num_classes=self.num_classes)
+        self.model = models.swin_b(weights='DEFAULT')
+        for layer_idx, layer in enumerate(self.model.features.children()):
+            if layer_idx == 0:
+                for i in range(len(layer)):
+                    if i == 0:
+                        layer[i] = nn.Conv2d(self.input_channels, layer[i].out_channels, kernel_size=4, stride=4)
 
-        # Modify the first convolutional layer to accept the desired number of input channels
-        self.model.patch_embed.proj = nn.Conv2d(self.input_channels, self.model.patch_embed.proj.out_channels,
-                                                kernel_size=(4, 4), stride=(4, 4))
+        self.model.head = nn.Sequential(nn.Linear(self.model.head.in_features, self.num_classes),
+                                        nn.Sigmoid())   
 
     def forward(self, x):
-
-        # Obtain the features from the backbone, normalized but not with the pooling
-        features = self.model.forward_features(x)
-        
-        # Obtain the final classification output
-        output = self.model.head(features)
-
-        return features, output
+        x = self.model(x)
+        x = x.view(x.size(0), -1)
+        return x
 
 
 class PlaxModel(torch.nn.Module):
@@ -1199,15 +1194,26 @@ class Unet_ResSkip(nn.Module):
         # print('output',out.shape)
         # out B x C x H x W
         return out
+
 if __name__ == '__main__':
     ## SimpleRegression model
+    print('Swin Transformer')
     model = SwinTransformerSmall(input_channels=1, num_labels=12)
-    x = torch.randn(1, 1, 256, 256)
-    embedd, out = model(x)
-    print(embedd.shape, out.shape)
+    x = torch.randn(1, 1, 256, 200)
+    out = model(x)
+    print(out.shape)
+    print()
+
+    ## Renet model
+    print('Resnet')
+    model = ResNet101Regression(input_channels=1, num_labels=12)
+    x = torch.randn(1, 1, 256, 200)
+    out = model(x)
+    print(out.shape)
     print()
 
     ## UNet_Res model
+    print('Unet')
     model_config = {
         'down_channels': [32, 64, 128, 256],
         'down_sample': [True, True, True],
@@ -1220,7 +1226,7 @@ if __name__ == '__main__':
     }
 
     unet_res = UNet_ResNoSkip(im_channels=1, num_classes=6, model_config=model_config)
-    x = torch.randn(1, 1, 256, 256)
+    x = torch.randn(1, 1, 256, 200)
     out = unet_res(x)
     # print(unet_res)
     print(out[0].shape, out[1].shape)
@@ -1238,12 +1244,12 @@ if __name__ == '__main__':
         'num_up_layers': 2,
     }
     unet_res_skip = Unet_ResSkip(im_channels=1, num_classes=6, model_config=model_config)
-    x = torch.randn(1, 1, 256, 256)
+    x = torch.randn(1, 1, 256, 200)
     out = unet_res_skip(x)
     print(out.shape)
-    ## print the summary
+    print()
 
-
+    ## print the summar
     # ## PLAX model
     # model = PlaxModel(num_classes=6)
     # x = torch.randn(2, 3, 256, 256)
