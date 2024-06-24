@@ -30,9 +30,9 @@ def train_config(target, threshold_wloss, model, input_channels, device):
         if model == 'resnet50' : cfg['model'] = ResNet50Regression(input_channels=input_channels, num_labels=12)
         if model == 'resnet101': cfg['model'] = ResNet101Regression(input_channels=input_channels, num_labels=12)
         if model == 'resnet152': cfg['model'] = ResNet152Regression(input_channels=input_channels, num_labels=12)
-        if model == 'swinv2' : cfg['model'] = SwinTransformerTiny(input_channels=input_channels, num_labels=12)
-        if model == 'swinv2_small': cfg['model'] = SwinTransformerSmall(input_channels=input_channels, num_labels=12)
-        if model == 'swinv2_base': cfg['model'] = SwinTransformerBase(input_channels=input_channels, num_labels=12)
+        if model == 'swin_tiny' : cfg['model'] = SwinTransformerTiny(input_channels=input_channels, num_labels=12)
+        if model == 'swin_small': cfg['model'] = SwinTransformerSmall(input_channels=input_channels, num_labels=12)
+        if model == 'swin_base': cfg['model'] = SwinTransformerBase(input_channels=input_channels, num_labels=12)
         cfg['loss'] = torch.nn.MSELoss()
         cfg['input_channels'] = input_channels
 
