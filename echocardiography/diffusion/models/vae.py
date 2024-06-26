@@ -136,25 +136,25 @@ class VAE(nn.Module):
     def encode(self, x):
         out = self.encoder_conv_in(x)
         
-        #print('first Conv2d',out.shape)
+        # print('first Conv2d',out.shape)
         for idx, down in enumerate(self.encoder_layers):
             out = down(out)
             
-            #print(f'Encoder layer {idx})',out.shape)
+            # print(f'Encoder layer {idx})',out.shape)
         for mid in self.encoder_mids:
             out = mid(out)
             
-            #print(f'Encoder mid layer',out.shape)
+            # print(f'Encoder mid layer',out.shape)
         out = self.encoder_norm_out(out)
         
-        #print('GroupNorm',out.shape)
+        # print('GroupNorm',out.shape)
         out = nn.SiLU()(out)
         out = self.encoder_conv_out(out)
         
-        #print('Encoder Output',out.shape)
+        # print('Encoder Output',out.shape)
         out = self.pre_quant_conv(out)
         
-        #print('Pre Quant Conv',out.shape)
+        # print('Pre Quant Conv',out.shape)
         mean, logvar = torch.chunk(out, 2, dim=1)
         std = torch.exp(0.5 * logvar)
         sample = mean + std * torch.randn(mean.shape).to(device=x.device)
@@ -163,29 +163,29 @@ class VAE(nn.Module):
     def decode(self, z):
         out = z
         
-        #print('Decoder Input',out.shape)
+        # print('Decoder Input',out.shape)
         out = self.post_quant_conv(out)
         
-        #print('Post Quant Conv',out.shape)
+        # print('Post Quant Conv',out.shape)
         out = self.decoder_conv_in(out)
         
         #print('Decoder Conv In',out.shape)
         for idx, mid in enumerate(self.decoder_mids):
             out = mid(out)
             
-            #print(f'Decoder mid layer {idx})',out.shape)
+            # print(f'Decoder mid layer {idx})',out.shape)
         for idx, up in enumerate(self.decoder_layers):
             out = up(out)
             
-            #print(f'Decoder layer {idx})',out.shape)
+            # print(f'Decoder layer {idx})',out.shape)
 
         out = self.decoder_norm_out(out)
         
-        #print('GroupNorm',out.shape)
+        # print('GroupNorm',out.shape)
         out = nn.SiLU()(out)
         out = self.decoder_conv_out(out)
         
-        #print('Decoder Output',out.shape)
+        # print('Decoder Output',out.shape)
         return out
 
     def forward(self, x):
@@ -213,7 +213,8 @@ if __name__ == '__main__':
         'num_up_layers': 1
     }
     model = VAE(1, model_config)
-    x = torch.randn(1, 1, 256, 256)
+    x = torch.randn(1, 1, 240, 320)
     out = model(x)
+    print(out[0].shape, out[1].shape)
     # 
     # #print(summary(model))

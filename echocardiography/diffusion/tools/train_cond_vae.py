@@ -68,13 +68,13 @@ def train(conf, save_folder):
     }.get(dataset_config['name'])
 
     # Create the dataset and dataloader
-    data_img = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']), 
+    data_img = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
                               dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
                               condition_config=condition_config)
     data_loader = DataLoader(data_img, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
 
-    val_data = im_dataset_cls(split='val', size=(dataset_config['im_size'], dataset_config['im_size']), 
+    val_data = im_dataset_cls(split='val', size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
                               dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
                               condition_config=condition_config)

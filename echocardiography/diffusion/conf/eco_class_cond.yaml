@@ -4,7 +4,8 @@ dataset_params:
   split_val: 'val'
   split_test: 'test'
   im_channels : 1
-  im_size : 256
+  im_size_h : 240  # 256
+  im_size_w : 320  # 256
   name: 'eco'
   dataset_batch: 'Batch3'  # dataset batch for diffusion task
   phase: 'diastole'

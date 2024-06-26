@@ -53,7 +53,7 @@ def train(par_dir, conf, trial):
     }.get(dataset_config['name'])
 
     # Create the dataset and dataloader
-    data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size'], dataset_config['im_size']),
+    data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
                          im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'] , phase=dataset_config['phase'])
     data_loader = DataLoader(data, batch_size=train_config['ldm_batch_size'], shuffle=True, num_workers=8)
  

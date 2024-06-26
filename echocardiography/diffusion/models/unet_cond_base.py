@@ -244,10 +244,10 @@ if __name__ == '__main__':
     }
     
     model = Unet(1, model_config)
-    x = torch.randn(5, 1, 32, 32)
+    x = torch.randn(5, 1, 30, 40)
     t = torch.randint(0, 100, (5,))
     text_cond = torch.randn(5, 8, 8, 768)
-    mask_cond = torch.randn(5, 6, 32, 32)
+    mask_cond = torch.randn(5, 6, 30, 40)
     class_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
     out = model(x, t, {'text': text_cond})
     print(out.shape)

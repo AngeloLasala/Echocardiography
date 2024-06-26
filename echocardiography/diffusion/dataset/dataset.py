@@ -167,8 +167,7 @@ class EcoDataset():
             # so in this case, the conditioning is the real image
             if 'text' in self.condition_types:
                 resize = transforms.Resize(size=self.size)
-                image = resize(image)
-                im_tensor = torchvision.transforms.ToTensor()(im)
+                image = resize(im)
                 im_tensor = (2 * im_tensor) - 1
 
                 cond_inputs['text'] = im_tensor   
@@ -176,9 +175,9 @@ class EcoDataset():
             return im_tensor, cond_inputs   
 
         else: # no condition
-            im = im.resize(self.size)
-            im_tensor = torchvision.transforms.ToTensor()(im)
-            im_tensor = (2 * im_tensor) - 1
+            resize = transforms.Resize(size=self.size)
+            image = resize(im)
+            im_tensor = (2 * image) - 1
             return im_tensor
 
     def get_image_label(self, index):
@@ -605,7 +604,7 @@ if __name__ == '__main__':
             print(exc)
     print(config['ldm_params']['condition_config'])
 
-    data = EcoDataset(split='train', size=(221,295), im_path='DATA', dataset_batch='Batch3', phase='diastole', 
+    data = EcoDataset(split='train', size=(240,320), im_path='DATA', dataset_batch='Batch3', phase='diastole', 
                       dataset_batch_regression='Batch2', trial='trial_2', condition_config=config['ldm_params']['condition_config']) #, condition_config=False)
     # data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=4, timeout=10)
     # print(data.condition_types)

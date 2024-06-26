@@ -4,7 +4,8 @@ dataset_params:
   split_val: 'val'
   split_test: 'test'
   im_channels : 1
-  im_size : 256
+  im_size_h : 240  # 256
+  im_size_w : 320  # 256
   name: 'eco'
   dataset_batch: 'Batch3'  # dataset batch for diffusion task
   phase: 'diastole'
@@ -79,7 +80,7 @@ train_params:
   task_name: 'eco'
   seed : 1111
   ldm_batch_size: 8
-  autoencoder_batch_size: 4
+  autoencoder_batch_size: 2
   disc_start: 2
   disc_weight: 0.5
   codebook_weight: 1
@@ -87,7 +88,7 @@ train_params:
   perceptual_weight: 1
   kl_weight: 0.000005
   ldm_epochs : 100
-  autoencoder_epochs : 40
+  autoencoder_epochs : 100
   num_samples : 25
   num_grid_rows : 5
   ldm_lr: 0.00001

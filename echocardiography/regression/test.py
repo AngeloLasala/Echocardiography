@@ -126,18 +126,18 @@ def show_prediction(image, label, output, target, size):
 
 
 
-def percentage_error(label_in, output_in, target, size):
+def percentage_error(label, output, target, size):
     """
     Compute the percentage error between the distance of 'LVPW', 'LVID', 'IVS'
     """
-    label_in = label_in.copy()
-    output_in = output_in.copy()
+    label = label.copy()
+    output = output.copy()
 
     if target == 'keypoints':
-        label_in[0::2] = label_in[0::2] * size[1]
-        label_in[1::2] = label_in[1::2] * size[0]
-        output_in[0::2] = output_in[0::2] * size[1]
-        output_in[1::2] = output_in[1::2] * size[0]
+        label[0::2] = label[0::2] * size[1]
+        label[1::2] = label[1::2] * size[0]
+        output[0::2] = output[0::2] * size[1]
+        output[1::2] = output[1::2] * size[0]
 
         distances_label, distances_output = [], []
         for i in range(3):
@@ -377,8 +377,7 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                
-                dist_label, dist_output = percentage_error(label_in=label, output_in=output, target=trained_args['target'], size=size)
+                dist_label, dist_output = percentage_error(label=label, output=output, target=trained_args['target'], size=size)
                 err = keypoints_error(label, output, target=trained_args['target'], size=size)
                 parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'], size=size)
                 if args.show_plot:
