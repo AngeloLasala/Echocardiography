@@ -114,7 +114,6 @@ def train(par_dir, conf, trial):
             im = im.float().to(device)
             with torch.no_grad():
                 im, _ = vae.encode(im)
-                
             # Sample random noise
             noise = torch.randn_like(im).to(device)
 
