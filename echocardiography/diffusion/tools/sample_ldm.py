@@ -27,7 +27,9 @@ def sample(model, scheduler, train_config, diffusion_model_config,
     Sample stepwise by going backward one timestep at a time.
     We save the x0 predictions
     """
-    im_size = dataset_config['im_size'] // 2**sum(autoencoder_model_config['down_sample'])
+    im_size_h = dataset_config['im_size_h'] // 2**sum(autoencoder_model_config['down_sample'])
+    im_size_w = dataset_config['im_size_w'] // 2**sum(autoencoder_model_config['down_sample'])
+    print(f'Resolution of latent space [{im_size_h},{im_size_w}]')
 
     # Get the spatial conditional mask, i.e. the heatmaps
     im_dataset_cls = {
@@ -37,7 +39,7 @@ def sample(model, scheduler, train_config, diffusion_model_config,
     }.get(dataset_config['name'])
 
 
-    data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size'], dataset_config['im_size']), 
+    data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'])
     data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=False, num_workers=8)
 
@@ -45,8 +47,8 @@ def sample(model, scheduler, train_config, diffusion_model_config,
         print(img.shape)
         xt = torch.randn((img.shape[0],
                         autoencoder_model_config['z_channels'],
-                        im_size,
-                        im_size)).to(device)
+                        im_size_h,
+                        im_size_w)).to(device)
 
         for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
             # Get prediction of noise
@@ -167,7 +169,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
     parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco') 
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for the trained model')
-    parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the  hyperparameters (file .yaml) that is used for the training, it can be ldm_1, ldm_2""")
+    parser.add_argument('--experiment', type=str, default='ldm_1', help="""name of expermient, it is refed to the  hyperparameters (file .yaml) that is used for the training, it can be ldm_1, ldm_2""")
     parser.add_argument('--epoch', type=int, default=100, help='epoch of trained LDM model')
 
     args = parser.parse_args()
