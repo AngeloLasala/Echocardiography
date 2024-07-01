@@ -115,9 +115,9 @@ if __name__ == '__main__':
         'num_mid_layers': 2,
         'num_up_layers': 2,
     }
-    model = Unet(1, model_config)
-    x = torch.randn(4, 1, 32, 32)
-    t = torch.randint(0, 100, (4,))
+    model = Unet(3, model_config)
+    x = torch.randn(16, 3, 30, 40)
+    t = torch.randint(0, 100, (16,))
     out = model(x, t)
     print(out.shape)
     # print(out)

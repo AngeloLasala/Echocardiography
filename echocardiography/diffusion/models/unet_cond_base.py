@@ -216,7 +216,7 @@ if __name__ == '__main__':
     model_config = {
         'down_channels': [ 128, 256, 256, 256],
         'mid_channels': [ 256, 256],
-        'down_sample': [ False, False, False ],
+        'down_sample': [ False, True, False],
         'attn_down' : [True, True, True],
         'time_emb_dim': 256,
         'norm_channels' : 32,
@@ -243,8 +243,8 @@ if __name__ == '__main__':
         }
     }
     
-    model = Unet(1, model_config)
-    x = torch.randn(5, 1, 30, 40)
+    model = Unet(3, model_config)
+    x = torch.randn(5, 3, 30, 40)
     t = torch.randint(0, 100, (5,))
     text_cond = torch.randn(5, 8, 8, 768)
     mask_cond = torch.randn(5, 6, 30, 40)

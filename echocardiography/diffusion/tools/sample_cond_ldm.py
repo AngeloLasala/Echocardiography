@@ -36,8 +36,10 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
     Sample stepwise by going backward one timestep at a time.
     We save the x0 predictions
     """
-    im_size = dataset_config['im_size'] // 2 ** sum(autoencoder_model_config['down_sample'])
-    
+    im_size_h = dataset_config['im_size_h'] // 2**sum(autoencoder_model_config['down_sample'])
+    im_size_w = dataset_config['im_size_w'] // 2**sum(autoencoder_model_config['down_sample'])
+    print(f'Resolution of latent space [{im_size_h},{im_size_w}]')
+
     
     ############ Create Conditional input ###############
     ## FUTURE WORK: Add text-like conditioning
@@ -63,7 +65,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
 
     print('DIMENSION OF THE LATENT SPACE: ', autoencoder_model_config['z_channels'])
 
-    data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size'], dataset_config['im_size']), 
+    data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
                               dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
                               condition_config=condition_config)
@@ -85,17 +87,17 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         else:
             im = data
 
-        plt.figure()
-        plt.imshow(im[0][0].cpu().numpy())
+        # plt.figure()
+        # plt.imshow(im[0][0].cpu().numpy())
 
-        plt.figure()
-        plt.imshow(cond_input[key][0][0].cpu().numpy())
-        plt.show()
+        # plt.figure()
+        # plt.imshow(cond_input[key][0][0].cpu().numpy())
+        # plt.show()
 
         xt = torch.randn((im.shape[0],
                       autoencoder_model_config['z_channels'],
-                      im_size,
-                      im_size)).to(device)
+                      im_size_h,
+                      im_size_w)).to(device)
 
         if 'text' in condition_types:
             text_condition_input = cond_input['text'].to(device)

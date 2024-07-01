@@ -20,7 +20,7 @@ diffusion_params:
 ldm_params:
   down_channels: [ 128, 256, 256, 256]
   mid_channels: [ 256, 256 ]
-  down_sample: [ True, True, True ]
+  down_sample: [ False, True, False]
   attn_down : [True, True, True]
   time_emb_dim: 256
   norm_channels: 32
@@ -39,8 +39,8 @@ ldm_params:
     image_condition_config:                 ## this is for the image conditioning - seg/heatmaps stacked on the input
       image_condition_input_channels: 6     # total number of spatial channels in the conditional heatmaps
       image_condition_output_channels: 3
-      image_condition_h : 256
-      image_condition_w : 256
+      image_condition_h : 240
+      image_condition_w : 320
       cond_drop_prob: 0.1
     class_condition_config :     ## this is for the class conditioning of different type of hypertrophy 
       num_classes : 4           # numebr of classes, for now it is 4
@@ -88,7 +88,7 @@ train_params:
   perceptual_weight: 1
   kl_weight: 0.000005
   ldm_epochs : 100
-  autoencoder_epochs : 100
+  autoencoder_epochs : 20
   num_samples : 25
   num_grid_rows : 5
   ldm_lr: 0.00001

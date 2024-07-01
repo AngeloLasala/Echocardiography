@@ -130,7 +130,7 @@ def infer(par_dir, conf, trial, show_plot=False):
     }.get(dataset_config['name'])
 
     # Create the dataset and dataloader
-    data = im_dataset_cls(split='train', size=(dataset_config['im_size'], dataset_config['im_size']), 
+    data = im_dataset_cls(split='train', size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
                               im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
                               dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
                               condition_config=condition_config)
@@ -141,6 +141,7 @@ def infer(par_dir, conf, trial, show_plot=False):
     
     trial_folder = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
     assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
+
     
     if 'cond_vae' in os.listdir(trial_folder):
         type_model = 'cond_vae'
@@ -279,11 +280,9 @@ def infer(par_dir, conf, trial, show_plot=False):
 
     ##################################################################################################
 
-        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for vq vae inference')
-    parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco, eco_image_cond')  
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
     parser.add_argument('--show_plot', action='store_true', help="show the latent space imgs, default=False")
     
@@ -291,7 +290,13 @@ if __name__ == '__main__':
 
     current_directory = os.path.dirname(__file__)
     par_dir = os.path.dirname(current_directory)
-    configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
+    eco_dir = os.path.join(par_dir, 'trained_model', 'eco')
 
+    experiment_dir = os.path.join(eco_dir, args.trial)
+    if 'vae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'vae', 'config.yaml')
+    if 'vqvae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'vqvae', 'config.yaml')
+    if 'cond_vae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'cond_vae', 'config.yaml')
+
+    config = os.path.join(experiment_dir, 'config.yaml')
     save_folder = os.path.join(par_dir, 'trained_model', args.trial)
     infer(par_dir = par_dir, conf = configuration, trial = args.trial, show_plot=args.show_plot)

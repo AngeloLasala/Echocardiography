@@ -28,7 +28,7 @@ def get_metrics(patients_list, resize):
     rwt_error_list = []              ## RWT error 
     rst_error_list = []              ## RST error 
     hypertrofy_list = []     
-    cm_px_list, cm_px_256_list, aspect_ratio_list = [], [], []
+    cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list = [], [], [], []
     
     for patient in tqdm.tqdm(patients_list):
         patient_label = label[label['HashedFileName'] == patient]        
@@ -85,6 +85,7 @@ def get_metrics(patients_list, resize):
             # print(f'cm/pixel (aspect ratio): {pwd/pw_distance_ar:.4f} - {lvidd/lvid_distance_ar:.4f} - {ivsd/ivsd_distance_ar:.4f}')
             cm_px_list.append([lvidd/lvid_distance])
             cm_px_256_list.append([lvidd/lvid_distance_256])
+            cm_px_ar_list.append([lvidd/lvid_distance_ar])
 
             ## Compute the RWT
             rwt = 2 * pwd / lvidd                                   ## RWT compute on dimention (cm)
@@ -99,6 +100,9 @@ def get_metrics(patients_list, resize):
             rst_ar = 2 * ivsd_distance_ar / lvid_distance_ar        ## RST compute on distance (pixel - aspect ratio)
 
             lv_mass = 0.8 * (1.04 * ((lvidd + ivsd + pwd) ** 3 - lvidd ** 3)) + 0.6
+            lv_mass_d = 0.8 * (1.04 * ((lvidd/lvidd + ivsd/lvidd + pwd/lvidd) ** 3 - (lvidd/lvidd) ** 3)) + 0.6
+            # print(f'lv_mass_d: {lv_mass_d:.4f}')
+
             # print(f'rwt: {rwt}, lv_mass: {lv_mass}')
             # print('RWT')
             # print(f'rws_distance: {np.abs(rwt - relative_distance)}')
@@ -113,12 +117,12 @@ def get_metrics(patients_list, resize):
             lv_mass_list.append(lv_mass)
             relative_distance_list.append(relative_distance)
             aspect_ratio_list.append(aspect_ratio)
-            hypertrofy_list.append([lv_mass, rwt])
+            hypertrofy_list.append([lv_mass, rwt, lv_mass_d, rst_ar])
             rwt_error_list.append([rwt - relative_distance, rwt - rwt_256, rwt - rwt_ar])
             rst_error_list.append([rst - rst_distance, rst - rst_256, rst - rst_ar])
         # print('==============================================') 
     
-    return rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, aspect_ratio_list, rwt_error_list, rst_error_list
+    return rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list
 
 if __name__ == '__main__':   
     parser = argparse.ArgumentParser(description='Visualize the hypertrophy dataset')
@@ -137,11 +141,12 @@ patients = label['HashedFileName'].unique()
 
 if args.compute_metrics:
 
-    rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, aspect_ratio_list, rwt_error_list, rst_error_list = get_metrics(patients, (240, 320))  
+    rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list = get_metrics(patients, (240, 320))  
 
     hypertrofy_list = np.array(hypertrofy_list)
     cm_px_list = np.array(cm_px_list)
     cm_px_256_list = np.array(cm_px_256_list)
+    cm_px_ar_list = np.array(cm_px_ar_list)
     aspect_ratio_list = np.array(aspect_ratio_list)
     rwt_error_list = np.array(rwt_error_list)
     rst_error_list = np.array(rst_error_list)
@@ -154,6 +159,7 @@ if args.compute_metrics:
     np.save(os.path.join(save_folder,'hypertrofy_list.npy'), hypertrofy_list)
     np.save(os.path.join(save_folder,'cm_px_list.npy'), cm_px_list)
     np.save(os.path.join(save_folder,'cm_px_256_list.npy'), cm_px_256_list)
+    np.save(os.path.join(save_folder,'cm_px_ar_list.npy'), cm_px_ar_list)
     np.save(os.path.join(save_folder,'aspect_ratio_list.npy'), aspect_ratio_list)
     np.save(os.path.join(save_folder,'rwt_error_list.npy'), rwt_error_list)
     np.save(os.path.join(save_folder,'rst_error_list.npy'), rst_error_list)
@@ -163,16 +169,23 @@ else:
     hypertrofy_list = np.load(os.path.join(save_folder,'hypertrofy_list.npy'))
     cm_px_list = np.load(os.path.join(save_folder,'cm_px_list.npy'))
     cm_px_256_list = np.load(os.path.join(save_folder,'cm_px_256_list.npy'))
+    cm_px_ar_list = np.load(os.path.join(save_folder,'cm_px_ar_list.npy'))
     aspect_ratio_list = np.load(os.path.join(save_folder,'aspect_ratio_list.npy'))
     rwt_error_list = np.load(os.path.join(save_folder,'rwt_error_list.npy'))
     rst_error_list = np.load(os.path.join(save_folder,'rst_error_list.npy'))
-    print(rwt_error_list.shape)
-    print(rst_error_list.shape)
+    
 
 ## 2D scatter plots #####################################################################################################
 
 ## only colored scatter plot
-fig, ax = plt.subplots(figsize=(10, 10),  tight_layout=True)
+print('INFO')
+print(rwt_error_list.shape)
+print(rst_error_list.shape)
+print('Unique vale of cm/px in aspect ratio 240 320')
+print(np.unique(cm_px_ar_list).shape)
+
+
+fig, ax = plt.subplots(figsize=(10, 10), num='RWT vs LVM', tight_layout=True)
 color = np.where((hypertrofy_list[:, 0] < 200) & (hypertrofy_list[:, 1] < 0.42), 'green',
                  np.where((hypertrofy_list[:, 0] >= 200) & (hypertrofy_list[:, 1] < 0.42), 'olive',
                           np.where((hypertrofy_list[:, 0] < 200) & (hypertrofy_list[:, 1] >= 0.42), 'orange', 'red')))
@@ -185,6 +198,23 @@ ax.fill_between([200, 1000], 0.42, 2, color='red', alpha=0.3, label='Concentric 
 ax.grid(linestyle='--', linewidth=0.5)
 ax.set_xlabel('Left Ventricular Mass (LVM)', fontsize=22)
 ax.set_ylabel('Relative Wall Thickness (RWT)', fontsize=22)
+ax.tick_params(axis='x', labelsize=18)
+ax.tick_params(axis='y', labelsize=18)
+ax.legend(fontsize=18)
+
+fig, ax = plt.subplots(figsize=(10, 10), num='RWT_ar vs LVM_2', tight_layout=True)
+color = np.where((hypertrofy_list[:, 0] < 200) & (hypertrofy_list[:, 1] < 0.42), 'green',
+                 np.where((hypertrofy_list[:, 0] >= 200) & (hypertrofy_list[:, 1] < 0.42), 'olive',
+                          np.where((hypertrofy_list[:, 0] < 200) & (hypertrofy_list[:, 1] >= 0.42), 'orange', 'red')))
+ax.scatter(hypertrofy_list[:, 2], hypertrofy_list[:, 1], c=color, marker='o', alpha=0.2)
+# ax.fill_between([0, 200], 0, 0.42, color='green', alpha=0.3, label='Normal Geometry')
+# ax.fill_between([200, 1000], 0, 0.42, color='olive', alpha=0.3, label='Eccentric Hypertrophy')
+# ax.fill_between([0, 200], 0.42, 2, color='orange', alpha=0.3, label='Concentric Remodeling')
+# ax.fill_between([200, 1000], 0.42, 2, color='red', alpha=0.3, label='Concentric Hypertrophy')
+
+ax.grid(linestyle='--', linewidth=0.5)
+ax.set_ylabel('Relative Wall Thickness (RWT)', fontsize=22)
+ax.set_xlabel('Left Ventricle Mass d  (LVM_d)', fontsize=22)
 ax.tick_params(axis='x', labelsize=18)
 ax.tick_params(axis='y', labelsize=18)
 ax.legend(fontsize=18)
@@ -211,6 +241,7 @@ stat, p = shapiro(cm_px_256_list)
 print(f'Shapiro-Wilk Test (256): p-value: {p}')
 ax.hist(cm_px_list, bins=25, color='gray', alpha=0.7, label= f'Original res- mean: {np.mean(cm_px_list):.4f} - std: {np.std(cm_px_list):.4f}')
 ax.hist(cm_px_256_list, bins=25, color='blue', alpha=0.7, label= f'256 res- mean: {np.mean(cm_px_256_list):.4f} - std: {np.std(cm_px_256_list):.4f}')
+ax.hist(cm_px_ar_list, bins=25, color='red', alpha=0.7, label= f'Aspect ratio res- mean: {np.mean(cm_px_ar_list):.4f} - std: {np.std(cm_px_ar_list):.4f}')
 ax.set_xlabel('cm/px', fontsize=22)
 ax.set_ylabel('Number of patient', fontsize=22)
 ax.tick_params(axis='x', labelsize=18)
