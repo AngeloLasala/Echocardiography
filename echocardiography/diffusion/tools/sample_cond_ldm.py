@@ -1,5 +1,9 @@
 """
-Sample from trained conditional latent diffusion model
+Sample from trained conditional latent diffusion model. the sampling follow the classifier-free guidance
+
+w = -1 [unconditional] = the learned conditional model completely ignores the conditioner and learns an unconditional diffusion model
+w = 0 [vanilla conditional] =  the model explicitly learns the vanilla conditional distribution without guidance
+w > 0 [guided conditional] =  the diffusion model not only prioritizes the conditional score function, but also moves in the direction away from the unconditional score function
 """
 import numpy as np
 import torch
@@ -31,7 +35,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def sample(model, scheduler, train_config, diffusion_model_config, condition_config,
-           autoencoder_model_config, diffusion_config, dataset_config, vae, save_folder):
+           autoencoder_model_config, diffusion_config, dataset_config, vae, save_folder, guide_w):
     """
     Sample stepwise by going backward one timestep at a time.
     We save the x0 predictions
@@ -80,10 +84,12 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
 
     for btc, data in enumerate(data_loader):
         cond_input = None
+        uncond_input = {}
         if condition_config is not None:
             im, cond_input = data  # im is the image (batch_size=8), cond_input is the conditional input ['image for the mask']
             for key in cond_input.keys(): ## for all the type of condition, we move the  tensor on the device
                 cond_input[key] = cond_input[key].to(device)
+                uncond_input[key] = torch.zeros_like(cond_input[key])
         else:
             im = data
 
@@ -92,12 +98,16 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
 
         # plt.figure()
         # plt.imshow(cond_input[key][0][0].cpu().numpy())
+
+        # plt.figure()
+        # plt.imshow(uncond_input[key][0][0].cpu().numpy())
         # plt.show()
 
         xt = torch.randn((im.shape[0],
                       autoencoder_model_config['z_channels'],
                       im_size_h,
                       im_size_w)).to(device)
+
 
         if 'text' in condition_types:
             text_condition_input = cond_input['text'].to(device)
@@ -113,11 +123,30 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         for i in tqdm(reversed(range(diffusion_config['num_timesteps']))):
             # Get prediction of noise
             t = (torch.ones((xt.shape[0],)) * i).long().to(device)
+
             
-            # print(cond_input)
             noise_pred_cond = model(xt, t, cond_input)
+            noise_pred_uncond = model(xt, t, uncond_input)
+            # plt.figure('noise_pred_cond')
+            # plt.imshow(noise_pred_cond[0][0].cpu().numpy())
+
+            # plt.figure('noise_pred_uncond')
+            # plt.imshow(noise_pred_uncond[0][0].cpu().numpy())
+
+            # plt.figure('pred_diff')
+            # plt.imshow(noise_pred_cond[0][0].cpu().numpy() - noise_pred_uncond[0][0].cpu().numpy())
+            # plt.show()
+
+            ## sampling the noise for the conditional and unconditional model
+            noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
+            # plt.figure('noise_pred')
+            # plt.imshow(noise_pred[0][0].cpu().numpy())
+
+            # plt.figure('noise_pred_diff')
+            # plt.imshow(noise_pred[0][0].cpu().numpy() - noise_pred_cond[0][0].cpu().numpy())
+            # plt.show()
+
             
-            noise_pred = noise_pred_cond
             
             # Use scheduler to get x0 and xt-1
             xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
@@ -164,8 +193,10 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
             # Get prediction of noise
             t = (torch.ones((xt.shape[0],)) * i).long().to(device)
             noise_pred_cond = model(xt, t, cond_input)
+            noise_pred_uncond = model(xt, t, uncond_input)
+
             
-            noise_pred = noise_pred_cond
+            noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
             
             # Use scheduler to get x0 and xt-1
             xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
@@ -186,7 +217,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
             img.close()
         #############################################################
 
-def infer(par_dir, conf, trial, experiment, epoch):
+def infer(par_dir, conf, trial, experiment, epoch, guide_w):
     # Read the config file #
     with open(conf, 'r') as file:
         try:
@@ -256,7 +287,7 @@ def infer(par_dir, conf, trial, experiment, epoch):
     #####################################
 
     ######### Create output directories #############
-    save_folder = os.path.join(model_dir, f'samples_ep_{epoch}')
+    save_folder = os.path.join(model_dir, f'w_{guide_w}', f'samples_ep_{epoch}')
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
     else:
@@ -268,7 +299,7 @@ def infer(par_dir, conf, trial, experiment, epoch):
     ######## Sample from the model 
     with torch.no_grad():
         sample(model, scheduler, train_config, diffusion_model_config, condition_config,
-               autoencoder_model_config, diffusion_config, dataset_config, vae, save_folder)
+               autoencoder_model_config, diffusion_config, dataset_config, vae, save_folder, guide_w)
 
 
 if __name__ == '__main__':
@@ -278,6 +309,7 @@ if __name__ == '__main__':
     parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
     parser.add_argument('--epoch', type=int, default=49, help='epoch to sample, this is the epoch of cond ldm model')
+    parser.add_argument('--guide_w', type=float, default=0.0, help='guide_w for the conditional model, w=-1 [unconditional], w=0 [vanilla conditioning], w>0 [guided conditional]')
 
     # mp.set_start_method("spawn")
 
@@ -287,6 +319,6 @@ if __name__ == '__main__':
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
     save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = par_dir, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch)
+    infer(par_dir = par_dir, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
     plt.show()
 
