@@ -333,6 +333,7 @@ if __name__ == "__main__":
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model, it is the trial folde that contain the VAE model')
     parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
+    parser.add_argument('--guide_w', type=float, default=0.0, help='guide_w for the conditional model, w=-1 [unconditional], w=0 [vanilla conditioning], w>0 [guided conditional]')
     parser.add_argument('--show_plot', action='store_true', help="show and save the FID plot, default=False")
 
 
@@ -346,13 +347,14 @@ if __name__ == "__main__":
 
     experiment_dir = os.path.join(par_dir, args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
+    experiment_dir_w = os.path.join(experiment_dir, f'w_{args.guide_w}')
     
-    fid = fid_experiment(config, experiment_dir, device=device)
+    fid = fid_experiment(config, experiment_dir_w, device=device)
     for key, value in fid.items():
         print(f'Epoch: {key}, FID: {value}')    
     
     ## save the FID score
-    with open(os.path.join(experiment_dir, 'FID_score.txt'), 'w') as f:
+    with open(os.path.join(experiment_dir, f'w_{args.guide_w}', 'FID_score.txt'), 'w') as f:
         for key, value in fid.items():
             f.write(f'Epoch: {key}, FID: {value}\n')
         

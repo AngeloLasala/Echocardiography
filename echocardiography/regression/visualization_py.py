@@ -234,7 +234,7 @@ ax.tick_params(axis='x', labelsize=18)
 ax.tick_params(axis='y', labelsize=18)
 
 ## plot the histogram of the cm/px
-fig, ax = plt.subplots(figsize=(8, 8))
+fig, ax = plt.subplots(figsize=(8, 8), num='cm/px', tight_layout=True)
 stat, p = shapiro(cm_px_list)
 print(f'Shapiro-Wilk Test (origin): p-value: {p}')
 stat, p = shapiro(cm_px_256_list)
