@@ -1,7 +1,6 @@
 einops==0.8.0
-imageio==2.34.2
-matplotlib==3.8.2
-numpy==1.19
+matplotlib
+imageio
 opencv_python==4.8.1.78
 pandas==2.2.2
 Pillow==10.1.0
