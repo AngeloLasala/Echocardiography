@@ -24,7 +24,7 @@ and run the `setup.py` file
 pip install -e .
 ```
 
-**Guideline for the developer**. 
+### Guideline for the developer 
 - Any change in the tree structure of the repository affect the installation of the packages with `setup.py`. Afert any modification in the tree, you have to reinstall the packages, here same usefull command line:
 
     - `pip list`: list of installed packeges in the virtual env, the name of echocardiography is `echocardiography version=1.0 ../Echocardiography`
@@ -34,6 +34,18 @@ pip install -e .
 - GPU note for Lixus user. Use the comand `nvidia-smi --query-gpu=utilization.gpu --format=csv --loop=1` to chech the usage of GPU
 
 - Create the requirements.txt file: use the comand `pipreqs --force` the flag --forve enable to overwrite old version
+#### create a virtual enviroment with conda or pip3
+To use the repo you need to create a venv using `conda` (suggested for local machine) or `python3` (mandatory for external cluster that does not have conda).
+
+- **Conda**: to do...
+
+- **Python3**: move in the directory that you select to create the venv and lanch this command line
+
+```bash
+python3 -m venv eco
+source bin/activate/eco
+```
+
 ## Usage
 
 ### Regression
