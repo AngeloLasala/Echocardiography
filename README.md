@@ -32,6 +32,8 @@ pip install -e .
     - `pip install -e .`: reinstall the packege
 
 - GPU note for Lixus user. Use the comand `nvidia-smi --query-gpu=utilization.gpu --format=csv --loop=1` to chech the usage of GPU
+
+- Create the requirements.txt file: use the comand `pipreqs --force` the flag --forve enable to overwrite old version
 ## Usage
 
 ### Regression
