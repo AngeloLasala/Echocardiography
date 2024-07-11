@@ -93,14 +93,17 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         else:
             im = data
 
-        # plt.figure()
-        # plt.imshow(im[0][0].cpu().numpy())
+        # plt.figure('real_image')
+        # plt.imshow(im[0][0].cpu().numpy(), cmap='gray')
 
-        # plt.figure()
-        # plt.imshow(cond_input[key][0][0].cpu().numpy())
+        # plt.figure('kepoints_mask')
+        # mask_im = cond_input['image'][0][0].cpu().numpy()
+        # for i in range(1,6):
+        #     mask_im += cond_input['image'][0][i].cpu().numpy()
+        # plt.imshow(mask_im, cmap='jet')
 
-        # plt.figure()
-        # plt.imshow(uncond_input[key][0][0].cpu().numpy())
+        # plt.figure('null_mask')
+        # plt.imshow(uncond_input[key][0][0].cpu().numpy(), cmap='jet')
         # plt.show()
 
         xt = torch.randn((im.shape[0],
@@ -126,16 +129,17 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
 
             
             noise_pred_cond = model(xt, t, cond_input)
-            noise_pred_uncond = model(xt, t, uncond_input)
-            # plt.figure('noise_pred_cond')
-            # plt.imshow(noise_pred_cond[0][0].cpu().numpy())
+            noise_pred_uncond = model(xt, t, uncond_input)    
+            # if i%100 == 0:
+            #     plt.figure(f'noise_pred_cond_{i}')
+            #     plt.imshow(noise_pred_cond[0][0].cpu().numpy())
 
-            # plt.figure('noise_pred_uncond')
-            # plt.imshow(noise_pred_uncond[0][0].cpu().numpy())
+            #     plt.figure(f'noise_pred_uncond{i}')
+            #     plt.imshow(noise_pred_uncond[0][0].cpu().numpy())
 
-            # plt.figure('pred_diff')
-            # plt.imshow(noise_pred_cond[0][0].cpu().numpy() - noise_pred_uncond[0][0].cpu().numpy())
-            # plt.show()
+            #     plt.figure(f'pred_diff_{i}')
+            #     plt.imshow(noise_pred_cond[0][0].cpu().numpy() - noise_pred_uncond[0][0].cpu().numpy())
+            #     plt.show()
 
             ## sampling the noise for the conditional and unconditional model
             noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
@@ -146,7 +150,6 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
             # plt.imshow(noise_pred[0][0].cpu().numpy() - noise_pred_cond[0][0].cpu().numpy())
             # plt.show()
 
-            
             
             # Use scheduler to get x0 and xt-1
             xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
