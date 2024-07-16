@@ -1,0 +1,97 @@
+meeting 09/05/2024 - come fare richiesta ISCRA C - Francesca Pia Villani
+Scadenza 15 Maggio
+
+nome proggetto: IsCc0_Med-LMGM - https://userdb.hpc.cineca.it/node/36147
+nome utente userDB: Angelo.Lasala_22906
+nome utente cluster: alasala0
+
+psw: f8v6zzy6/iscra - F8v6zzy6/cineca (for the cluster) - F8v6zzy6/iscra (for userDB)
+
+type on google: iscra c userDB 
+da qui fai il login
+
+Password
+f8v6zzy6/iscra
+
+Sito
+https://userdb.hpc.cineca.it/node/15622
+
+
+Recovery codes:
+1: XSEC-1NJP-YCLB
+2: VZ11-DXNE-3K2D
+3: E45D-PGDP-1PPN
+4: FIIW-NRWU-3SPQ
+5: WXSU-3NL5-97RU
+6: 9U8Q-SNFA-L56A
+7: 1JQ8-R3FZ-3NQK
+8: 78AZ-TGVT-GDK3
+9: TPUY-9D4B-U5XZ
+10: 255N-6395-5C1W
+11: LAQG-CJTT-6U6X
+12: B57M-8EPE-D2DA
+
+======================================================================================
+ENTER IN CINECA CLUSTER
+[Once you have downloaded and configured SmallStep, start from step 4]
+
+1) smallstep installation: 
+https://smallstep.com/docs/step-cli/installation/#linux-packages-amd64
+
+2) setup step-cli: 
+https://wiki.u-gov.it/confluence/display/SCAIUS/Setup+client+step-cli%3A+Linux+and+Mac+users#Setupclientstepcli:LinuxandMacusers-Configurationofthestepclient
+
+3) Activation of the ssh-agent:
+$ eval $(ssh-agent)
+output = Agent pid 1234
+
+4) obtain the certificate run:
+
+$ step ssh login 'angelo.lasala@santannapisa.it' --provisioner cineca-hpc
+output = 
+✔ Provisioner: cineca-hpc (OIDC) [client: step-ca]
+Your default web browser has been opened to visit:
+
+https://sso.hpc.cineca.it/realms/CINECA-HPC/protocol/openid-connect/auth?client_id=step-ca&code_challenge=wLPiQnI9r8j_WtSCMuGLhDquHxAXb_TuKHVGCw9NK-c&code_challenge_method=S256&nonce=f4f5c1b76d01044c1840a9c36a7b0d93ebbf569f1828df872dab693a01fb27f3&redirect_uri=http%3A%2F%2F127.0.0.1%3A10000&response_type=code&scope=openid+email&state=ARRhmiQOErLa80s4w8HDoUhCcY1NawOd
+
+and open the local port where insert username of cineca and password of cineca 
+
+5) enter the OPT 
+once enter username, psw and OPT from autenticator the output in the terminal is:
+✔ CA: https://sshproxy.hpc.cineca.it
+✔ SSH Agent: yes
+note that this is available for 12 h
+
+6) connect to CINECA cluster
+$ ssh alasala0@login.leonardo.cineca.it
+
+Warning: some times this message appears
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+it depends on the fact that the old keys is not delated (as far I understand)
+
+To resolve the problem use this comand line:
+$ ssh-keygen -f "/home/angelo/.ssh/known_hosts" -R "login.leonardo.cineca.it"
+
+and then:
+$ ssh alasala0@login.leonardo.cineca.it
+
+##) exit to cineca cluster
+$ exit
+
+===============================================================================================================
+Data storage
+
+- for now, work on the $WORK permanent storage folder, the storage is 1TB
+- for python 3.10 => $ module load python/3.10 (on LEONARDO)
+- create venv => $ python3 -m venv <NAME>
+- eval the gpu:
+  $ srun -N1 -n1 --gres=gpu:1 -p boost_usr_prod -A <NOME_PROGETTO>--time=10:00 --output=file.out python <CODICE_DA_FARE_ANDARE.py>
+  $ srun -N1 -n1 --gres=gpu:1 -p boost_usr_prod -A IscrC_Med-LMGM --time= 0:30 --output=file.out python prova.py
+
+===============================================================================================================
+SUBMIT A JOB
+slurm link: https://wiki.u-gov.it/confluence/display/SCAIUS/UG2.6.1%3A+How+to+submit+the+job+-+Batch+Scheduler+SLURM
+===============================================================================================================
+
