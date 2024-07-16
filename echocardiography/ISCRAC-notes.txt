@@ -1,36 +1,3 @@
-meeting 09/05/2024 - come fare richiesta ISCRA C - Francesca Pia Villani
-Scadenza 15 Maggio
-
-nome proggetto: IsCc0_Med-LMGM - https://userdb.hpc.cineca.it/node/36147
-nome utente userDB: Angelo.Lasala_22906
-nome utente cluster: alasala0
-
-psw: f8v6zzy6/iscra - F8v6zzy6/cineca (for the cluster) - F8v6zzy6/iscra (for userDB)
-
-type on google: iscra c userDB 
-da qui fai il login
-
-Password
-f8v6zzy6/iscra
-
-Sito
-https://userdb.hpc.cineca.it/node/15622
-
-
-Recovery codes:
-1: XSEC-1NJP-YCLB
-2: VZ11-DXNE-3K2D
-3: E45D-PGDP-1PPN
-4: FIIW-NRWU-3SPQ
-5: WXSU-3NL5-97RU
-6: 9U8Q-SNFA-L56A
-7: 1JQ8-R3FZ-3NQK
-8: 78AZ-TGVT-GDK3
-9: TPUY-9D4B-U5XZ
-10: 255N-6395-5C1W
-11: LAQG-CJTT-6U6X
-12: B57M-8EPE-D2DA
-
 ======================================================================================
 ENTER IN CINECA CLUSTER
 [Once you have downloaded and configured SmallStep, start from step 4]
@@ -94,4 +61,15 @@ Data storage
 SUBMIT A JOB
 slurm link: https://wiki.u-gov.it/confluence/display/SCAIUS/UG2.6.1%3A+How+to+submit+the+job+-+Batch+Scheduler+SLURM
 ===============================================================================================================
+
+===============================================================================================================
+REMOTE-TO-LOCAL
+- in a terminal without connection
+scp <NOME_UTENTE>@login.leonardo.cineca.it:<PERCORSO_REMOTO> <PERCORSO_LOCALE>
+scp  <username>@data.<cluster_name>.cineca.it:/absolute/path/from/file /absolute/path/to/ (it is the same)
+
+LOCAL-TO-REMOTE
+- in a terminal without connection
+scp /absolute/path/from/file <username>@data.<cluster_name>.cineca.it:/absolute/path/to/
+
 
