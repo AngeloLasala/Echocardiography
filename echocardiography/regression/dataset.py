@@ -22,6 +22,37 @@ import math
 from echocardiography.regression.data_reader import read_video, read_video
 
 class EchoNetDataset(Dataset):
+    """
+    EchoNet-LVH class to read the data. This class is used to training validation and test the model
+
+    Current version: 19/07/2024
+    ---------------------------
+    The data come from the 'DATA' folder inside of this repository. The tree is the follow
+    DATA
+    ├── Batch1
+    │   ├── test
+    │   │   ├── diastole
+    │   │   │   ├── image
+    │   │   │   └── label
+    │   ├── train
+    │   │   ├── diastole
+    │   │   │   ├── image
+    │   │   │   └── label
+    │   └── val
+    │   │   ├── diastole
+    │   │   │   ├── image
+    │   │   │   └── label
+    ├── Batch2
+    ├── Batch3
+    └── Batch4
+
+    where 'DATA' is fix in the code while batch split and phase are given as input
+
+    Upgrade (TO DO)
+    ---------------
+    Change the patent path to get 'DATA' creating a input variable
+
+    """
     def __init__(self, batch, split, phase, target, input_channels, size, label_directory=None, transform=None, augmentation=False):
         """
         Args:
@@ -356,6 +387,9 @@ class EchoNetDataset(Dataset):
         return label_dict
 
 class EchoNetLVH(Dataset):
+    """
+    Update of 19/07/2024: I use this class only to create the folder for given input following the EchoNet-LVH dataset structure
+    """
     def __init__(self, data_dir, batch, split, patients, phase, transform=None):
         """
         Args:
