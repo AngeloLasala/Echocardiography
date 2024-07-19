@@ -50,8 +50,8 @@ class EchoNetDataset(Dataset):
 
     Upgrade (TO DO)
     ---------------
-    Change the patent path to get 'DATA' creating a input variable
-
+    Change the patent path to get 'DATA' creating a input variable of the class
+    example: self.data_dir = data_dir 
     """
     def __init__(self, batch, split, phase, target, input_channels, size, label_directory=None, transform=None, augmentation=False):
         """

@@ -84,6 +84,37 @@ class MnistDataset(Dataset):
         return data_dir
 
 class EcoDataset():
+    """
+    EchoNet-LVH class to read the data. This class is used to training validation and test the model
+    (this is the an extention of the EchoNetDataset in the regression folder)
+
+    Current version: 19/07/2024
+    ---------------------------
+    The data come from the 'DATA' folder inside of this repository. The tree is the follow
+    DATA
+    ├── Batch1
+    │   ├── test
+    │   │   ├── diastole
+    │   │   │   ├── image
+    │   │   │   └── label
+    │   ├── train
+    │   │   ├── diastole
+    │   │   │   ├── image
+    │   │   │   └── label
+    │   └── val
+    │   │   ├── diastole
+    │   │   │   ├── image
+    │   │   │   └── label
+    ├── Batch2
+    ├── Batch3
+    └── Batch4
+
+    Updating (TO DO):
+    ----------------
+    here I already use the varible im_path to get the original name of 'DATA' folder, the problem
+    the problem is the while loop to retrive the path 'regressio' fro the current working direction.
+    I want the general version to get only the path of parent path of the 'DATA' for external folder.
+    """
     def __init__(self, split, size, im_path, dataset_batch, phase,  
                 dataset_batch_regression=None, trial=None, condition_config=None, im_ext='png'):
         self.split = split
