@@ -37,7 +37,7 @@ def train_config(target, threshold_wloss, model, input_channels, device):
         cfg['input_channels'] = input_channels
 
     elif target == 'heatmaps': 
-        cfg['model'] = PlaxModel(num_classes=6)
+        if model == 'unet_base': cfg['model'] = PlaxModel(num_classes=6)
         if model == 'unet': cfg['model'] = UNet(input_channels=input_channels, num_classes=6)
         if model == 'unet_up': cfg['model'] = UNet_up(input_channels=input_channels, num_classes=6)
         if model == 'unet_res_skip': 
