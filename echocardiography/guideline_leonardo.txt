@@ -10,8 +10,15 @@ the currect tree strucuture is:
 
 Angelo
 ├── Echocardiography  ## repository with ALL the codes about the echocardiography
+|    └── echocardiography
 ├── echo_data         ## folder with ALL the data about the echocardiography
+|   └── DATA
 ├── venv              ## folder with ALL the virtual envs
+|    └── eco
+├── trained_model     ## folder to save ALL the file created from the training
+|    ├── diffusion
+|    └── regression
+
 
 1. ACTIVATE THE VENV
 To activate the eco env, in 'Angelo':
@@ -24,3 +31,6 @@ The easy way to run a python code in this tree is to leverege the structure of t
 run ANY KIND of python code as a module from the 'Echocardiography' directory. So, in the 'Echocardiography' run:
 $ python -m path.of.the.code --flag
 $ python -m echocardiography.diffusion.tools.sample_cond_ldm --data eco_image_cond (this is a simple example)
+
+And use this type of command line with the srun command:
+$ srun -N1 -n1 --gres=gpu:1 -p boost_usr_prod -A IscrC_Med-LMGM --time= 0:30 --output=file.out python -m path.of.the.code --flag
