@@ -34,3 +34,5 @@ $ python -m echocardiography.diffusion.tools.sample_cond_ldm --data eco_image_co
 
 And use this type of command line with the srun command:
 $ srun -N1 -n1 --gres=gpu:1 -p boost_usr_prod -A IscrC_Med-LMGM --time= 0:30 --output=file.out python -m path.of.the.code --flag
+data :    --data_path '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA'
+results:  --save_dir '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model'

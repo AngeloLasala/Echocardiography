@@ -4,7 +4,10 @@
 #
 # local folder: --data_path 'DATA'
 # one drive folder: --data_path "/media/angelo/OS/Users/lasal/OneDrive - Scuola Superiore Sant'Anna/PhD_notes/Echocardiografy/DATA/regression/DATA"
-# LEONARDO: --data_path '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA'
+# LEONARDO: --data_path '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA' 
+#
+# local folder: --save_dir default
+# LEONARDO: --save_dir '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/RESULTS'
 
 
 ## Image channels: 1 size (240, 320)
