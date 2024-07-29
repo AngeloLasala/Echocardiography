@@ -1,5 +1,25 @@
 """
-Main file to train the PLAX regression model
+Main file to train the PLAX regression model. The code provides flags for hyperparameters tuning and directory path where load the data 
+as well as save the output. Here a list of important flags:
+
+- DATA flags:
+    --data_path: Directory of the dataset, can be a local path or a remote one
+    --save_dir: Directory to save the model
+    --batch_dir: Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4
+    --phase: select the phase of the heart, diastole or systole
+
+- HYPERPARAMETERS flags:
+    --epochs: Number of epochs to train the model
+    --batch_size: Batch size for the dataloader
+    --lr: Learning rate for the optimizer
+    --weight_decay: L2 regularization for the optimizer, default=0 that means no regularization
+    --threshold_wloss: Threshold for the weighted loss, if 0. all the weights are 1 and the lass fall back to regular ones
+    --input_channels: Number of input channels, default=1 for grayscale images, 3 for the RGB
+    --size: Size of image, default is (256, 256), aspect ratio (240, 320)
+
+- MODEL flags:
+    --target: select the target to predict, e.g. keypoints, heatmaps, segmentation
+    --model: model architecture to use, e.g. resnet50, unet, plaxmodel
 """
 import os
 import argparse
@@ -131,7 +151,7 @@ def fit(training_loader, validation_loader,
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
-    parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
+    parser.add_argument('--data_path', type=str, default="/media/angelo/OS/Users/lasal/OneDrive - Scuola Superiore Sant'Anna/PhD_notes/Echocardiografy/DATA/regression/DATA", help='Directory of the dataset')
     parser.add_argument('--batch_dir', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
     parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
     parser.add_argument('--target', type=str, default='keypoints', help='select the target to predict, e.g. keypoints, heatmaps, segmentation')
@@ -143,7 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default='TRAINED_MODEL', help='Directory to save the model')
     parser.add_argument('--model', type=str, default=None, help='model architecture to use, e.g. resnet50, unet, plaxmodel')
     parser.add_argument('--input_channels', type=int, default=1, help='Number of input channels, default=1 for grayscale images, 3 for the RGB')
-    parser.add_argument('--size', nargs='+', type=int, default= [256, 256] , help='Size of image, default is (256, 256), aspect ratio (221, 295)')
+    parser.add_argument('--size', nargs='+', type=int, default= [256, 256] , help='Size of image, default is (256, 256), aspect ratio (240, 320)')
     parser.add_argument('--seed', type=int, default=42, help='Seed for reproducibility')
     args = parser.parse_args()
     args.size = tuple(args.size)
@@ -159,17 +179,17 @@ if __name__ == '__main__':
     print(f'Using device: {device}')
     
     print('start creating the dataset...')
-    train_set = EchoNetDataset(batch=args.batch_dir, split='train', phase=args.phase, label_directory=None,
+    train_set = EchoNetDataset(batch=args.batch_dir, split='train', phase=args.phase, label_directory=None, data_path=args.data_path,
                               target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True)
 
-    validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, 
+    validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, data_path=args.data_path,
                               target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False)
-        
 
-    print('start creating the dataloader...')
     training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
-    
+    for i in train_set[0]:
+        print(i.shape)
+
     ## TRAIN
     print('start training...')
     loss_fn = cfg['loss']

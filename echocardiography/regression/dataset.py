@@ -47,13 +47,8 @@ class EchoNetDataset(Dataset):
     └── Batch4
 
     where 'DATA' is fix in the code while batch split and phase are given as input
-
-    Upgrade (TO DO)
-    ---------------
-    Change the patent path to get 'DATA' creating a input variable of the class
-    example: self.data_dir = data_dir 
     """
-    def __init__(self, batch, split, phase, target, input_channels, size, label_directory=None, transform=None, augmentation=False):
+    def __init__(self, batch, split, phase, target, input_channels, size, data_path=None, label_directory=None, transform=None, augmentation=False):
         """
         Args:
             batch (string): Batch number of video folder, e.g. 'Batch1', 'Batch2', 'Batch3', 'Batch4'.
@@ -74,8 +69,13 @@ class EchoNetDataset(Dataset):
         self.augmentation = augmentation
         self.size = size
         self.input_channels = input_channels
+        self.data_path = data_path
 
-        self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
+        if self.data_path is not None: ## take the data in local storage, here i have collect the data in the same repository
+            self.data_dir = os.path.join(self.data_path, self.batch, self.split, self.phase)
+        else:                 ## take the data from a given path
+            self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
+
         self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(os.path.join(self.data_dir, 'image'))]
 
     
@@ -86,6 +86,7 @@ class EchoNetDataset(Dataset):
         else:
             #load a directory from a json file
             with open(os.path.join(self.data_dir, 'label', 'label.json'), 'r') as f:
+                # print(f.read())
                 self.keypoints_dict = json.load(f)
 
     def __len__(self):
