@@ -1,0 +1,26 @@
+Guideline to use in a clever way this repository on LEONARDO cluster.
+The main idea is to use this as a proper repository and use each code as a module that take as 
+input the proper information as flags.
+
+The first informatio is the tree structure of the project. ALL the data and the code are in the 
+provided $WORK directory of cineca. 
+$ cd $WORK
+
+the currect tree strucuture is:
+
+Angelo
+├── Echocardiography  ## repository with ALL the codes about the echocardiography
+├── echo_data         ## folder with ALL the data about the echocardiography
+├── venv              ## folder with ALL the virtual envs
+
+1. ACTIVATE THE VENV
+To activate the eco env, in 'Angelo':
+$ source venv/eco/bin/activate
+NOTE: keep in mind that when you create a new file with new required packages, you have to reinstall all the repository
+and update the venv. to do so, use the file setup.py and the requirements.txt
+
+2. RUN A PYTHON CODE
+The easy way to run a python code in this tree is to leverege the structure of the repository and
+run ANY KIND of python code as a module from the 'Echocardiography' directory. So, in the 'Echocardiography' run:
+$ python -m path.of.the.code --flag
+$ python -m echocardiography.diffusion.tools.sample_cond_ldm --data eco_image_cond (this is a simple example)
