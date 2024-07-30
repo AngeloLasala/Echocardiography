@@ -172,6 +172,7 @@ if __name__ == '__main__':
     parser.add_argument('--size', nargs='+', type=int, default= [256, 256] , help='Size of image, default is (256, 256), aspect ratio (240, 320)')
     parser.add_argument('--seed', type=int, default=42, help='Seed for reproducibility')
     parser.add_argument('--workers', type=int, default=4, help='Number of workers for the dataloader')
+    parser.add_argument('--prefetch_factor', type=int, default=2, help='Number of workers for the dataloader')
     args = parser.parse_args()
     args.size = tuple(args.size)
     
@@ -192,8 +193,8 @@ if __name__ == '__main__':
     validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, data_path=args.data_path,
                               target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False)
     
-    training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
-    validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True)
+    training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True, prefetch_factor=args.prefetch_factor)
+    validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True, prefetch_factor=args.prefetch_factor)
     
     ## TRAIN
     print('start training...')
