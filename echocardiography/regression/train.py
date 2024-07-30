@@ -188,7 +188,7 @@ if __name__ == '__main__':
     
     print('start creating the dataset...')
     train_set = EchoNetDataset(batch=args.batch_dir, split='train', phase=args.phase, label_directory=None, data_path=args.data_path,
-                              target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True)
+                              target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False)
 
     validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, data_path=args.data_path,
                               target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False)
