@@ -51,9 +51,12 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
     """
     running_loss = 0.
     loss = 0.           ## this have to be update with the last_loss
+    time_start = time.time()
     for i, (inputs, labels) in enumerate(training_loader):
+        print(f'time loading data {i}: {time.time() - time_start}')
         inputs, labels = inputs.to(device), labels.to(device)       # Every data instance is an input + label pair
 
+        time_loss = time.time()
         optimizer.zero_grad()                           # Zero your gradients for every batch!
         outputs = model(inputs)                         # Make predictions for this batch
         if len(outputs) == 2: outputs = outputs[-1]
@@ -62,7 +65,7 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
         loss.backward()
         
         optimizer.step() # Adjust learning weights
-
+        print(f'time loss {i}: {time.time() - time_loss}\n')
         # Gather data and report
         running_loss += loss.item()  
         if i == len(training_loader) - 1:
@@ -115,7 +118,10 @@ def fit(training_loader, validation_loader,
 
         # Make sure gradient tracking is on, and do a pass over the data
         model.train(True)
+        print(f'Starting epoch {epoch}/{EPOCHS}')
+        start_one_epoch = time.time()
         avg_loss = train_one_epoch(training_loader, model, loss_fn, optimizer, device=device)
+        print(f'Epoch {epoch}/{EPOCHS} | Time: {time.time() - start_one_epoch:.2f}s')
 
         running_vloss = 0.0 
         model.eval() # Set the model to evaluation mode, disabling dropout and using population statistics for batch normalization.
@@ -145,7 +151,7 @@ def fit(training_loader, validation_loader,
             best_vloss = avg_vloss
             model_path = f'model_{epoch}'
             torch.save(model.state_dict(), os.path.join(save_dir, model_path))
-        print(f'Epoch {epoch}/{EPOCHS} | Train Loss: {avg_loss:.6f} | Validation Loss: {avg_vloss:.6f} | Time: {time.time() - start:.2f}s')
+        print(f'Epoch {epoch}/{EPOCHS} | Train Loss: {avg_loss:.6f} | Validation Loss: {avg_vloss:.6f} | Time: {time.time() - start:.2f}s\n')
     return losses
         
         
