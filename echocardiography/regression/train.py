@@ -165,6 +165,7 @@ if __name__ == '__main__':
     parser.add_argument('--input_channels', type=int, default=1, help='Number of input channels, default=1 for grayscale images, 3 for the RGB')
     parser.add_argument('--size', nargs='+', type=int, default= [256, 256] , help='Size of image, default is (256, 256), aspect ratio (240, 320)')
     parser.add_argument('--seed', type=int, default=42, help='Seed for reproducibility')
+    parser.add_argument('--workers', type=int, default=4, help='Number of workers for the dataloader')
     args = parser.parse_args()
     args.size = tuple(args.size)
     
@@ -184,12 +185,10 @@ if __name__ == '__main__':
 
     validation_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, data_path=args.data_path,
                               target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False)
-
-    training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
-    for i in train_set[0]:
-        print(i.shape)
-
+    
+    training_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
+    validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True)
+    
     ## TRAIN
     print('start training...')
     loss_fn = cfg['loss']
