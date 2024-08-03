@@ -53,35 +53,36 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
     loss = 0.           ## this have to be update with the last_loss
     time_load_start = time.time()
     for i, (inputs, labels) in enumerate(training_loader):
+        print(f' START BATCH {i}')
         ## load data
         time_load_end = time.time()
         time_load_tot = time_load_end - time_load_start
-        print(f'time loading data {i}: {time_load_tot:.5f}')
+        # print(f'time loading data {i}: {time_load_tot:.5f}')
 
         # if i == 0: print(f'time loading data {i}: {time.time() - time_start}')
         time_move_to_device = time.time()
         inputs, labels = inputs.to(device), labels.to(device)       # Every data instance is an input + label pair
         time_move_to_device_end = time.time()
         time_move = time_move_to_device_end - time_move_to_device
-        print(f'time move to device {i}: {time_move:.5f}')
+        # print(f'time move to device {i}: {time_move:.5f}')
 
         time_loss = time.time()
         optimizer.zero_grad()                           # Zero your gradients for every batch!
         outputs = model(inputs)                         # Make predictions for this batch
         if len(outputs) == 2: outputs = outputs[-1]
         loss = loss_fn(outputs.float(), labels.float()) # Compute the loss and its gradientsù
-        print(f'loss {i}: {loss.device}')
+        # print(f'loss {i}: {loss.device}')
         loss.backward()
         
         optimizer.step() # Adjust learning weights
         time_loss_end = time.time()
         time_loss_tot = time_loss_end - time_loss
-        print(f'time loss {i}: {time_loss_tot:.5f}')
+        # print(f'time loss {i}: {time_loss_tot:.5f}')
 
         # Gather data and report
         time_report = time.time()
         running_loss += loss.item()
-        print(f'running loss {i}: {type(running_loss)}') 
+        # print(f'running loss {i}: {type(running_loss)}') 
         # print(f'running loss {i}: {running_loss.device}') 
 
         # if i == len(training_loader) - 1:
@@ -92,9 +93,10 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
         #     running_loss = 0.
         time_report_end = time.time()
         time_report_tot = time_report_end - time_report
-        print(f'time report {i}: {time_report_tot:.5f}')
-        print(f'TOT {i}: {time_move + time_loss_tot + time_report_tot + time_load_tot:.5f}\n')
+        # print(f'time report {i}: {time_report_tot:.5f}')
+        # print(f'TOT {i}: {time_move + time_loss_tot + time_report_tot + time_load_tot:.5f}')
         time_load_start = time.time()
+        print(f'END BATCH {i}: time {time_load_start - time_load_end:.5f}\n')
     last_loss = running_loss / len(training_loader)
         # time_end = time.time()
 
