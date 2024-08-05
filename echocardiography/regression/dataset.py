@@ -105,14 +105,14 @@ class EchoNetDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        image_label_start = time.time()
-        image, label, calc_value = self.get_image_label(idx)
-        image_label_stop = time.time()
-        print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
-
+      
         ## trasform the label based on target: keypoints, heatmaps, segmentations
         if self.target == 'keypoints': 
-            label = label
+            image_label_start = time.time()
+            image, label, calc_value = self.get_image_label(idx)
+            image_label_stop = time.time()
+            print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
+
             if self.augmentation:
                 image, label = self.data_augmentation_kp(image, label)
             else:
@@ -126,8 +126,11 @@ class EchoNetDataset(Dataset):
 
                 image = (2 * image) - 1  
 
-        elif self.target == 'heatmaps_sigma': 
-            label = label
+        elif self.target == 'heatmaps_sigma':
+            image_label_start = time.time()
+            image, label, calc_value = self.get_image_label(idx)
+            image_label_stop = time.time()
+            print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
             if self.augmentation:
                 image, label = self.data_augmentation_kp(image, label)
             else:
@@ -142,8 +145,13 @@ class EchoNetDataset(Dataset):
                 image = (2 * image) - 1  
 
         elif self.target == 'heatmaps': 
+            image_label_start = time.time()
+            image, label, calc_value, heatmap = self.get_image_label(idx)
+            image_label_stop = time.time()
+            print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
+
             label_start = time.time()   
-            label = self.get_heatmap(idx)
+            label = heatmap #self.get_heatmap(idx)
             label_stop = time.time()
             print(f'Time to get heatmap: {label_stop - label_start:.5f}')
             ## apply data augmentation only on training set, else simply resize the image and the label
@@ -156,6 +164,11 @@ class EchoNetDataset(Dataset):
                 image, label = self.trasform(image, label)
                 
         elif self.target == 'segmentation':
+            image_label_start = time.time()
+            image, label, calc_value, heatmap = self.get_image_label(idx)
+            image_label_stop = time.time()
+            print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
+
             label = self.get_heatmap(idx)
             label = (label > 0.5).astype(np.float32)
             ## apply data augmentation only on training set, else simply resize the image and the label
@@ -309,14 +322,15 @@ class EchoNetDataset(Dataset):
         """
         given a index of the patient return the 6D heatmap of the keypoints
         """
-        image, labels, calc_value = self.get_image_label(idx)
+        if self.target == 'heatmaps': image, labels, calc_value, _ = self.get_image_label(idx)
+        else: image, labels, calc_value = self.get_image_label(idx)
 
         ## mulptiple the labels by the image size
         converter = np.tile([image.size[0], image.size[1]], 6)
         labels = labels * converter
 
         x, y = np.meshgrid(np.arange(0, image.size[0]), np.arange(0, image.size[1]))
-        pos = np.dstack((x, y))
+        pos = np.dstack((x, y)) 
 
         std_dev = int(image.size[0] * 0.05) 
         covariance = np.array([[std_dev * 20, 0.], [0., std_dev]])
@@ -328,10 +342,9 @@ class EchoNetDataset(Dataset):
             x_diff = heart_part[0:2][0] - heart_part[2:4][0]
             y_diff = heart_part[2:4][1] - heart_part[0:2][1]
             angle = math.degrees(math.atan2(y_diff, x_diff))
-            
+
             for i in range(2): ## each heart part has got two keypoints with the same angle
                 mean = (int(heart_part[i*2]), int(heart_part[(i*2)+1]))
-                
                 gaussian = multivariate_normal(mean=mean, cov=covariance)
                 base_heatmap = gaussian.pdf(pos)
 
@@ -358,17 +371,24 @@ class EchoNetDataset(Dataset):
         keypoints_label, calc_value_list = [], []
         for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
             if patient_label[heart_part] is not None:
-                x1_heart_part = patient_label[heart_part]['x1'] / image.size[0]
-                y1_heart_part = patient_label[heart_part]['y1'] / image.size[1]
-                x2_heart_part = patient_label[heart_part]['x2'] / image.size[0]
-                y2_heart_part = patient_label[heart_part]['y2'] / image.size[1]
+                x1_heart_part = patient_label[heart_part]['x1'] / patient_label[heart_part]['width']
+                y1_heart_part = patient_label[heart_part]['y1'] / patient_label[heart_part]['height']
+                x2_heart_part = patient_label[heart_part]['x2'] / patient_label[heart_part]['width']
+                y2_heart_part = patient_label[heart_part]['y2'] / patient_label[heart_part]['height']
                 heart_part_value = patient_label[heart_part]['calc_value']
                 keypoints_label.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
                 calc_value_list.append(heart_part_value)
 
         keypoints_label = (np.array(keypoints_label)).flatten()
         calc_value_list = np.array(calc_value_list).flatten()
-        return image, keypoints_label, calc_value_list
+
+        if self.target == 'heatmaps' or self.target == 'segmentation':
+            # read the npy file of the heatmpa
+            heatmap = np.load(os.path.join(self.data_dir, 'heatmap', patient+'.npy'))
+            heatmap = heatmap.astype(np.float32)
+            return image, keypoints_label, calc_value_list, heatmap
+        else:
+            return image, keypoints_label, calc_value_list
 
         
     def get_keypoint(self, patient_hash):
@@ -588,8 +608,10 @@ class EchoNetLVH(Dataset):
         if not os.path.exists(dir_save): os.makedirs(dir_save)   
         if not os.path.exists(dir_save_img): os.makedirs(dir_save_img)
         if not os.path.exists(dir_save_label): os.makedirs(dir_save_label)
-         
 
+        with open(os.path.join(dir_save_label,'label.json'), 'w') as f:
+            json.dump(self.keypoints_dict, f, default=convert_to_serializable, indent=4)
+         
         for patient in tqdm.tqdm(patients):
             patient_label = self.get_keypoint(patient)
 
@@ -602,8 +624,7 @@ class EchoNetLVH(Dataset):
             image.save(os.path.join(dir_save_img,  f'{patient}.png'))
 
         ## save the label in a json file
-        with open(os.path.join(dir_save_label,'label.json'), 'w') as f:
-            json.dump(self.keypoints_dict, f, default=convert_to_serializable, indent=4)
+        
         
 
 
@@ -698,7 +719,7 @@ if __name__ == '__main__':
         print(f'Number of patient in {key} = {len(patients[key])}')
 
         echonet_dataset = EchoNetLVH(data_dir=args.data_dir, batch=args.batch, split=key, transform=transform, patients=patients[key], phase=args.phase)
-        echonet_dataset.save_img_and_label()
+        # echonet_dataset.save_img_and_label()
         
 
     image, label = echonet_dataset[6]
