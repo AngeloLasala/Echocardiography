@@ -100,18 +100,18 @@ class EchoNetDataset(Dataset):
         """
         Get the image and the label of the patient
         """
-        print('START GET ITEM')
-        start_get_item = time.time()
+        # print('START GET ITEM')
+        # start_get_item = time.time()
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
       
         ## trasform the label based on target: keypoints, heatmaps, segmentations
         if self.target == 'keypoints': 
-            image_label_start = time.time()
+            # image_label_start = time.time()
             image, label, calc_value = self.get_image_label(idx)
-            image_label_stop = time.time()
-            print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
+            # image_label_stop = time.time()
+            # print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
 
             if self.augmentation:
                 image, label = self.data_augmentation_kp(image, label)
@@ -127,10 +127,10 @@ class EchoNetDataset(Dataset):
                 image = (2 * image) - 1  
 
         elif self.target == 'heatmaps_sigma':
-            image_label_start = time.time()
+            # image_label_start = time.time()
             image, label, calc_value = self.get_image_label(idx)
-            image_label_stop = time.time()
-            print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
+            # image_label_stop = time.time()
+            # print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
             if self.augmentation:
                 image, label = self.data_augmentation_kp(image, label)
             else:
@@ -145,29 +145,29 @@ class EchoNetDataset(Dataset):
                 image = (2 * image) - 1  
 
         elif self.target == 'heatmaps': 
-            image_label_start = time.time()
+            # image_label_start = time.time()
             image, label, calc_value, heatmap = self.get_image_label(idx)
-            image_label_stop = time.time()
-            print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
+            # image_label_stop = time.time()
+            # print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
 
-            label_start = time.time()   
+            # label_start = time.time()   
             label = heatmap #self.get_heatmap(idx)
-            label_stop = time.time()
-            print(f'Time to get heatmap: {label_stop - label_start:.5f}')
+            # label_stop = time.time()
+            # print(f'Time to get heatmap: {label_stop - label_start:.5f}')
             ## apply data augmentation only on training set, else simply resize the image and the label
             if self.augmentation:
                 aug_start = time.time()
                 image, label = self.data_augmentation(image, label)
                 aug_stop = time.time()
-                print(f'Time to apply data augmentation: {aug_stop - aug_start:.5f}')
+                # print(f'Time to apply data augmentation: {aug_stop - aug_start:.5f}')
             else:
                 image, label = self.trasform(image, label)
                 
         elif self.target == 'segmentation':
-            image_label_start = time.time()
+            # image_label_start = time.time()
             image, label, calc_value, heatmap = self.get_image_label(idx)
-            image_label_stop = time.time()
-            print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
+            # image_label_stop = time.time()
+            # print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
 
             label = self.get_heatmap(idx)
             label = (label > 0.5).astype(np.float32)
@@ -179,8 +179,8 @@ class EchoNetDataset(Dataset):
            
         else:
             raise ValueError(f'target {self.target} is not valid. Available targets are keypoints, heatmaps, segmentation, heatmpas_sigma')
-        stop_get_item = time.time()
-        print(f'Time to get item: {stop_get_item - start_get_item:.5f}')
+        # stop_get_item = time.time()
+        # print(f'Time to get item: {stop_get_item - start_get_item:.5f}')
         return image, label
 
     def trasform(self, image, label):
