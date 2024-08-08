@@ -311,7 +311,8 @@ def get_macs_parms(model, config, size):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
-    parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/Phd notes/Echocardiografy/EchoNet-LVH", help='Directory of the dataset')
+    parser.add_argument('--data_dir', type=str, default="/media/angelo/OS/Users/lasal/Desktop/DATA_h", help='Directory of the dataset, in general usinf DATA_h')
+    parser.add_argument('--model_dir', type=str, default='TRAINED_MODEL', help='Directory of models, i.e. trained_model')
     parser.add_argument('--batch', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
     parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial number to analyse')
@@ -322,7 +323,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     ## retrive the information
-    train_dir = os.path.join('TRAINED_MODEL', args.batch, args.phase, args.trial)
+    train_dir = os.path.join(args.model_dir, args.batch, args.phase, args.trial)
     with open(os.path.join(train_dir, 'losses.json')) as json_file:
         losses = json.load(json_file)
     with open(os.path.join(train_dir, 'args.json')) as json_file:
@@ -335,8 +336,7 @@ if __name__ == '__main__':
     size = tuple(trained_args['size'])
 
 
-
-    test_set = EchoNetDataset(batch=args.batch, split=args.split, phase=args.phase, label_directory=None,
+    test_set = EchoNetDataset(batch=args.batch, split=args.split, phase=args.phase, label_directory=None, data_path=args.data_dir,
                               target=trained_args['target'], input_channels=cfg['input_channels'], size=size ,augmentation=False)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=8, shuffle=False, num_workers=4, pin_memory=True)
 
