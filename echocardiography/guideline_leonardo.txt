@@ -56,6 +56,9 @@ example.sh
 
 python my_code.py --flags
 """
+NOTE: for the error file and the output file use the parent working directory 
+      regression: /leonardo_work/IscrC_Med-LMGM/Angelo/Echocardiography/echocardiography/regression/utils/sbatch_files
+
 
 submit a job: sbatch example.sh -> Submitted batch job 7366420
 check the status: squeue --user alasala0
