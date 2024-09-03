@@ -3,7 +3,40 @@ This file contains the utility functions for the regression model
 """
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
+import cv2
 
+
+def get_corrdinate_from_heatmap_ellipses(heatmap):
+    """
+    Get the coordinate from the heatmaps. retrive the ellipse with a thr of 0.5
+    and get the center value
+
+    Parameters
+    ----------
+    heatmap : torch.Tensor
+        Tensor containing the heatmap
+
+    Returns
+    -------
+    list
+        List containing the coordinates
+    """
+    label_list = []
+    for ch in range(heatmap.shape[0]):
+        ## in 0-1 range
+        heatmap[ch] = (heatmap[ch] - np.min(heatmap[ch])) / (np.max(heatmap[ch]) - np.min(heatmap[ch]))
+        ## create a mask of 1 and 0 with threshold 0.5
+        mask = (heatmap[ch] > 0.5).astype(np.uint8) * 255 
+        ## fit ellispse
+        _, mask = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)        
+        for cnt in contours:
+            if len(cnt) >= 5:    
+                ellipse = cv2.fitEllipse(cnt)
+                label_list.append(ellipse[0][0])
+                label_list.append(ellipse[0][1])    
+    return label_list
 
 def get_corrdinate_from_heatmap(heatmap):
     """

@@ -31,7 +31,7 @@ from thop import profile, clever_format
 
 
 
-from echocardiography.regression.utils import get_corrdinate_from_heatmap, echocardiografic_parameters
+from echocardiography.regression.utils import get_corrdinate_from_heatmap, get_corrdinate_from_heatmap_ellipses, echocardiografic_parameters
 from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable
 
 def get_best_model(train_dir):
@@ -126,7 +126,7 @@ def show_prediction(image, label, output, target, size):
 
 
 
-def percentage_error(label, output, target, size):
+def percentage_error(label, output, target, size, method='max_value'):
     """
     Compute the percentage error between the distance of 'LVPW', 'LVID', 'IVS'
     """
@@ -154,7 +154,10 @@ def percentage_error(label, output, target, size):
     if target == 'heatmaps':
         ## compute the coordinate of the max value in the heatmaps
         label = get_corrdinate_from_heatmap(label)
-        output = get_corrdinate_from_heatmap(output)
+        
+        if method == 'max_value': output = get_corrdinate_from_heatmap(output)
+        if method == 'ellipses': output = get_corrdinate_from_heatmap_ellipses(output)
+  
 
         distances_label, distances_output = [], []
         for i in range(3):
@@ -316,6 +319,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
     parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial number to analyse')
+    parser.add_argument('--method_center', type=str, default='max_value', help='how the keypoits are computed: max_value or ellipses')
     parser.add_argument('--split', type=str, default='test', help='select split: val or test, default = test')
     parser.add_argument('--show_plot', action='store_true', help="show the prediction, default=False")
     args = parser.parse_args()
@@ -377,7 +381,7 @@ if __name__ == '__main__':
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                dist_label, dist_output = percentage_error(label=label, output=output, target=trained_args['target'], size=size)
+                dist_label, dist_output = percentage_error(label=label, output=output, target=trained_args['target'], size=size, method=args.method_center)
                 err = keypoints_error(label, output, target=trained_args['target'], size=size)
                 parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'], size=size)
                 if args.show_plot:
@@ -423,7 +427,7 @@ if __name__ == '__main__':
     print()
 
     ## regression plt distance label vs output
-    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(21,8), num=f'{trained_args["target"]} - Regression plot heart - {args.split}', tight_layout=True)
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(21,8), num=f'{trained_args["target"]}_{args.method_center} - Regression plot heart - {args.split}', tight_layout=True)
     
     # Scatter plot for LVPW
     
@@ -455,7 +459,7 @@ if __name__ == '__main__':
     ax[2].legend(fontsize=20)
     for a in ax:
         a.tick_params(axis='both', which='major', labelsize=18)
-    plt.savefig(os.path.join(train_dir, f'{trained_args["target"]} - Regression plot heart - {args.split}'))
+    plt.savefig(os.path.join(train_dir, f'{trained_args["target"]}_{args.method_center} - Regression plot heart - {args.split}.png'))
     
     ## Regression plt label vs output
     # compute the linear regression
@@ -466,7 +470,7 @@ if __name__ == '__main__':
     print(f'RST: slope={slope_RST:.4f}, intercept={intercept_RST:.4f}, R-squared={r_squared_RST:.4f}, Chi-squared={chi_squared_RST:.4f}')
     print()
 
-    plt.figure(figsize=(8,8), num=f'{trained_args["target"]} - Regression plot - {args.split}', tight_layout=True)
+    plt.figure(figsize=(8,8), num=f'{trained_args["target"]}_{args.method_center}- Regression plot - {args.split}', tight_layout=True)
     plt.scatter(parameters_label_list[:,0], parameters_output_list[:,0], s=100, c='C0', label='RWT', alpha=0.5)
     plt.plot(parameters_label_list[:,0], slope_RWT * parameters_label_list[:,0] + intercept_RWT, c='C0', label=f'fit RWT',)
     plt.plot(parameters_label_list[:,0],parameters_label_list[:,0], c='black', linewidth=2)
@@ -480,7 +484,7 @@ if __name__ == '__main__':
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
     plt.legend(fontsize=20)
-    plt.savefig(os.path.join(train_dir, f'{trained_args["target"]} - Regression plot - {args.split}.png'))
+    plt.savefig(os.path.join(train_dir, f'{trained_args["target"]}_{args.method_center}- Regression plot - {args.split}.png'))
 
 
     macs, params = get_macs_parms(model, cfg, size)
@@ -488,7 +492,7 @@ if __name__ == '__main__':
     
 
     ## create a file txt with all the printed string
-    with open(os.path.join(train_dir, f'{trained_args["target"]}_results.txt'), 'w') as f:
+    with open(os.path.join(train_dir, f'{trained_args["target"]}_results_{args.method_center}.txt'), 'w') as f:
         f.write(f'Batch: {args.batch}, Phase: {args.phase}, Trial: {args.trial}, Split: {args.split}\n')
         f.write(f'Model: {trained_args["model"]}, Best model: {best_model}\n')
         f.write(f'MACS: {macs}, Parameters: {params}\n')
