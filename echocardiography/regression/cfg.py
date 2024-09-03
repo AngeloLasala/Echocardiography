@@ -55,12 +55,42 @@ def train_config(target, threshold_wloss, model, input_channels, device):
                         }
             cfg['model'] = Unet_ResSkip(im_channels=input_channels, num_classes=6, model_config=model_config)
 
+        if model == 'unet_res_skip_att': 
+            model_config = {
+                            'down_channels': [ 64, 128, 256, 256],
+                            'mid_channels': [ 256, 256],
+                            'down_sample': [ True, True, True],
+                            'attn_down' : [True,True,True],
+                            'norm_channels' : 32,
+                            'num_heads' : 8,
+                            'conv_out_channels' : 128,
+                            'num_down_layers': 1,
+                            'num_mid_layers': 1,
+                            'num_up_layers': 1,
+                        }
+            cfg['model'] = Unet_ResSkip(im_channels=input_channels, num_classes=6, model_config=model_config)
+
         if model == 'unet_res_skip_base': 
             model_config = {
                             'down_channels': [ 64, 128, 256, 256],
                             'mid_channels': [ 256, 256],
                             'down_sample': [ True, True, True],
                             'attn_down' : [False,False,False],
+                            'norm_channels' : 32,
+                            'num_heads' : 8,
+                            'conv_out_channels' : 128,
+                            'num_down_layers': 2,
+                            'num_mid_layers': 2,
+                            'num_up_layers': 2,
+                        }
+            cfg['model'] = Unet_ResSkip(im_channels=input_channels, num_classes=6, model_config=model_config)
+
+        if model == 'unet_res_skip_base_att': 
+            model_config = {
+                            'down_channels': [ 64, 128, 256, 256],
+                            'mid_channels': [ 256, 256],
+                            'down_sample': [ True, True, True],
+                            'attn_down' : [True,True,True],
                             'norm_channels' : 32,
                             'num_heads' : 8,
                             'conv_out_channels' : 128,
