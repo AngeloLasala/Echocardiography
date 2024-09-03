@@ -15,7 +15,7 @@ python -m echocardiography.regression.train --data_path "/leonardo_work/IscrC_Me
         --input_channels 1 \
         --size 240 320 \
         --epochs 100 \
-        --batch_size=16 \
+        --batch_size=8 \
         --lr 0.001 \
         --weight_decay 0.0 \
         --threshold_wloss 0.0
