@@ -5,8 +5,8 @@
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
 #SBATCH --time=15:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
-#SBATCH --error=error_file.err       # standard error file
-#SBATCH --output=file_print.out      # standard output file
+#SBATCH --error=/leonardo_work/IscrC_Med-LMGM/Angelo/Echocardiography/echocardiography/regression/utils/sbatch_files/error_file.err       # standard error file
+#SBATCH --output=/leonardo_work/IscrC_Med-LMGM/Angelo/Echocardiography/echocardiography/regression/utils/sbatch_files/file_print.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 python -m echocardiography.regression.train --data_path "/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA_h" --save_dir "/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression" \
