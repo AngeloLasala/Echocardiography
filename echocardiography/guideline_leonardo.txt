@@ -27,6 +27,7 @@ NOTE: keep in mind that when you create a new file with new required packages, y
 and update the venv. to do so, use the file setup.py and the requirements.txt
 
 2. RUN A PYTHON CODE
+site: https://wiki.u-gov.it/confluence/display/SCAIUS/UG2.6.1%3A+How+to+submit+the+job+-+Batch+Scheduler+SLURM
 The easy way to run a python code in this tree is to leverege the structure of the repository and
 run ANY KIND of python code as a module from the 'Echocardiography' directory. So, in the 'Echocardiography' run:
 $ python -m path.of.the.code --flag
@@ -55,3 +56,6 @@ example.sh
 
 python my_code.py --flags
 """
+
+submit a job: sbatch example.sh -> Submitted batch job 7366420
+check the status: squeue --user alasala0
