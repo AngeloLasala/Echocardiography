@@ -1,8 +1,10 @@
 dataset_params:
   # parent directory of the dataset
-  # local path: '/home/angelo/Documents/Echocardiography/echocardiography/regression' with 'DATA'
+  # local path: 
+  #            1) '/home/angelo/Documents/Echocardiography/echocardiography/regression' with 'DATA'
+  #            2) '/media/angelo/OS/Users/lasal/Desktop' with 'DATA_h' from settember 2024
   # one drive: '...'
-  # cineca: '...'
+  # cineca: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'
   parent_dir: '/home/angelo/Documents/Echocardiography/echocardiography/regression'   
   im_path: 'DATA'        # 'DATA_h' from settember 2024, compatible with cineca
   split: 'train'
@@ -85,7 +87,7 @@ train_params:
   task_name: 'eco'
   seed : 1111
   ldm_batch_size: 8
-  autoencoder_batch_size: 2   # 2: local for shape (240,320)
+  autoencoder_batch_size: 2   # 2: local for shape (240,320) - 4 or 8: cineca for shape (240, 320)
   disc_start: 2
   disc_weight: 0.5
   codebook_weight: 1
@@ -93,7 +95,7 @@ train_params:
   perceptual_weight: 1
   kl_weight: 0.000005
   ldm_epochs : 100
-  autoencoder_epochs : 20
+  autoencoder_epochs : 2
   num_samples : 25
   num_grid_rows : 5
   ldm_lr: 0.00001
