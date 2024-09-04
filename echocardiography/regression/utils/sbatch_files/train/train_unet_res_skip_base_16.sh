@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
-#SBATCH --time=2:00:00                 # time limits: 1 hour
+#SBATCH --time=3:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
 #SBATCH --error=unet_res_skip_base_16.err       # standard error file
 #SBATCH --output=unet_res_skip_base_16.out      # standard output file
