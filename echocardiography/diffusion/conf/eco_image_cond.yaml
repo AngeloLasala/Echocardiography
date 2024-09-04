@@ -1,5 +1,10 @@
 dataset_params:
-  im_path: 'DATA'
+  # parent directory of the dataset
+  # local path: '/home/angelo/Documents/Echocardiography/echocardiography/regression' with 'DATA'
+  # one drive: '...'
+  # cineca: '...'
+  parent_dir: '/home/angelo/Documents/Echocardiography/echocardiography/regression'   
+  im_path: 'DATA'        # 'DATA_h' from settember 2024, compatible with cineca
   split: 'train'
   split_val: 'val'
   split_test: 'test'
@@ -80,7 +85,7 @@ train_params:
   task_name: 'eco'
   seed : 1111
   ldm_batch_size: 8
-  autoencoder_batch_size: 2
+  autoencoder_batch_size: 2   # 2: local for shape (240,320)
   disc_start: 2
   disc_weight: 0.5
   codebook_weight: 1

@@ -115,12 +115,13 @@ class EcoDataset():
     the problem is the while loop to retrive the path 'regressio' fro the current working direction.
     I want the general version to get only the path of parent path of the 'DATA' for external folder.
     """
-    def __init__(self, split, size, im_path, dataset_batch, phase,  
+    def __init__(self, split, size, parent_dir, im_path, dataset_batch, phase,  
                 dataset_batch_regression=None, trial=None, condition_config=None, im_ext='png'):
         self.split = split
         self.im_ext = im_ext
         self.size = size
-        self.im_path = im_path  ## '\data'
+        self.parent_dir = parent_dir
+        self.im_path = im_path        ## '\DATA' or '\DATAn' for preloades heatmaps
 
         # self.images, self.labels = self.load_images(im_path)
         self.dataset_batch = dataset_batch ## 'Batch_n' number of batch in Echonet-LVH, task generation
@@ -394,19 +395,8 @@ class EcoDataset():
         """
         Return the data directory from the current directory
         """
-        current_dir = os.getcwd()
-
-        ## this part is for for the image in 'diffusion/data'
-        # while current_dir.split('/')[-1] != 'diffusion':
-        #     current_dir = os.path.dirname(current_dir)
-        # data_dir = os.path.join(current_dir, self.im_path) ## this is right for the image in 'diffusion/data' when i copy and paste from the '/regression'
-        
-        ## this part is for the image in 'echocardiography/regression/DATA/Batch_n/split/phase/image'
-        while current_dir.split('/')[-1] != 'echocardiography':
-            current_dir = os.path.dirname(current_dir)
-        data_dir_regre = os.path.join(current_dir, 'regression')
-        data_dir_regre_img = os.path.join(data_dir_regre, self.im_path, self.dataset_batch, self.split, self.phase, 'image') ## change this to the path of the trained model
-        data_dir_regre_lab = os.path.join(data_dir_regre, self.im_path, self.dataset_batch, self.split, self.phase, 'label')
+        data_dir_regre_img = os.path.join(self.parent_dir, self.im_path, self.dataset_batch, self.split, self.phase, 'image') ## change this to the path of the trained model
+        data_dir_regre_lab = os.path.join(self.parent_dir, self.im_path, self.dataset_batch, self.split, self.phase, 'label')
         return data_dir_regre_img, data_dir_regre_lab
 
     def get_model_regression(self):

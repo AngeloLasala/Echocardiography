@@ -23,8 +23,23 @@ def spatial_average(in_tens, keepdim=True):
 class vgg16(torch.nn.Module):
     def __init__(self, requires_grad=False, pretrained=True):
         super(vgg16, self).__init__()
-        # Load pretrained vgg model from torchvision
-        vgg_pretrained_features = torchvision.models.vgg16(pretrained=pretrained).features
+        # Load the VGG16 model
+        vgg_pretrained_features = torchvision.models.vgg16(weights=None).features
+        
+        # Load weights if pretrained is True and a model path is provided
+        if pretrained:
+            import inspect
+            import os
+
+            model_path = os.path.abspath(
+                    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'weights', 'vgg16', 'vgg16_pretrained.pth'))
+            vgg16_state_dict = torch.load(model_path)
+            vgg16_state_dict = {k.replace('features.', ''): v for k, v in vgg16_state_dict.items() if 'features' in k}
+            vgg_pretrained_features.load_state_dict(vgg16_state_dict)
+            print('Loaded pretrained weights from %s' % model_path)
+        else:
+            raise ValueError("Pretrained weights not found, please load the pretrained weight of vgg16 in the 'weights/vgg16' folder")
+
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()
         self.slice3 = torch.nn.Sequential()
