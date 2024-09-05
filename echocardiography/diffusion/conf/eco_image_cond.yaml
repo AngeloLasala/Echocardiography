@@ -14,7 +14,7 @@ dataset_params:
   im_size_h : 240  # 256
   im_size_w : 320  # 256
   name: 'eco'
-  dataset_batch: 'Batch3'  # dataset batch for diffusion task
+  dataset_batch: ['Batch3', 'Batch1', 'Batch4']  # dataset diffusion task, list of batch to be used 
   phase: 'diastole'
   dataset_batch_regression: 'Batch2'  # dataset batch for regression task, it nust be different from dataset_batch
   trial: 'trial_2'                    # trial for regression task
