@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from torch.optim import Adam
 from echocardiography.diffusion.models.unet_cond_base import Unet, get_config_value
-from echocardiography.diffusion.scheduler import LinearNoiseScheduler
+from echocardiography.diffusion.sheduler.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE 
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
