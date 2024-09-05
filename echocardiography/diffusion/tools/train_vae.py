@@ -111,7 +111,7 @@ def train(conf, save_folder):
         optimizer_g.zero_grad()
         optimizer_d.zero_grad()
         
-        for im in tqdm(data_loader):
+        for im in data_loader: #  avoid tqdm for cluster tqdm(data_loader):
             step_count += 1
             im = im.float().to(device)
 
@@ -181,7 +181,7 @@ def train(conf, save_folder):
         with torch.no_grad():
             val_recon_losses = []
             val_perceptual_losses = []
-            for im in tqdm(val_data_loader):
+            for im in val_data_loader: #tqdm(val_data_loader): delate tqdm for cluster
                 im = im.float().to(device)
                 model_output = model(im)
                 output, encoder_out = model_output
