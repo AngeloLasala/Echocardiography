@@ -18,6 +18,7 @@ from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset,
 from torch.optim import Adam
 from torchvision.utils import make_grid
 import matplotlib.pyplot as plt
+import time
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -61,7 +62,6 @@ def train(conf, save_folder):
     for dataset_batch in dataset_config['dataset_batch']:
         data_batch = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
                             parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'])
-       
         val_data_batch = im_dataset_cls(split='val', size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
                                 parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'])
         data_list.append(data_batch)
@@ -70,6 +70,7 @@ def train(conf, save_folder):
     data = torch.utils.data.ConcatDataset(data_list)
     val_data = torch.utils.data.ConcatDataset(val_data_list)
     print(f'len data {len(data)} - len val_data {len(val_data)}')
+    
     data_loader = DataLoader(data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
     val_data_loader = DataLoader(val_data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
 
@@ -110,6 +111,7 @@ def train(conf, save_folder):
     val_losses_epoch = {'recon': [], 'lpips': []}
 
     for epoch_idx in range(num_epochs):
+        time_start = time.time()
         recon_losses = []
         kl_losses = []
         perceptual_losses = []
@@ -207,11 +209,12 @@ def train(conf, save_folder):
             best_vloss = np.mean(val_recon_losses)
             torch.save(model.state_dict(), os.path.join(save_dir, f'vae_best_{epoch_idx+1}.pth'))
             torch.save(discriminator.state_dict(), os.path.join(save_dir, f'discriminator_best_{epoch_idx+1}.pth'))
-
+        time_end = time.time()
         ## Print epoch
         if len(disc_losses) > 0:
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Recon Loss: {np.mean(recon_losses):.4f}| KL Loss: {np.mean(kl_losses):.4f}| LPIPS Loss: {np.mean(perceptual_losses):.4f}| G Loss: {np.mean(gen_losses):.4f}| D Loss: {np.mean(disc_losses):.4f}')
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Valid Recon Loss: {np.mean(val_recon_losses):.4f}| Valid LPIPS Loss: {np.mean(val_perceptual_losses):.4f}')
+            print(f'Time: {time_end - time_start} s\n')
             losses_epoch['recon'].append(np.mean(recon_losses))
             losses_epoch['kl'].append(np.mean(kl_losses))
             losses_epoch['lpips'].append(np.mean(perceptual_losses))
@@ -223,6 +226,7 @@ def train(conf, save_folder):
         else:
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Recon Loss: {np.mean(recon_losses):.4f}| KL Loss: {np.mean(kl_losses):.4f}| LPIPS Loss: {np.mean(perceptual_losses):.4f})')
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Valid Recon Loss: {np.mean(val_recon_losses):.4f}| Valid LPIPS Loss: {np.mean(val_perceptual_losses):.4f}')
+            print(f'Time: {time_end - time_start} s\n')
             losses_epoch['recon'].append(np.mean(recon_losses))
             losses_epoch['kl'].append(np.mean(kl_losses))
             losses_epoch['lpips'].append(np.mean(perceptual_losses))
