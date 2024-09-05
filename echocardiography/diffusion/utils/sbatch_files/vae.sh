@@ -5,8 +5,8 @@
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
 #SBATCH --time=4:30:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
-#SBATCH --error=vae.err       # standard error file
-#SBATCH --output=vae.out      # standard output file
+#SBATCH --error=vae_all.err       # standard error file
+#SBATCH --output=vae_all.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 python -m echocardiography.diffusion.tools.train_vae --data eco_image_cond  --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion'
