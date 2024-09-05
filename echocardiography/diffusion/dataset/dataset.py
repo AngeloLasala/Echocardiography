@@ -134,7 +134,7 @@ class EcoDataset():
         ## data directory
         self.get_data_directory()
         # self.data_dir = os.path.join(self.get_data_directory(),  self.split) # this is for the 'data' in 'diffusion/data'
-        self.data_dir, self.data_dir_label = self.get_data_directory() # this is for the 'data' in 'echocardiography/regression/DATA/Batch_n/split/phase/image'
+        self.data_dir, self.data_dir_label, self.data_dir_heatmap = self.get_data_directory() # this is for the 'data' in 'echocardiography/regression/DATA/Batch_n/split/phase/image'
         with open(os.path.join(self.data_dir_label, 'label.json'), 'r') as f:
             self.data_label = json.load(f)
         
@@ -149,9 +149,9 @@ class EcoDataset():
         return len(self.patient_files)
 
     def __getitem__(self, index):
-        im, keypoints_label, calc_value_list = self.get_image_label(index)
+        im, keypoints_label, calc_value_list, patient_hash = self.get_image_label(index)
+        
         # print(im.size, keypoints_label, calc_value_list)
-    
         cond_inputs = {}    ## add to this dict the condition inputs
         if len(self.condition_types) > 0:  # check if there is at least one condition in ['class', 'text', 'image']
             
@@ -159,8 +159,9 @@ class EcoDataset():
             if 'image' in self.condition_types:
                 ## NEW VERSION. get the heatmaps from the label
                 # this is equal to how i load the data for the regression without the data augumentation
-                heatmaps_label = self.get_heatmap(index)
-                im_tensor, heatmaps_label = self.trasform(im, heatmaps_label)
+                # heatmaps_label = self.get_heatmap(index) ## old version for 'DATA'
+                heatmap = np.load(os.path.join(self.data_dir_heatmap, patient_hash+'.npy')).astype(np.float32)
+                im_tensor, heatmaps_label = self.trasform(im, heatmap)
                 calc_value_list = torch.tensor(calc_value_list)
                 cond_inputs['image'] = heatmaps_label
 
@@ -252,7 +253,8 @@ class EcoDataset():
         calc_value_list = np.array(calc_value_list).flatten()
         # convert image to tensor
         im = torchvision.transforms.ToTensor()(im)
-        return im, keypoints_label, calc_value_list
+    
+        return im, keypoints_label, calc_value_list, patient_hash
 
     def get_class_hypertrophy(self, keypoints_label, calc_value_list):
         """
@@ -397,7 +399,8 @@ class EcoDataset():
         """
         data_dir_regre_img = os.path.join(self.parent_dir, self.im_path, self.dataset_batch, self.split, self.phase, 'image') ## change this to the path of the trained model
         data_dir_regre_lab = os.path.join(self.parent_dir, self.im_path, self.dataset_batch, self.split, self.phase, 'label')
-        return data_dir_regre_img, data_dir_regre_lab
+        data_dir_regre_heatmap = os.path.join(self.parent_dir, self.im_path, self.dataset_batch, self.split, self.phase, 'heatmap')
+        return data_dir_regre_img, data_dir_regre_lab, data_dir_regre_heatmap
 
     def get_model_regression(self):
         """
