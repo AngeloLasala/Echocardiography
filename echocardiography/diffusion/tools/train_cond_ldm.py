@@ -17,6 +17,7 @@ from echocardiography.diffusion.tools.infer_vae import get_best_model
 from torch.utils.data import DataLoader
 import random
 import multiprocessing as mp
+import time
 
 mp.set_start_method('spawn', force=True)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -92,10 +93,22 @@ def train(par_dir, conf, trial):
     }.get(dataset_config['name'])
 
     # Create the dataset and dataloader
-    data_img = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
-                              im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
-                              dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
-                              condition_config=condition_config)
+    # data_img = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
+    #                           im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
+    #                           dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
+    #                           condition_config=condition_config)
+    # data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=True, num_workers=8)
+
+    print('dataset', dataset_config['dataset_batch'])
+    data_list = []
+    for dataset_batch in dataset_config['dataset_batch']:
+        data_batch = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
+                            parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'],
+                            condition_config=condition_config)
+        data_list.append(data_batch)
+    
+    data_img = torch.utils.data.ConcatDataset(data_list)
+    print('len of the dataset', len(data_img))
     data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=True, num_workers=8)
 
     # Create the model and scheduler
@@ -149,8 +162,9 @@ def train(par_dir, conf, trial):
     # Run training
     print('Start training ...')
     for epoch_idx in range(num_epochs):
+        time_start = time.time()
         losses = []
-        for data in tqdm(data_loader):
+        for data in data_loader:
             cond_input = None
             if condition_config is not None:
                 im, cond_input = data
@@ -205,7 +219,9 @@ def train(par_dir, conf, trial):
         ## Validation - computation of the FID score between real images (train) and generated images (validation)
         # Real images: from the datasete loader of the training set
         # Generated images: from the dataset loader of the validation set on wich i apply the diffusion and the decoder
-        print(f'Finished epoch:{epoch_idx+1} | Loss : {np.mean(losses):.4f}')
+        time_end = time.time()
+        total_time = time_end - time_start
+        print(f'Finished epoch:{epoch_idx+1} | Loss : {np.mean(losses):.4f} | Time: {total_time:.4f} sec')
 
         # Save the model
         if (epoch_idx+1) % train_config['save_frequency'] == 0:
@@ -220,6 +236,7 @@ def train(par_dir, conf, trial):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
     parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco')
+    parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model, default = trained_model')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name, here you select the trained VAE to compute the latent space')
     args = parser.parse_args()
 
@@ -227,7 +244,7 @@ if __name__ == '__main__':
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
-    save_folder = os.path.join(par_dir, 'trained_model', args.trial)
+    save_folder = os.path.join(par_dir, args.save_folder, args.trial)
     train(par_dir = par_dir,
         conf = configuration, 
         trial = args.trial)

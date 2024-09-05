@@ -214,7 +214,8 @@ def train(conf, save_folder):
         if len(disc_losses) > 0:
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Recon Loss: {np.mean(recon_losses):.4f}| KL Loss: {np.mean(kl_losses):.4f}| LPIPS Loss: {np.mean(perceptual_losses):.4f}| G Loss: {np.mean(gen_losses):.4f}| D Loss: {np.mean(disc_losses):.4f}')
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Valid Recon Loss: {np.mean(val_recon_losses):.4f}| Valid LPIPS Loss: {np.mean(val_perceptual_losses):.4f}')
-            print(f'Time: {time_end - time_start} s\n')
+            total_time = time_end - time_start
+            print(f'Time: {total_time:4f} s\n')
             losses_epoch['recon'].append(np.mean(recon_losses))
             losses_epoch['kl'].append(np.mean(kl_losses))
             losses_epoch['lpips'].append(np.mean(perceptual_losses))
@@ -226,7 +227,8 @@ def train(conf, save_folder):
         else:
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Recon Loss: {np.mean(recon_losses):.4f}| KL Loss: {np.mean(kl_losses):.4f}| LPIPS Loss: {np.mean(perceptual_losses):.4f})')
             print(f'Epoch {epoch_idx+1}/{num_epochs}) Valid Recon Loss: {np.mean(val_recon_losses):.4f}| Valid LPIPS Loss: {np.mean(val_perceptual_losses):.4f}')
-            print(f'Time: {time_end - time_start} s\n')
+            total_time = time_end - time_start
+            print(f'Time: {total_time:.4f} s\n')
             losses_epoch['recon'].append(np.mean(recon_losses))
             losses_epoch['kl'].append(np.mean(kl_losses))
             losses_epoch['lpips'].append(np.mean(perceptual_losses))

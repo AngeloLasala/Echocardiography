@@ -5,7 +5,7 @@ dataset_params:
   #            2) '/media/angelo/OS/Users/lasal/Desktop' with 'DATA_h' from settember 2024
   # one drive: '...'
   # cineca: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'
-  parent_dir: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'   
+  parent_dir: '/media/angelo/OS/Users/lasal/Desktop'   
   im_path: 'DATA_h'        # 'DATA_h' from settember 2024, compatible with cineca
   split: 'train'
   split_val: 'val'
@@ -14,7 +14,7 @@ dataset_params:
   im_size_h : 240  # 256
   im_size_w : 320  # 256
   name: 'eco'
-  dataset_batch: ['Batch3', 'Batch1', 'Batch4']  # dataset diffusion task, list of batch to be used 
+  dataset_batch: ['Batch3']  # dataset diffusion task, list of batch to be used 
   phase: 'diastole'
   dataset_batch_regression: 'Batch2'  # dataset batch for regression task, it nust be different from dataset_batch
   trial: 'trial_2'                    # trial for regression task
