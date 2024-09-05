@@ -5,7 +5,7 @@ dataset_params:
   #            2) '/media/angelo/OS/Users/lasal/Desktop' with 'DATA_h' from settember 2024
   # one drive: '...'
   # cineca: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'
-  parent_dir: '/media/angelo/OS/Users/lasal/Desktop'   
+  parent_dir: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'   
   im_path: 'DATA_h'        # 'DATA_h' from settember 2024, compatible with cineca
   split: 'train'
   split_val: 'val'
@@ -86,7 +86,7 @@ autoencoder_params:
 train_params:
   task_name: 'eco'
   seed : 1111
-  ldm_batch_size: 8
+  ldm_batch_size: 16
   autoencoder_batch_size: 16   # 2: local for shape (240,320) - 4 or 8: cineca for shape (240, 320)
   disc_start: 2
   disc_weight: 0.5
