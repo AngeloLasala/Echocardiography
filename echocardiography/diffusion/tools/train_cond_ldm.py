@@ -243,8 +243,12 @@ if __name__ == '__main__':
     current_directory = os.path.dirname(__file__)
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
-
-    save_folder = os.path.join(par_dir, args.save_folder, args.trial)
+    print(args.save_folder)
+    print(args.trial)
+    print(par_dir)
+    print(configuration)
+    save_folder = os.path.join(par_dir, args.trial)
+    print(save_folder)
     train(par_dir = par_dir,
         conf = configuration, 
         trial = args.trial)
