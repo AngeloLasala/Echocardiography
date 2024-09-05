@@ -160,8 +160,15 @@ class EcoDataset():
                 ## NEW VERSION. get the heatmaps from the label
                 # this is equal to how i load the data for the regression without the data augumentation
                 # heatmaps_label = self.get_heatmap(index) ## old version for 'DATA'
-                heatmap = np.load(os.path.join(self.data_dir_heatmap, patient_hash+'.npy')).astype(np.float32)
-                im_tensor, heatmaps_label = self.trasform(im, heatmap)
+                heatmaps_label = np.load(os.path.join(self.data_dir_heatmap, patient_hash+'.npy')).astype(np.float32)
+                im_tensor, heatmaps_label = self.trasform(im, heatmaps_label)
+                # print(type(heatmaps_label), heatmaps_label.shape)
+                #plot the image and the heatmaps_labels
+                # import matplotlib.pyplot as plt
+                # plt.figure()
+                # plt.imshow(im_tensor.squeeze(0).detach().numpy(), cmap='gray')
+                # plt.imshow(heatmaps_label[0].detach().numpy(), cmap='jet', alpha=0.5)
+                # plt.show()
                 calc_value_list = torch.tensor(calc_value_list)
                 cond_inputs['image'] = heatmaps_label
 
@@ -286,7 +293,7 @@ class EcoDataset():
         """
         given a index of the patient return the 6D heatmap of the keypoints
         """
-        image, labels, calc_value = self.get_image_label(idx)
+        image, labels, calc_value, _ = self.get_image_label(idx)
         ## mulptiple the labels by the image size
         converter = np.tile([image.shape[2], image.shape[1]], 6)
         labels = labels * converter
@@ -313,6 +320,7 @@ class EcoDataset():
 
                 rotation_matrix = cv2.getRotationMatrix2D(mean, angle + 90, 1.0)
                 base_heatmap = cv2.warpAffine(base_heatmap, rotation_matrix, (base_heatmap.shape[1], base_heatmap.shape[0]))
+                print(np.max(base_heatmap))
                 base_heatmap = base_heatmap / np.max(base_heatmap)
                 channel_index = hp * 2 + i
                 heatmaps_label[:, :, channel_index] = base_heatmap
