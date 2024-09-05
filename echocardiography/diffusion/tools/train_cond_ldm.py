@@ -119,7 +119,7 @@ def train(par_dir, conf, trial):
     model = Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
     model.train()
     
-    trial_folder = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
+    trial_folder = trial #os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
     assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
     print(os.listdir(trial_folder))
     if 'vae' in os.listdir(trial_folder):
@@ -243,12 +243,8 @@ if __name__ == '__main__':
     current_directory = os.path.dirname(__file__)
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
-    print(args.save_folder)
-    print(args.trial)
-    print(par_dir)
-    print(configuration)
-    save_folder = os.path.join(par_dir, args.trial)
-    print(save_folder)
+
+    save_folder = os.path.join(args.save_folder, args.trial)
     train(par_dir = par_dir,
         conf = configuration, 
-        trial = args.trial)
+        trial = os.path.join(args.save_folder, args.trial))
