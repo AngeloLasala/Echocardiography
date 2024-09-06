@@ -63,3 +63,30 @@ NOTE: for the error file and the output file use the parent working directory
 submit a job: sbatch example.sh -> Submitted batch job 7366420
 check the status: squeue --user alasala0
 check the memory and computational time: cindata saldo (-b)
+
+3. RETRIEVE THE FILE IN LOCAL
+Once you trained, you have to push back the output folder locally, for example as a backup 
+All the trained model (diffusion and regression) are in this folder that mimic the structure of 'trained_model folder' of 
+local repository
+
+cluster folder: '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model'
+tree
+../trained_model
+    ├── diffusion
+    │   ├── eco
+    │   │   ├── trial_1
+    │   │   │   ├── vae
+    │   │   │   └── cond_ldm_1
+    │   ├── train
+    └── regression
+    │   │   ├── Batch2
+    │   │   │   ├── diastole
+    |   |   |   |   ├── trial_1
+    │   │   │   └── sistole (???)
+
+in a terminal without ssh connection
+scp -r alasala0@login.leonardo.cineca.it:<PERCORSO_REMOTO> <PERCORSO_LOCALE>
+
+example for single trial
+percorso_remoto: '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression/Batch2/diastole/trial_1'
+percorso_locale: '/media/angelo/OS/Users/lasal/OneDrive - Scuola Superiore Sant'Anna/PhD_notes/Echocardiografy/trained_model/regression/Batch2'
