@@ -14,7 +14,7 @@ dataset_params:
   im_size_h : 240  # 256
   im_size_w : 320  # 256
   name: 'eco'
-  dataset_batch: ['Batch3']  # dataset diffusion task, list of batch to be used 
+  dataset_batch: ['Batch1','Batch3','Batch4']  # dataset diffusion task, list of batch to be used 
   phase: 'diastole'
   dataset_batch_regression: 'Batch2'  # dataset batch for regression task, it nust be different from dataset_batch
   trial: 'trial_2'                    # trial for regression task
@@ -86,15 +86,15 @@ autoencoder_params:
 train_params:
   task_name: 'eco'
   seed : 1111
-  ldm_batch_size: 16
-  autoencoder_batch_size: 16   # 2: local for shape (240,320) - 4 or 8: cineca for shape (240, 320)
+  ldm_batch_size: 8
+  autoencoder_batch_size: 8   # 2: local for shape (240,320) - 4 or 8: cineca for shape (240, 320)
   disc_start: 2
   disc_weight: 0.5
   codebook_weight: 1
   commitment_beta: 0.2
   perceptual_weight: 1
   kl_weight: 0.000005
-  ldm_epochs : 100
+  ldm_epochs : 150
   autoencoder_epochs : 100
   num_samples : 25
   num_grid_rows : 5
@@ -102,4 +102,4 @@ train_params:
   autoencoder_lr: 0.0001
   autoencoder_acc_steps : 1
   autoencoder_img_save_steps : 8
-  save_frequency : 20
+  save_frequency : 10
