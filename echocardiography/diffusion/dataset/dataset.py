@@ -161,10 +161,10 @@ class EcoDataset():
                 # this is equal to how i load the data for the regression without the data augumentation
                 # heatmaps_label = self.get_heatmap(index) ## old version for 'DATA'
                 heatmaps_label = np.load(os.path.join(self.data_dir_heatmap, patient_hash+'.npy')).astype(np.float32)
-                if np.isnan(heatmaps_label).any(): # as the drop_out_cond
-                    heatmaps_label = np.nan_to_num(heatmaps_label)
-                else:
-                    heatmaps_label = heatmaps_label
+                # if np.isnan(heatmaps_label).any(): # as the drop_out_cond
+                #     heatmaps_label = np.nan_to_num(heatmaps_label)
+                # else:
+                #     heatmaps_label = heatmaps_label
                 im_tensor, heatmaps_label = self.trasform(im, heatmaps_label)
                 # print(type(heatmaps_label), heatmaps_label.shape)
                 #plot the image and the heatmaps_labels
