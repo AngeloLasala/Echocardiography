@@ -9,7 +9,7 @@
 #SBATCH --output=cond_ldm.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-python -m echocardiography.diffusion.tools.train_cond_ldm --data eco_image_cond\
+python -m echocardiography.diffusion.tools.train_cond_ldm --data eco_image_cond_all_batch\
           --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco'\
           --trial trial_2
  
