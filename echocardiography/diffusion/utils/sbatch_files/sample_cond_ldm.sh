@@ -9,7 +9,7 @@
 #SBATCH --output=cond_ldm.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-for i in 20 40 60 80 100
+for i in 20
 do
     python -m echocardiography.diffusion.tools.sample_cond_ldm --data eco_image_cond\
             --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/'\
