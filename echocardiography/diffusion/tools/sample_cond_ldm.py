@@ -265,13 +265,13 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w):
     ########## Load Unet #############
     model = Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
     model.eval()
-    model_dir = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial, experiment)
+    model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
     model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
    
     #####################################
     
     ########## Load AUTOENCODER #############
-    trial_folder = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
+    trial_folder = os.path.join(par_dir, dataset_config['name'], trial)
     assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
     print(os.listdir(trial_folder))
     if 'vae' in os.listdir(trial_folder):
@@ -308,10 +308,11 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
     parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco, eco_image_cond') 
+    parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model, default = trained_model')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model, it is the trial folde that contain the VAE model')
     parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
-    parser.add_argument('--epoch', type=int, default=49, help='epoch to sample, this is the epoch of cond ldm model')
+    parser.add_argument('--epoch', type=int, default=100, help='epoch to sample, this is the epoch of cond ldm model')
     parser.add_argument('--guide_w', type=float, default=0.0, help='guide_w for the conditional model, w=-1 [unconditional], w=0 [vanilla conditioning], w>0 [guided conditional]')
 
     # mp.set_start_method("spawn")
@@ -321,7 +322,7 @@ if __name__ == '__main__':
     current_directory = os.path.dirname(__file__)
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
-    save_folder = os.path.join(par_dir, 'trained_model', args.trial)
+    # save_folder = os.path.join(par_dir, 'trained_model', args.trial)
     infer(par_dir = par_dir, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
     plt.show()
 
