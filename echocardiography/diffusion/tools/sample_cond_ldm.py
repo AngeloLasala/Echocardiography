@@ -19,7 +19,7 @@ from tqdm import tqdm
 from echocardiography.diffusion.models.unet_cond_base import Unet, get_config_value
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE
-from echocardiography.diffusion.scheduler import LinearNoiseScheduler
+from echocardiography.diffusion.sheduler.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from echocardiography.diffusion.tools.infer_vae import get_best_model
 from torch.utils.data import DataLoader
@@ -69,10 +69,16 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
 
     print('DIMENSION OF THE LATENT SPACE: ', autoencoder_model_config['z_channels'])
 
-    data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
-                              im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
-                              dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
-                              condition_config=condition_config)
+    print('dataset', dataset_config['dataset_batch'])
+    data_list = []
+    for dataset_batch in dataset_config['dataset_batch']:
+        data_batch = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
+                            parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'],
+                            condition_config=condition_config)
+        data_list.append(data_batch)
+    
+    data_img = torch.utils.data.ConcatDataset(data_list)
+    print('len of the dataset', len(data_img))
     data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=False, num_workers=8)
 
     ## if the condition is 'text' i have to load the text model
@@ -290,11 +296,11 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w):
     #####################################
 
     ######### Create output directories #############
-    save_folder = os.path.join(model_dir, f'w_{guide_w}', f'samples_ep_{epoch}')
+    save_folder = os.path.join(model_dir, f'waaa_{guide_w}', f'samples_ep_{epoch}')
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
     else:
-        overwrite = input("The save folder already exists. Do you want to overwrite it? (y/n): ")
+        overwrite = input(f"The save folder {save_folder} already exists. Do you want to overwrite it? (y/n): ")
         if overwrite.lower() != 'y':
             print("Training aborted.")
             exit()
@@ -323,6 +329,6 @@ if __name__ == '__main__':
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
     # save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = par_dir, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
+    infer(par_dir = args.save_folder, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
     plt.show()
 
