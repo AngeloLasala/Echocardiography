@@ -5,26 +5,46 @@ w = -1 [unconditional] = the learned conditional model completely ignores the co
 w = 0 [vanilla conditional] =  the model explicitly learns the vanilla conditional distribution without guidance
 w > 0 [guided conditional] =  the diffusion model not only prioritizes the conditional score function, but also moves in the direction away from the unconditional score function
 """
+print('START CODE')
 import numpy as np
+print('imported numpy')
 import torch
+print('imported torch')
 import random
+print('imported random')
 import torchvision
+print('imported torchvision')
 import argparse
+print('imported argparse')
 import yaml
+print('imported yaml')
 import os
+print('imported os')
 from torchvision.utils import make_grid
+print('imported make_grid')
 from PIL import Image
+print('imported Image')
 from tqdm import tqdm
+print('imported tqdm')
 
 from echocardiography.diffusion.models.unet_cond_base import Unet, get_config_value
+print('imported unet')
 from echocardiography.diffusion.models.vqvae import VQVAE
+print('imported vqvae')
 from echocardiography.diffusion.models.vae import VAE
+print('imported vae')
 from echocardiography.diffusion.sheduler.scheduler import LinearNoiseScheduler
+print('imported LinearNoiseScheduler')
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
+print('imported dataset')
 from echocardiography.diffusion.tools.infer_vae import get_best_model
+print('imported get_best_model')
 from torch.utils.data import DataLoader
+print('imported DataLoader')
 from echocardiography.diffusion.tools.train_cond_ldm import get_text_embeddeing
+print('imported get_text_embeddeing')
 import torch.multiprocessing as mp
+print('imported mp')
 
 import matplotlib.pyplot as plt
 import cv2
