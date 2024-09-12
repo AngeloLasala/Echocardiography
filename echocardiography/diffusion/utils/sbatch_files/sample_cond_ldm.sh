@@ -9,11 +9,11 @@
 #SBATCH --output=sample_cond_ldm.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-for epoch in 20 40 60 80 100; do
-    for w in -1.0 0.0 0.2 0.4 0.6 1.0 4.0; do
-            python -m echocardiography.diffusion.tools.sample_cond_ldm --data eco_image_cond\
+for epoch in 50 100 150; do
+    for w in -1.0 0.0 0.2 0.4; do
+            python -m echocardiography.diffusion.tools.sample_cond_ldm --data eco_image_cond_all_batch\
                     --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/'\
-                    --trial trial_1\
+                    --trial trial_2\
                     --experiment cond_ldm_1\
                     --epoch $epoch\
                     --guide_w $w
