@@ -11,7 +11,7 @@
 
 for w in -1.0 0.0 0.2 0.4; do
     python -m echocardiography.diffusion.evaluate.fid\
-                    --par_dirpwd '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco'\
+                    --par_dir '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco'\
                     --trial trial_2\
                     --experiment cond_ldm_1\
                     --guide_w $w
