@@ -15,9 +15,9 @@ from PIL import Image
 from scipy import linalg
 from torch.nn.functional import adaptive_avg_pool2d
 import matplotlib.pyplot as plt
-
+print('loading inception')
 from pytorch_fid.inception import InceptionV3
-
+print('FINISH')
 class ImagePathDataset(torch.utils.data.Dataset):
     def __init__(self, files, transforms=None):
         self.files = files
