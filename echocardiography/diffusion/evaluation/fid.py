@@ -10,7 +10,6 @@ import numpy as np
 import pathlib
 from PIL import Image
 from torchvision import transforms
-from tqdm import tqdm
 import torchvision.transforms as TF
 from PIL import Image
 from scipy import linalg
@@ -82,7 +81,7 @@ def get_activations(
 
     start_idx = 0
 
-    for batch in tqdm(dataloader):
+    for batch in dataloader:
         batch = batch.to(device)
 
         with torch.no_grad():
@@ -189,26 +188,47 @@ def calculate_activation_statistics(
 
 
 def compute_statistics_of_path(path, model, batch_size, dims, device, num_workers=1):
-    if path.endswith(".npz"):
-        with np.load(path) as f:
-            m, s = f["mu"][:], f["sigma"][:]
-    else:
-        path = pathlib.Path(path)
-        files = sorted(
-            [file for ext in {"bmp", "jpg", "jpeg", "pgm", "png", "ppm", "tif", "tiff", "webp"} for file in path.glob("*.{}".format(ext))]
+    """
+    Compute the statistics of the images in the list of paths
+    """
+    files = []
+    for p in path:
+        p_path = pathlib.Path(p)
+        file_list = sorted(
+            [file for ext in {"bmp", "jpg", "jpeg", "pgm", "png", "ppm", "tif", "tiff", "webp"} for file in p_path.glob("*.{}".format(ext))]
         )
-        m, s = calculate_activation_statistics(
-            files, model, batch_size, dims, device, num_workers
-        )
+        files += file_list
+    m, s = calculate_activation_statistics(
+        files, model, batch_size, dims, device, num_workers
+    )
 
     return m, s
 
 
 def calculate_fid_given_paths(paths, batch_size, device, dims, num_workers=1):
-    """Calculates the FID of two paths"""
-    for p in paths:
-        if not os.path.exists(p):
-            raise RuntimeError("Invalid path: %s" % p)
+    """
+    Calculates the FID of two paths. I want ot generalize this ginev tuo set of paths
+    Params:
+    paths : list of two list [[real/path/1, real/path/2, ...],[fake/path/1, fake/path/2, ...]]
+            paths[0] list of paths of real images
+            paths[1] list of paths of fake images
+    batch_size  : batch size for the dataloader
+    device      : device to run calculations
+    dims        : dimensionality of features returned by Inception
+    num_workers : number of parallel dataloader workers
+    
+    """
+    ## check the leangth of the paths, must be two
+    if len(paths) != 2:
+        raise ValueError("Expected two list of paths, got %d" % len(paths))
+
+    for reals in paths[0]:
+        if not os.path.exists(reals):
+            raise RuntimeError("Invalid path: %s" % reals)
+
+    for fakes in paths[1]:
+        if not os.path.exists(fakes):
+            raise RuntimeError("Invalid path: %s" % fakes)
 
     block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
 
@@ -267,12 +287,17 @@ def fid_epoch(conf, experiment_dir, epoch, batch_size=50, device=None, dims=2048
     dataset_config = config['dataset_params']
     
     # Real train images
-    current_dir = os.getcwd()
-    while current_dir.split('/')[-1] != 'echocardiography':
-        current_dir = os.path.dirname(current_dir)
-    data_dir_regre = os.path.join(current_dir, 'regression')
-    data_real = os.path.join(data_dir_regre, 'DATA', dataset_config['dataset_batch'], dataset_config['split'], dataset_config['phase'], 'image')
-    
+    # current_dir = os.getcwd()
+    # while current_dir.split('/')[-1] != 'echocardiography':
+    #     current_dir = os.path.dirname(current_dir)
+    # data_dir_regre = os.path.join(current_dir, 'regression')
+    # data_real = os.path.join(data_dir_regre, 'DATA', dataset_config['dataset_batch'], dataset_config['split'], dataset_config['phase'], 'image')
+    # data_real = []
+    for batch in dataset_config['dataset_batch']:
+        data_real = os.path.join(dataset_config['parent_dir'], dataset_config['im_path'], batch,
+                             dataset_config['split'], dataset_config['phase'], 'image')
+        # data_real += data_batch
+
     # Fake images validation
     data_fake = os.path.join(experiment_dir, f'samples_ep_{epoch}')
 
@@ -310,17 +335,16 @@ def fid_experiment(conf, experiment_dir, batch_size=50, device=None, dims=2048, 
 
     dataset_config = config['dataset_params']
     
-    # Real train images
-    current_dir = os.getcwd()
-    while current_dir.split('/')[-1] != 'echocardiography':
-        current_dir = os.path.dirname(current_dir)
-    data_dir_regre = os.path.join(current_dir, 'regression')
-    data_real = os.path.join(data_dir_regre, 'DATA', dataset_config['dataset_batch'], dataset_config['split'], dataset_config['phase'], 'image')
-    
+    data_real = []
+    for batch in dataset_config['dataset_batch']:
+        data_batch = os.path.join(dataset_config['parent_dir'], dataset_config['im_path'], batch,
+                             dataset_config['split'], dataset_config['phase'], 'image')
+        data_real.append(data_batch)
+
     # Fake images validation
     fid_values = {}
     for epoch in epoch_list:
-        data_fake = os.path.join(experiment_dir, f'samples_ep_{epoch}')
+        data_fake = [os.path.join(experiment_dir, f'samples_ep_{epoch}')]
         fid_value = calculate_fid_given_paths([data_real, data_fake], batch_size, device, dims, num_workers)
         fid_values[epoch] = fid_value
 
@@ -330,6 +354,10 @@ def fid_experiment(conf, experiment_dir, batch_size=50, device=None, dims=2048, 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute FID score.")
+    parser.add_argument('--par_dir', type=str, default='/home/angelo/Documents/Echocardiography/echocardiography/diffusion/trained_model/eco',
+                         help="""parent directory of the trained model
+                        local: /home/angelo/Documents/Echocardiography/echocardiography/diffusion/trained_model/eco
+                        cluster: /leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco""")
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model, it is the trial folde that contain the VAE model')
     parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
@@ -341,11 +369,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     device = torch.device("cuda" if (torch.cuda.is_available()) else "cpu")
 
-    current_directory = os.path.dirname(__file__)
-    par_dir = os.path.dirname(current_directory)
-    par_dir = os.path.join(par_dir, 'trained_model', 'eco')
+    # current_directory = os.path.dirname(__file__)
+    # par_dir = os.path.dirname(current_directory)
+    # par_dir = os.path.join(par_dir, 'trained_model', 'eco')
 
-    experiment_dir = os.path.join(par_dir, args.trial, args.experiment)
+    experiment_dir = os.path.join(args.par_dir, args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
     experiment_dir_w = os.path.join(experiment_dir, f'w_{args.guide_w}')
     
@@ -367,17 +395,7 @@ if __name__ == "__main__":
         ax.grid('dotted')
         plt.savefig(os.path.join(experiment_dir, 'FID_score.png'))
         plt.show()
-    ## FROM PATH
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # num_workers = 4
-    # batch_size = 50
-    # dims = 2048
-    
-    # path_real_train = '...'
-
-
-    # fid_value = calculate_fid_given_paths([path,path], batch_size, device, dims, num_workers)
-    # print("FID: ", fid_value)
+ 
 
    
     
