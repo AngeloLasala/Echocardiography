@@ -110,22 +110,29 @@ To sample a set of synthetic images use the following comand line
 python tools/sample_ldm.py --data eco --trial trial_#n --epoch #_epoch
 ```
 
-The *condition Latent Diffusion Model (condLDM)* sample a condiotional distrubution given the heatmaps of LVPW, LVID and IVS keypoints. To train the condLDM run the following code
+The *condition Latent Diffusion Model (condLDM)* sample a condiotional distrubution given the heatmaps of LVPW, LVID and IVS keypoints. To train the condLDM run the following code. The classifier-free guidelines allow to train simultaneouslly the conditional and the unconditional network, the 'guide_w' set the weoght of the condition during the sampling. in the yaml conf file set the `cond_drop_prob` for the dropout of the condition.
+
 
 ```bash
 python tools/train_cond_ldm.py --data eco_image_cond --vae_train train_#n
 ```
 
-for the sampling:
+The sampling follow the classifier-free guidance:
+
+guide_w = -1 [unconditional model] = the learned conditional model completely ignores the conditioner and learns an unconditional diffusion model
+guide_w = 0 [vanilla conditional] =  the model explicitly learns the vanilla conditional distribution without guidance
+guide_w > 0 [guided conditional] =  the diffusion model not only prioritizes the conditional score function, but also moves in the direction away 
+
+for the sampling, use the following command line:
 
 ```bash
-python tools/sample_cond_ldm.py --data eco_image_cond --trial trial_#n --epoch #epoch
+python tools/sample_cond_ldm.py --data eco_image_cond --trial trial_#n --epoch epoch --guide_w guide_w 
 ```
 
 ##### Evaluation
 The main score to evaluate the quality of generated images is Fréchet Inception Distance (FID). In this work we use the implementation in [official Pythorch implementation](https://github.com/mseitzer/pytorch-fid/tree/master?tab=readme-ov-file):
 
 ```bash
-python -m pytorch_fid.fid_score path_real path_gen
+python -m  path_real path_gen
 ```
 
