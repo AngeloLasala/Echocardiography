@@ -87,6 +87,7 @@ train_params:
   task_name: 'eco'
   seed : 1111
   ldm_batch_size: 8
+  ldm_batch_size_sample: 32
   autoencoder_batch_size: 8   # 2: local for shape (240,320) - 4 or 8: cineca for shape (240, 320)
   disc_start: 2
   disc_weight: 0.5
