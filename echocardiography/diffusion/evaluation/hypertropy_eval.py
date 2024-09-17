@@ -23,9 +23,11 @@ class GenerateDataset(torch.utils.data.Dataset):
     """
     Dataset of generated image loaded from the path
     """
-    def __init__(self, trial, experiment, epoch, size, input_channels):
+    def __init__(self, par_dir, trial, experiment, guide_w, epoch, size, input_channels):
+        self.par_dir = par_dir
         self.trial = trial
         self.experiment = experiment
+        self.guide_w = guide_w
         self.epoch = epoch
         self.size = size
         self.input_channels = input_channels
@@ -53,12 +55,7 @@ class GenerateDataset(torch.utils.data.Dataset):
         """
         retrive the path 'eco' from current directory
         """
-        current_dir = os.getcwd()
-
-        while current_dir.split('/')[-1] != 'echocardiography':
-            current_dir = os.path.dirname(current_dir)
-        data_dir_diff= os.path.join(current_dir, 'diffusion')
-        data_dir_diff_sample= os.path.join(data_dir_diff, 'trained_model', 'eco', self.trial, self.experiment, f'samples_ep_{self.epoch}')
+        data_dir_diff_sample= os.path.join(self.par_dir, self.trial, self.experiment, f'w_{self.guide_w}', f'samples_ep_{self.epoch}')
         return data_dir_diff_sample
 
 def get_hypertrophy_class(one_hot_label):
@@ -69,9 +66,42 @@ def get_hypertrophy_class(one_hot_label):
 
     return class_idx
 
+def get_echo_parameters_real(keypoints, calc_value, size):
+    """
+    Echocardio plax parameters for a batch of real image 
+    """
+    echo_par = []
+    for jj in range(keypoints.shape[0]):
+        label = keypoints[jj]
+        distances = []
+        for i in range(3):
+            x1, y1 = label[(i*4)] * size[1], label[(i*4)+1] * size[0]
+            x2, y2 = label[(i*4)+2] *size[1], label[(i*4)+3] *size[0]
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            distances.append(distance)
+        echo_par.append(distances)
+
+    return echo_par
+
 def get_hypertrophy_class_generated(model, generated_images):
     """
     Get the hypertrophy class from the generated images
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Model for the regression
+
+    generated_images : torch.Tensor
+        Generated images
+
+    Returns
+    -------
+    genereted_prediction : np.array
+                        predicted heatmaps
+
+    distances : list
+                list of echocardiografic parameters, lvpw lvid ivs
     """
     model.eval()
     with torch.no_grad():
@@ -79,21 +109,22 @@ def get_hypertrophy_class_generated(model, generated_images):
         generated_prediction = model(generated_images)
         generated_prediction = generated_prediction.cpu().numpy()
 
-        ## get coordinate from the heatmap
-        for jj in range(generated_prediction.shape[0]):
-            label = get_corrdinate_from_heatmap(generated_prediction[jj])
-            distances = []
-            for i in range(3):
-                x1, y1 = label[(i*4)], label[(i*4)+1]
-                x2, y2 = label[(i*4)+2], label[(i*4)+3]
-                distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-                distances.append(distance)
-            print(distances)
-        print()
+    ## get coordinate from the heatmap
+    echo_par = []
+    for jj in range(generated_prediction.shape[0]):
+        label = get_corrdinate_from_heatmap(generated_prediction[jj])
+        distances = []
+        for i in range(3):
+            x1, y1 = label[(i*4)], label[(i*4)+1]
+            x2, y2 = label[(i*4)+2], label[(i*4)+3]
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            distances.append(distance)
+        echo_par.append(distances)
 
-    return generated_prediction
+    return generated_prediction, echo_par
 
-def main(conf, epoch, show_plot=False):
+
+def main(conf, args_parser, epoch, show_plot=True):
     """
     Compute the alignment of the generated image with the given condition
     """
@@ -134,7 +165,7 @@ def main(conf, epoch, show_plot=False):
     for dataset_batch in dataset_config['dataset_batch']:
         data_batch = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
                             parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'],
-                            condition_config=condition_config)
+                            parent_dir_regression=dataset_config['parent_dir_regression'], dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'])
         data_list.append(data_batch)
     
     data_img = torch.utils.data.ConcatDataset(data_list)
@@ -142,53 +173,42 @@ def main(conf, epoch, show_plot=False):
     data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size']//2, shuffle=False, num_workers=8)
 
     ## load the regression model
-    # regression_model = data_img.get_model_regression().to(device)
-    # regression_model.eval()
-    # print(data_img.size)
+    regression_model = data_batch.get_model_regression().to(device)
+    regression_model.eval()
 
-
-    # ## load the generated image from path
-    # data_gen = GenerateDataset(trial=args.trial, experiment=args.experiment, epoch=epoch,
-    #                            size=(dataset_config['im_size'], dataset_config['im_size']), input_channels=dataset_config['im_channels'])
-    # data_loader_gen = DataLoader(data_gen, batch_size=train_config['ldm_batch_size']//2, shuffle=False, num_workers=8)
+    ## load the generated image from path
+    data_gen = GenerateDataset(par_dir=args_parser.par_dir, trial=args_parser.trial, experiment=args_parser.experiment, epoch=epoch, guide_w=args_parser.guide_w,
+                               size=(dataset_config['im_size_h'], dataset_config['im_size_w']), input_channels=dataset_config['im_channels'])
+    data_loader_gen = DataLoader(data_gen, batch_size=train_config['ldm_batch_size']//2, shuffle=False, num_workers=8)
 
     # for i in data_gen:
     #     print(i.shape)
-        
-    # for data, gen_data in zip(data_loader, data_loader_gen):
-    #     cond_input = None
-    #     if condition_config is not None:
-    #         im, cond_input = data  # im is the image (batch_size=8), cond_input is the conditional input ['image for the mask']
-    #         for key in cond_input.keys(): ## for all the type of condition, we move the  tensor on the device
-    #             cond_input[key] = cond_input[key].to(device)
-    #     else:
-    #         im = data
+    size = [dataset_config['im_size_h'], dataset_config['im_size_w']]   
+    for data, gen_data in zip(data_loader, data_loader_gen):
+        im, keypoint, calc_value = data
+        print(im.shape, gen_data.shape, keypoint.shape, calc_value.shape)
+
+        # convert the keypoint to numpy
+        echo = get_echo_parameters_real(keypoint.cpu().numpy(), calc_value.cpu().numpy(), size)
+        heatmap_gen, echo_gen = get_hypertrophy_class_generated(regression_model, im)
+        print('real echo', echo)
+        print('gen echo', echo_gen)
+        print()
+        # print(f'real echo: {echo_real}')
+        # print(f'gen echo: {echo_gen}')
 
 
-    #     print(get_hypertrophy_class(cond_input['class']))
-    #     real_labels = get_hypertrophy_class(cond_input['class'])
-
-    #     ## predict the label for the generated image
-    #     get_hypertrophy_class_generated(regression_model, gen_data)
-    #     print()
-
-
-    #     # plot the real and generate image
-    #     if show_plot:
-    #         for ii in range(train_config['ldm_batch_size']//2):
-    #             fig, ax = plt.subplots(1, 2, figsize=(12, 7), tight_layout=True)
-    #             #set the title
-    #             ax[0].set_title(f'Real image - class {real_labels[ii]}', fontsize=20)
-    #             ax[0].imshow(im[ii].squeeze().cpu().detach().numpy(), cmap='gray')
-    #             ax[1].imshow(gen_data[ii].squeeze().cpu().detach().numpy(), cmap='gray')
-    #             for aaa in ax:
-    #                 aaa.axis('off')
-    #         plt.show()
-
-
-        
-        
-    
+        # # plot the real and generate image
+        if show_plot:
+            for ii in range(train_config['ldm_batch_size']//2):
+                fig, ax = plt.subplots(1, 2, figsize=(12, 7), tight_layout=True)
+                #set the title
+                # ax[0].set_title(f'Real image - class {real_labels[ii]}', fontsize=20)
+                ax[0].imshow(im[ii].squeeze().cpu().detach().numpy(), cmap='gray')
+                ax[1].imshow(gen_data[ii].squeeze().cpu().detach().numpy(), cmap='gray')
+                for aaa in ax:
+                    aaa.axis('off')
+            plt.show()
 
 
    
@@ -214,5 +234,5 @@ if __name__ == '__main__':
     experiment_dir = os.path.join(args.par_dir, args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
     
-    epoch = 100
-    main(config, epoch=epoch)
+    epoch = 80
+    main(config, args_parser=args, epoch=epoch)

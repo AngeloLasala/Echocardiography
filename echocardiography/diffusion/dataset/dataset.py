@@ -116,7 +116,7 @@ class EcoDataset():
     I want the general version to get only the path of parent path of the 'DATA' for external folder.
     """
     def __init__(self, split, size, parent_dir, im_path, dataset_batch, phase,  
-                dataset_batch_regression=None, trial=None, condition_config=None, im_ext='png'):
+                parent_dir_regression=None, dataset_batch_regression=None, trial=None, condition_config=None, im_ext='png'):
         self.split = split
         self.im_ext = im_ext
         self.size = size
@@ -128,6 +128,7 @@ class EcoDataset():
         self.phase = phase                 ## cardiac phase: 'diastole' or 'systole'
         
         ## regression part
+        self.parent_dir_regression = parent_dir_regression
         self.trial = trial     ## trial number for the trained model for regression
         self.dataset_batch_regression = dataset_batch_regression ## 'Batch_n' number of batch in Echonet-LVH, task regression
 
@@ -142,7 +143,6 @@ class EcoDataset():
         ## spatial condition 
         # self.train_dir = ## add the file path to be compatible with the function get_model_regression 
 
-
         self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(os.path.join(self.data_dir))]
 
     def __len__(self):
@@ -154,44 +154,16 @@ class EcoDataset():
         # print(im.size, keypoints_label, calc_value_list)
         cond_inputs = {}    ## add to this dict the condition inputs
         if len(self.condition_types) > 0:  # check if there is at least one condition in ['class', 'text', 'image']
-            
+
             ################ IMAGE CONDITION ###################################
             if 'image' in self.condition_types:
                 ## NEW VERSION. get the heatmaps from the label
                 # this is equal to how i load the data for the regression without the data augumentation
                 # heatmaps_label = self.get_heatmap(index) ## old version for 'DATA'
                 heatmaps_label = np.load(os.path.join(self.data_dir_heatmap, patient_hash+'.npy')).astype(np.float32)
-                # if np.isnan(heatmaps_label).any(): # as the drop_out_cond
-                #     heatmaps_label = np.nan_to_num(heatmaps_label)
-                # else:
-                #     heatmaps_label = heatmaps_label
                 im_tensor, heatmaps_label = self.trasform(im, heatmaps_label)
-                # print(type(heatmaps_label), heatmaps_label.shape)
-                #plot the image and the heatmaps_labels
-                # import matplotlib.pyplot as plt
-                # plt.figure()
-                # plt.imshow(im_tensor.squeeze(0).detach().numpy(), cmap='gray')
-                # plt.imshow(heatmaps_label[0].detach().numpy(), cmap='jet', alpha=0.5)
-                # plt.show()
                 calc_value_list = torch.tensor(calc_value_list)
                 cond_inputs['image'] = heatmaps_label
-
-                ## OLD VERSION. compute the heatmap for the regrassion network
-                ## load model and compute the heatmap
-                # model = self.get_model_regression()
-                # model.eval()
-                # with torch.no_grad():
-                #     image = torchvision.transforms.ToTensor()(im)
-                #     image = transforms.functional.normalize(image, (0.5), (0.5))    
-                #     image = image.unsqueeze(0)
-                #     image = image.to(device)
-                #     output = model(image).to(device)
-
-                # # Convert input to -1 to 1 range.
-                # im = im.convert('L')
-                # im_tensor = torchvision.transforms.ToTensor()(im)
-                # im_tensor = (2 * im_tensor) - 1
-                # cond_inputs['image'] = output[0]
             #####################################################################
 
             ###### CLASS CONDITION ##############################################
@@ -213,8 +185,8 @@ class EcoDataset():
                 resize = transforms.Resize(size=self.size)
                 image = resize(im)
                 im_tensor = (2 * im_tensor) - 1
-
-                cond_inputs['text'] = im_tensor   
+                cond_inputs['text'] = im_tensor
+            #####################################################################   
             
             return im_tensor, cond_inputs   
 
@@ -222,7 +194,10 @@ class EcoDataset():
             resize = transforms.Resize(size=self.size)
             image = resize(im)
             im_tensor = (2 * image) - 1
-            return im_tensor
+            if self.parent_dir_regression is not None:    
+                return im_tensor, keypoints_label, calc_value_list
+            else:
+                return im_tensor
 
     def get_image_label(self, index):
         """
@@ -252,10 +227,10 @@ class EcoDataset():
         ## da questi ricava i valori normalizzati alla self.size mentre il calc no!!
         keypoints_label, calc_value_list = [], []
         for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
-            x1_heart_part = lab[heart_part]['x1'] / im.size[0]
-            y1_heart_part = lab[heart_part]['y1'] / im.size[1]
-            x2_heart_part = lab[heart_part]['x2'] / im.size[0]
-            y2_heart_part = lab[heart_part]['y2'] / im.size[1]
+            x1_heart_part = lab[heart_part]['x1'] / lab[heart_part]['width']
+            y1_heart_part = lab[heart_part]['y1'] / lab[heart_part]['height']
+            x2_heart_part = lab[heart_part]['x2'] / lab[heart_part]['width']
+            y2_heart_part = lab[heart_part]['y2'] / lab[heart_part]['height']
             heart_part_value = lab[heart_part]['calc_value']
             keypoints_label.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
             calc_value_list.append(heart_part_value)
@@ -425,17 +400,16 @@ class EcoDataset():
         if self.dataset_batch_regression is None:
             raise ValueError('The dataset_batch_regression value is None, please provide a dataset_batch_regression value to get the model, i.e. Batch_1')
 
+        if self.parent_dir_regression is None:
+            raise ValueError("""The parent_dir_regression value is None, please provide a parent_dir_regression value to get the model, 
+                                i.e. /home/angelo/Documents/Echocardiography/echocardiography/regression/TRAINED_MODEL""")
+        
         if self.dataset_batch_regression == self.dataset_batch:
             raise ValueError('The dataset_batch_regression value is equal to the dataset_batch value, please provide a different value for dataset_batch_regression')
 
         
         ## get the current directory
-        current_dir = os.getcwd()
-        while current_dir.split('/')[-1] != 'echocardiography':
-            current_dir = os.path.dirname(current_dir)
-        data_dir = os.path.join(current_dir, 'regression')
-
-        train_dir = os.path.join(data_dir, 'TRAINED_MODEL', self.dataset_batch_regression, self.phase, self.trial) ## change this to the path of the trained model
+        train_dir = os.path.join(self.parent_dir_regression, self.dataset_batch_regression, self.phase, self.trial) ## change this to the path of the trained model
         with open(os.path.join(train_dir, 'args.json')) as json_file:
             trained_args = json.load(json_file)
         cfg = train_config(trained_args['target'], 

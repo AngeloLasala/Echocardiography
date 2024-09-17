@@ -16,8 +16,12 @@ dataset_params:
   name: 'eco'
   dataset_batch: ['Batch3']  # dataset diffusion task, list of batch to be used 
   phase: 'diastole'
+  ## trained model path is parent path where I collect the trained REGRESSION models
+  # local path: '/home/angelo/Documents/Echocardiography/echocardiography/regression/TRAINED_MODEL'
+  # cineca: '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression' 
+  parent_dir_regression: '/home/angelo/Documents/Echocardiography/echocardiography/regression/TRAINED_MODEL'  # path to the trained model
+  trial: 'trial_2'                    # trial for regression task - used for semantic conditioning and clinical validation
   dataset_batch_regression: 'Batch2'  # dataset batch for regression task, it nust be different from dataset_batch
-  trial: 'trial_2'                    # trial for regression task
 
 diffusion_params:
   num_timesteps : 1000
