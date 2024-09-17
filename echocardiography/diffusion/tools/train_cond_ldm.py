@@ -205,6 +205,7 @@ def train(par_dir, conf, trial):
 
             # Sample timestep
             t = torch.randint(0, diffusion_config['num_timesteps'], (im.shape[0],)).to(device)
+            
             # Add noise to images according to timestep
             noisy_im = scheduler.add_noise(im, noise, t)
             noise_pred = model(noisy_im, t, cond_input=cond_input)
