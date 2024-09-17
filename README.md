@@ -4,10 +4,10 @@ Analysis of PLAX echocardiography is conducted on the available dataset [Echonet
 The generation of a new PLAX view can be achieved by anatomically conditioning:
 - Chamber dimensions: dimensions of LVPW, LVID, and IVS (**!! important !!**: this is the order of the keyponts)
 - Classification of hypertrophy:
-    - Concentric hypertrophy: [1,0,0,0]- (rwt>0.42  lvm<200 : color red)
-    - Concentric remodeling:  [0,1,0,0]- (rwt>0.42  lvm<200 : color orange)
-    - Eccentric hypertrophy:  [0,0,1,0] - (rwt<0.42  lvm>200 : color olive)
-    - Normal geometry:        [0,0,0,1] - (rwt<0.42  lvm<200 : color green)
+    - Concentric hypertrophy: [1,0,0,0]- (rwt>0.42  lvm>200 : color red, class 0)
+    - Concentric remodeling:  [0,1,0,0]- (rwt>0.42  lvm<200 : color orange, class 1)
+    - Eccentric hypertrophy:  [0,0,1,0] - (rwt<0.42  lvm>200 : color olive, class 2)
+    - Normal geometry:        [0,0,0,1] - (rwt<0.42  lvm<200 : color green, class 3)
 
 ## Install
 Setting up a virtual environment and installing PyTorch following the [official guidelines](https://pytorch.org/get-started/locally/)
@@ -130,9 +130,10 @@ python tools/sample_cond_ldm.py --data eco_image_cond --trial trial_#n --epoch e
 ```
 
 ##### Evaluation
-The main score to evaluate the quality of generated images is Fréchet Inception Distance (FID). In this work we use the implementation in [official Pythorch implementation](https://github.com/mseitzer/pytorch-fid/tree/master?tab=readme-ov-file):
+The main score to evaluate the quality of generated images is Fréchet Inception Distance (FID). In this work, we use a revisited  implementation in [official Pythorch implementation](https://github.com/mseitzer/pytorch-fid/tree/master?tab=readme-ov-file):
+**Note:** the changes enable us to give a list of folder to incorporate ad real/fake images stored in different folder
 
 ```bash
-python -m  path_real path_gen
+python -m  evaluation/fid.py --trial trial_#n --experiment cond_ldm_#n --guide_w guide_w
 ```
 
