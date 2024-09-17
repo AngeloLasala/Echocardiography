@@ -368,10 +368,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     device = torch.device("cuda" if (torch.cuda.is_available()) else "cpu")
 
-    # current_directory = os.path.dirname(__file__)
-    # par_dir = os.path.dirname(current_directory)
-    # par_dir = os.path.join(par_dir, 'trained_model', 'eco')
-
     experiment_dir = os.path.join(args.par_dir, args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
     experiment_dir_w = os.path.join(experiment_dir, f'w_{args.guide_w}')

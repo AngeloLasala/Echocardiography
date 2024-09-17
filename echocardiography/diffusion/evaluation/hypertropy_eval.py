@@ -1,5 +1,5 @@
 """
-Evaluate if the generete image are in lime with the given conditio
+Evaluate if the generete image are in lime with the given condition
 Note that it make sense only for conditioning model
 """
 import os
@@ -21,7 +21,7 @@ from PIL import Image
 
 class GenerateDataset(torch.utils.data.Dataset):
     """
-    Dataet of generated image loaded from the path
+    Dataset of generated image loaded from the path
     """
     def __init__(self, trial, experiment, epoch, size, input_channels):
         self.trial = trial
@@ -128,53 +128,62 @@ def main(conf, epoch, show_plot=False):
         'eco': EcoDataset,
     }.get(dataset_config['name'])    
 
-    data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size'], dataset_config['im_size']), 
-                              im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
-                              dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
-                              condition_config=condition_config)
+    ## Load the Validation dataset
+    print('dataset', dataset_config['dataset_batch'])
+    data_list = []
+    for dataset_batch in dataset_config['dataset_batch']:
+        data_batch = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
+                            parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'],
+                            condition_config=condition_config)
+        data_list.append(data_batch)
+    
+    data_img = torch.utils.data.ConcatDataset(data_list)
+    print('len of the dataset', len(data_img))
     data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size']//2, shuffle=False, num_workers=8)
-    regression_model = data_img.get_model_regression().to(device)
-    regression_model.eval()
-    print(data_img.size)
+
+    ## load the regression model
+    # regression_model = data_img.get_model_regression().to(device)
+    # regression_model.eval()
+    # print(data_img.size)
 
 
-    ## load the generated image from path
-    data_gen = GenerateDataset(trial=args.trial, experiment=args.experiment, epoch=epoch,
-                               size=(dataset_config['im_size'], dataset_config['im_size']), input_channels=dataset_config['im_channels'])
-    data_loader_gen = DataLoader(data_gen, batch_size=train_config['ldm_batch_size']//2, shuffle=False, num_workers=8)
+    # ## load the generated image from path
+    # data_gen = GenerateDataset(trial=args.trial, experiment=args.experiment, epoch=epoch,
+    #                            size=(dataset_config['im_size'], dataset_config['im_size']), input_channels=dataset_config['im_channels'])
+    # data_loader_gen = DataLoader(data_gen, batch_size=train_config['ldm_batch_size']//2, shuffle=False, num_workers=8)
 
-    for i in data_gen:
-        print(i.shape)
+    # for i in data_gen:
+    #     print(i.shape)
         
-    for data, gen_data in zip(data_loader, data_loader_gen):
-        cond_input = None
-        if condition_config is not None:
-            im, cond_input = data  # im is the image (batch_size=8), cond_input is the conditional input ['image for the mask']
-            for key in cond_input.keys(): ## for all the type of condition, we move the  tensor on the device
-                cond_input[key] = cond_input[key].to(device)
-        else:
-            im = data
+    # for data, gen_data in zip(data_loader, data_loader_gen):
+    #     cond_input = None
+    #     if condition_config is not None:
+    #         im, cond_input = data  # im is the image (batch_size=8), cond_input is the conditional input ['image for the mask']
+    #         for key in cond_input.keys(): ## for all the type of condition, we move the  tensor on the device
+    #             cond_input[key] = cond_input[key].to(device)
+    #     else:
+    #         im = data
 
 
-        print(get_hypertrophy_class(cond_input['class']))
-        real_labels = get_hypertrophy_class(cond_input['class'])
+    #     print(get_hypertrophy_class(cond_input['class']))
+    #     real_labels = get_hypertrophy_class(cond_input['class'])
 
-        ## predict the label for the generated image
-        get_hypertrophy_class_generated(regression_model, gen_data)
-        print()
+    #     ## predict the label for the generated image
+    #     get_hypertrophy_class_generated(regression_model, gen_data)
+    #     print()
 
 
-        # plot the real and generate image
-        if show_plot:
-            for ii in range(train_config['ldm_batch_size']//2):
-                fig, ax = plt.subplots(1, 2, figsize=(12, 7), tight_layout=True)
-                #set the title
-                ax[0].set_title(f'Real image - class {real_labels[ii]}', fontsize=20)
-                ax[0].imshow(im[ii].squeeze().cpu().detach().numpy(), cmap='gray')
-                ax[1].imshow(gen_data[ii].squeeze().cpu().detach().numpy(), cmap='gray')
-                for aaa in ax:
-                    aaa.axis('off')
-            plt.show()
+    #     # plot the real and generate image
+    #     if show_plot:
+    #         for ii in range(train_config['ldm_batch_size']//2):
+    #             fig, ax = plt.subplots(1, 2, figsize=(12, 7), tight_layout=True)
+    #             #set the title
+    #             ax[0].set_title(f'Real image - class {real_labels[ii]}', fontsize=20)
+    #             ax[0].imshow(im[ii].squeeze().cpu().detach().numpy(), cmap='gray')
+    #             ax[1].imshow(gen_data[ii].squeeze().cpu().detach().numpy(), cmap='gray')
+    #             for aaa in ax:
+    #                 aaa.axis('off')
+    #         plt.show()
 
 
         
@@ -185,12 +194,15 @@ def main(conf, epoch, show_plot=False):
    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Compute hypertrophy loss score.")
+    parser.add_argument('--par_dir', type=str, default='/home/angelo/Documents/Echocardiography/echocardiography/diffusion/trained_model/eco',
+                         help="""parent directory of the trained model
+                        local: /home/angelo/Documents/Echocardiography/echocardiography/diffusion/trained_model/eco
+                        cluster: /leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco""")
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model, it is the trial folde that contain the VAE model')
     parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
-    parser.add_argument('--show_plot', action='store_true', help="show and save the FID plot, default=False")
-
-
+    parser.add_argument('--guide_w', type=float, default=0.0, help='guide_w for the conditional model, w=-1 [unconditional], w=0 [vanilla conditioning], w>0 [guided conditional]')
+    
     # parser.add_argument('--epoch', type=int, default=99, help='epoch to sample, this is the epoch of cond ldm model')
     args = parser.parse_args()
     device = torch.device("cuda" if (torch.cuda.is_available()) else "cpu")
@@ -199,7 +211,7 @@ if __name__ == '__main__':
     par_dir = os.path.dirname(current_directory)
     par_dir = os.path.join(par_dir, 'trained_model', 'eco')
 
-    experiment_dir = os.path.join(par_dir, args.trial, args.experiment)
+    experiment_dir = os.path.join(args.par_dir, args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
     
     epoch = 100
