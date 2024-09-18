@@ -151,8 +151,6 @@ def train(par_dir, conf, trial):
 
             optimizer.zero_grad()
             im = im.float().to(device)
-            print(im.shape)
-            print(cond_input['image'].shape)
 
             #############    Handiling the condition input ########################################
             if 'image' in condition_types:

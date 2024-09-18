@@ -5,7 +5,7 @@ dataset_params:
   #            2) '/media/angelo/OS/Users/lasal/Desktop' with 'DATA_h' from settember 2024
   # one drive: '...'
   # cineca: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'
-  parent_dir: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'   
+  parent_dir: '/media/angelo/OS/Users/lasal/Desktop'   
   im_path: 'DATA_h'        # 'DATA_h' from settember 2024, compatible with cineca
   split: 'train'
   split_val: 'val'
