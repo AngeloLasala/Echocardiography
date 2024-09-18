@@ -14,7 +14,7 @@ dataset_params:
   im_size_h : 240  # 256
   im_size_w : 320  # 256
   name: 'eco'
-  dataset_batch: ['Batch3', 'Batch1', 'Batch4']  # dataset batch for diffusion task
+  dataset_batch: ['Batch1', 'Batch3', 'Batch4']  # dataset batch for diffusion task
   phase: 'diastole'
   ## trained model path is parent path where I collect the trained REGRESSION models
   # local path: '/home/angelo/Documents/Echocardiography/echocardiography/regression/TRAINED_MODEL'
