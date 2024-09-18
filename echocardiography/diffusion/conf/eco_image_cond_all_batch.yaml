@@ -5,7 +5,7 @@ dataset_params:
   #            2) '/media/angelo/OS/Users/lasal/Desktop' with 'DATA_h' from settember 2024
   # one drive: '...'
   # cineca: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'
-  parent_dir: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'   
+  parent_dir: '/media/angelo/OS/Users/lasal/Desktop'   
   im_path: 'DATA_h'        # 'DATA_h' from settember 2024, compatible with cineca
   split: 'train'
   split_val: 'val'
@@ -32,7 +32,7 @@ diffusion_params:
 ldm_params:
   down_channels: [ 128, 256, 256, 256]
   mid_channels: [ 256, 256 ]
-  down_sample: [ False, True, False]
+  down_sample: [ True, True, True]    ## [True, True, True] for the DDPM model, [False, True, False] for the LDM model
   attn_down : [True, True, True]
   time_emb_dim: 256
   norm_channels: 32
