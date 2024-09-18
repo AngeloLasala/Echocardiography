@@ -183,33 +183,56 @@ def main(conf, args_parser, epoch, show_plot=True):
 
     # for i in data_gen:
     #     print(i.shape)
-    size = [dataset_config['im_size_h'], dataset_config['im_size_w']]   
+    size = [dataset_config['im_size_h'], dataset_config['im_size_w']]
+    eco_list_real, rwt_real, rst_real = [], [], []
+    eco_list_gen, rwt_gen, rst_gen = [], [], []
     for data, gen_data in zip(data_loader, data_loader_gen):
         im, keypoint, calc_value = data
-        print(im.shape, gen_data.shape, keypoint.shape, calc_value.shape)
 
         # convert the keypoint to numpy
         echo = get_echo_parameters_real(keypoint.cpu().numpy(), calc_value.cpu().numpy(), size)
-        heatmap_gen, echo_gen = get_hypertrophy_class_generated(regression_model, im)
-        print('real echo', echo)
-        print('gen echo', echo_gen)
-        print()
-        # print(f'real echo: {echo_real}')
-        # print(f'gen echo: {echo_gen}')
+        heatmap_gen, echo_gen = get_hypertrophy_class_generated(regression_model, gen_data)
+        for i_real, j_gen in zip(echo, echo_gen):
+            eco_list_real.append(i_real)
+            eco_list_gen.append(j_gen)
+            rwt_real.append(2*i_real[0]/i_real[1])
+            rwt_gen.append(j_gen[0]/j_gen[1])
+            rst_real.append(i_real[2]/i_real[1])
+            rst_gen.append(j_gen[2]/j_gen[1])
+
+    eco_list_real, rwt_real, rst_real = np.array(eco_list_real), np.array(rwt_real), np.array(rst_real)
+    eco_list_gen, rwt_gen, rst_gen = np.array(eco_list_gen), np.array(rwt_gen), np.array(rst_gen)
+    print(eco_list_real.shape, rwt_real.shape, rst_real.shape)
+    print(eco_list_gen.shape, rwt_gen.shape, rst_gen.shape)
+    for i, j in zip(rwt_gen, rst_real):
+        print(f'rwt gen: {i:.4f}, real: {j:.4f}')
+
+    ## create the evlautation of if does not exist
+    hypertrophy_evaluation_path = os.path.join(args_parser.par_dir, args_parser.trial, args_parser.experiment, 'hypertrophy_evaluation', f'w_{args_parser.guide_w}')
+    if not os.path.exists(hypertrophy_evaluation_path):
+        os.makedirs(hypertrophy_evaluation_path)
+
+    ## save the evaluation
+    np.save(os.path.join(hypertrophy_evaluation_path, f'eco_list_real_{epoch}.npy'), eco_list_real)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'eco_list_gen_{epoch}.npy'), eco_list_gen)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'rwt_real_{epoch}.npy'), rwt_real)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'rwt_gen_{epoch}.npy'), rwt_gen)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'rst_real_{epoch}.npy'), rst_real)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'rst_gen_{epoch}.npy'), rst_gen)
+
 
 
         # # plot the real and generate image
-        if show_plot:
-            for ii in range(train_config['ldm_batch_size']//2):
-                fig, ax = plt.subplots(1, 2, figsize=(12, 7), tight_layout=True)
-                #set the title
-                # ax[0].set_title(f'Real image - class {real_labels[ii]}', fontsize=20)
-                ax[0].imshow(im[ii].squeeze().cpu().detach().numpy(), cmap='gray')
-                ax[1].imshow(gen_data[ii].squeeze().cpu().detach().numpy(), cmap='gray')
-                for aaa in ax:
-                    aaa.axis('off')
-            plt.show()
-
+        # if show_plot:
+        #     for ii in range(train_config['ldm_batch_size']//2):
+        #         fig, ax = plt.subplots(1, 2, figsize=(12, 7), tight_layout=True)
+        #         #set the title
+        #         # ax[0].set_title(f'Real image - class {real_labels[ii]}', fontsize=20)
+        #         ax[0].imshow(im[ii].squeeze().cpu().detach().numpy(), cmap='gray')
+        #         ax[1].imshow(gen_data[ii].squeeze().cpu().detach().numpy(), cmap='gray')
+        #         for aaa in ax:
+        #             aaa.axis('off')
+        #     plt.show()
 
    
 if __name__ == '__main__':
