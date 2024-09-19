@@ -13,7 +13,7 @@ from torchvision import transforms
 from echocardiography.diffusion.models.unet_cond_base import get_config_value
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from torch.utils.data import DataLoader
-from echocardiography.regression.utils import echocardiografic_parameters, get_corrdinate_from_heatmap
+from echocardiography.regression.utils import echocardiografic_parameters, get_corrdinate_from_heatmap, get_corrdinate_from_heatmap_ellipses
 
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -83,7 +83,7 @@ def get_echo_parameters_real(keypoints, calc_value, size):
 
     return echo_par
 
-def get_hypertrophy_class_generated(model, generated_images):
+def get_hypertrophy_class_generated(model, generated_images, method_center='ellipses'):
     """
     Get the hypertrophy class from the generated images
 
@@ -112,7 +112,9 @@ def get_hypertrophy_class_generated(model, generated_images):
     ## get coordinate from the heatmap
     echo_par = []
     for jj in range(generated_prediction.shape[0]):
-        label = get_corrdinate_from_heatmap(generated_prediction[jj])
+        if method_center == 'max_value' : label = get_corrdinate_from_heatmap(generated_prediction[jj])
+        if method_center == 'ellipses': label = get_corrdinate_from_heatmap_ellipses(generated_prediction[jj])
+
         distances = []
         for i in range(3):
             x1, y1 = label[(i*4)], label[(i*4)+1]
@@ -124,7 +126,7 @@ def get_hypertrophy_class_generated(model, generated_images):
     return generated_prediction, echo_par
 
 
-def main(conf, args_parser, epoch, show_plot=True):
+def main(conf, args_parser, show_plot=True):
     """
     Compute the alignment of the generated image with the given condition
     """
@@ -165,7 +167,7 @@ def main(conf, args_parser, epoch, show_plot=True):
     for dataset_batch in dataset_config['dataset_batch']:
         data_batch = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
                             parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'],
-                            parent_dir_regression=dataset_config['parent_dir_regression'], dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'])
+                            parent_dir_regression=args_parser.par_dir_regression, dataset_batch_regression=args_parser.batch_regression, trial=args_parser.trial_regression)
         data_list.append(data_batch)
     
     data_img = torch.utils.data.ConcatDataset(data_list)
@@ -177,7 +179,7 @@ def main(conf, args_parser, epoch, show_plot=True):
     regression_model.eval()
 
     ## load the generated image from path
-    data_gen = GenerateDataset(par_dir=args_parser.par_dir, trial=args_parser.trial, experiment=args_parser.experiment, epoch=epoch, guide_w=args_parser.guide_w,
+    data_gen = GenerateDataset(par_dir=args_parser.par_dir, trial=args_parser.trial, experiment=args_parser.experiment, epoch=args_parser.epoch, guide_w=args_parser.guide_w,
                                size=(dataset_config['im_size_h'], dataset_config['im_size_w']), input_channels=dataset_config['im_channels'])
     data_loader_gen = DataLoader(data_gen, batch_size=train_config['ldm_batch_size']//2, shuffle=False, num_workers=8)
 
@@ -191,7 +193,7 @@ def main(conf, args_parser, epoch, show_plot=True):
 
         # convert the keypoint to numpy
         echo = get_echo_parameters_real(keypoint.cpu().numpy(), calc_value.cpu().numpy(), size)
-        heatmap_gen, echo_gen = get_hypertrophy_class_generated(regression_model, gen_data)
+        heatmap_gen, echo_gen = get_hypertrophy_class_generated(regression_model, gen_data, method_center=args_parser.method_center)
         for i_real, j_gen in zip(echo, echo_gen):
             eco_list_real.append(i_real)
             eco_list_gen.append(j_gen)
@@ -213,14 +215,12 @@ def main(conf, args_parser, epoch, show_plot=True):
         os.makedirs(hypertrophy_evaluation_path)
 
     ## save the evaluation
-    np.save(os.path.join(hypertrophy_evaluation_path, f'eco_list_real_{epoch}.npy'), eco_list_real)
-    np.save(os.path.join(hypertrophy_evaluation_path, f'eco_list_gen_{epoch}.npy'), eco_list_gen)
-    np.save(os.path.join(hypertrophy_evaluation_path, f'rwt_real_{epoch}.npy'), rwt_real)
-    np.save(os.path.join(hypertrophy_evaluation_path, f'rwt_gen_{epoch}.npy'), rwt_gen)
-    np.save(os.path.join(hypertrophy_evaluation_path, f'rst_real_{epoch}.npy'), rst_real)
-    np.save(os.path.join(hypertrophy_evaluation_path, f'rst_gen_{epoch}.npy'), rst_gen)
-
-
+    np.save(os.path.join(hypertrophy_evaluation_path, f'eco_list_real_{args_parser.epoch}.npy'), eco_list_real)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'eco_list_gen_{args_parser.epoch}.npy'), eco_list_gen)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'rwt_real_{args_parser.epoch}.npy'), rwt_real)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'rwt_gen_{args_parser.epoch}.npy'), rwt_gen)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'rst_real_{args_parser.epoch}.npy'), rst_real)
+    np.save(os.path.join(hypertrophy_evaluation_path, f'rst_gen_{args_parser.epoch}.npy'), rst_gen)
 
         # # plot the real and generate image
         # if show_plot:
@@ -240,22 +240,28 @@ if __name__ == '__main__':
     parser.add_argument('--par_dir', type=str, default='/home/angelo/Documents/Echocardiography/echocardiography/diffusion/trained_model/eco',
                          help="""parent directory of the trained model
                         local: /home/angelo/Documents/Echocardiography/echocardiography/diffusion/trained_model/eco
+                                /media/angelo/OS/Users/lasal/OneDrive - Scuola Superiore Sant'Anna/PhD_notes/Echocardiografy/trained_model/diffusion/eco
                         cluster: /leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco""")
+    parser.add_argument('--par_dir_regression', type=str, default='/home/angelo/Documents/Echocardiography/echocardiography/diffusion/trained_model/eco',
+                         help="""parent directory of the trained model
+                        local: /home/angelo/Documents/Echocardiography/echocardiography/regression/TRAINED_MODEL
+                               /media/angelo/OS/Users/lasal/OneDrive - Scuola Superiore Sant'Anna/PhD_notes/Echocardiografy/trained_model/regression
+                        cluster: /leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression/""")
+    parser.add_argument('--batch_regression', type=str, default='Batch2', help='batch of the regression model, default=Batch2')
+    parser.add_argument('--trial_regression', type=str, default='trial_3', help='trial name of regression network, default=trial_3')
+    parser.add_argument('--method_center', type=str, default='ellipses', help='method to compute the center of the heatmaps, default=ellipses')
+                    
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model, it is the trial folde that contain the VAE model')
     parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
     parser.add_argument('--guide_w', type=float, default=0.0, help='guide_w for the conditional model, w=-1 [unconditional], w=0 [vanilla conditioning], w>0 [guided conditional]')
-    
-    # parser.add_argument('--epoch', type=int, default=99, help='epoch to sample, this is the epoch of cond ldm model')
+    parser.add_argument('--epoch', type=int, default=99, help='epoch to sample, this is the epoch of cond ldm model') 
+
     args = parser.parse_args()
     device = torch.device("cuda" if (torch.cuda.is_available()) else "cpu")
 
-    current_directory = os.path.dirname(__file__)
-    par_dir = os.path.dirname(current_directory)
-    par_dir = os.path.join(par_dir, 'trained_model', 'eco')
 
     experiment_dir = os.path.join(args.par_dir, args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
     
-    epoch = 80
-    main(config, args_parser=args, epoch=epoch)
+    main(config, args_parser=args)
