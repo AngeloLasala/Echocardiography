@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
-#SBATCH --time=40:00                 # time limits: 1 hour
+#SBATCH --time=1:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
 #SBATCH --error=error_file.err       # standard error file
 #SBATCH --output=file_print.out      # standard output file
