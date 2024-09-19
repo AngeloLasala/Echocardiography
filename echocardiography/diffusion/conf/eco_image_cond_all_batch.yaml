@@ -39,7 +39,7 @@ ldm_params:
   num_heads: 1
   conv_out_channels : 128
   num_down_layers : 1
-  num_mid_layers : 2
+  num_mid_layers : 1
   num_up_layers : 1
   condition_config:
     condition_types: [ 'image' ]      # could be also ['class', 'text', 'image' ]: PUT THE DEFAULT VALUE AS 'image'
