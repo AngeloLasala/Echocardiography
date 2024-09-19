@@ -9,7 +9,7 @@
 #SBATCH --output=file_print.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-for i in 1 2 3 4 5 6 7 8 
+for i in 1 2 3 4 5 6 7 8 9
 do
    python -m echocardiography.regression.test --data_path "/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA_h" --model_path "/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression/" \
         --trial trial_$i \
