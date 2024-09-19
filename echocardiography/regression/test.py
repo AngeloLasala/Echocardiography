@@ -154,7 +154,6 @@ def percentage_error(label, output, target, size, method='max_value'):
     if target == 'heatmaps':
         ## compute the coordinate of the max value in the heatmaps
         label = get_corrdinate_from_heatmap(label)
-        
         if method == 'max_value': output = get_corrdinate_from_heatmap(output)
         if method == 'ellipses': output = get_corrdinate_from_heatmap_ellipses(output)
   
@@ -190,7 +189,7 @@ def percentage_error(label, output, target, size, method='max_value'):
 
     return distances_label, distances_output
 
-def keypoints_error(label, output, target, size):
+def keypoints_error(label, output, target, size, method='max_value'):
     """
     Compute the error of the position of the keypoints
     """
@@ -205,9 +204,12 @@ def keypoints_error(label, output, target, size):
         error = label - output
 
     if target == 'heatmaps':
-        ## compute the coordinate of the max value in the heatmaps
+
         label = get_corrdinate_from_heatmap(label)
-        output = get_corrdinate_from_heatmap(output)
+        if method == 'max_value': output = get_corrdinate_from_heatmap(output)
+        if method == 'ellipses': output = get_corrdinate_from_heatmap_ellipses(output)
+
+        ## compute the coordinate of the max value in the heatmaps
         label, output = np.array(label), np.array(output)
         error = label - output
 
@@ -220,7 +222,7 @@ def keypoints_error(label, output, target, size):
         error = label - output
     return error
 
-def echo_parameter_error(label, output, target, size):
+def echo_parameter_error(label, output, target, size, method='max_value'):
     """
     Compute the error of the echocardiografic parameters
     """
@@ -242,7 +244,8 @@ def echo_parameter_error(label, output, target, size):
     if target == 'heatmaps':
         ## compute the coordinate of the max value in the heatmaps
         label = get_corrdinate_from_heatmap(label)
-        output = get_corrdinate_from_heatmap(output)
+        if method == 'max_value': output = get_corrdinate_from_heatmap(output)
+        if method == 'ellipses': output = get_corrdinate_from_heatmap_ellipses(output)
 
         rwt_label, rst_label = echocardiografic_parameters(label)
         rwt_output, rst_output = echocardiografic_parameters(output)
@@ -382,8 +385,8 @@ if __name__ == '__main__':
                 label = labels[i]
                 output = outputs[i]
                 dist_label, dist_output = percentage_error(label=label, output=output, target=trained_args['target'], size=size, method=args.method_center)
-                err = keypoints_error(label, output, target=trained_args['target'], size=size)
-                parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'], size=size)
+                err = keypoints_error(label, output, target=trained_args['target'], size=size, method=args.method_center)
+                parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'], size=size, method=args.method_center)
                 if args.show_plot:
                     show_prediction(image, label, output, target=trained_args['target'], size=size)
                     plt.show()
