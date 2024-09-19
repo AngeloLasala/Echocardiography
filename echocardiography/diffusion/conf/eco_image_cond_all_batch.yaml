@@ -35,7 +35,7 @@ ldm_params:
   down_sample: [ True, True, True]    ## [True, True, True] for the DDPM model, [False, True, False] for the LDM model
   attn_down : [True, True, True]
   time_emb_dim: 256
-  norm_channels: 32
+  norm_channels: 8
   num_heads: 8
   conv_out_channels : 128
   num_down_layers : 2
