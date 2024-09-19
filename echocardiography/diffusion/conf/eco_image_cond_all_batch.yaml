@@ -36,7 +36,7 @@ ldm_params:
   attn_down : [True, True, True]
   time_emb_dim: 256
   norm_channels: 8
-  num_heads: 8
+  num_heads: 4
   conv_out_channels : 128
   num_down_layers : 2
   num_mid_layers : 2
