@@ -31,11 +31,14 @@ def get_corrdinate_from_heatmap_ellipses(heatmap):
         ## fit ellispse
         _, mask = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
         contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)        
+        els = []
         for cnt in contours:
             if len(cnt) >= 5:    
                 ellipse = cv2.fitEllipse(cnt)
-                label_list.append(ellipse[0][0])
-                label_list.append(ellipse[0][1])    
+                els.append(ellipse)
+        label_list.append(ellipse[0][0])
+        label_list.append(ellipse[0][1])
+    
     return label_list
 
 def get_corrdinate_from_heatmap(heatmap):

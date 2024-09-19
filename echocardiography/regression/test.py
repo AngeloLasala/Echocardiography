@@ -204,7 +204,6 @@ def keypoints_error(label, output, target, size, method='max_value'):
         error = label - output
 
     if target == 'heatmaps':
-
         label = get_corrdinate_from_heatmap(label)
         if method == 'max_value': output = get_corrdinate_from_heatmap(output)
         if method == 'ellipses': output = get_corrdinate_from_heatmap_ellipses(output)
