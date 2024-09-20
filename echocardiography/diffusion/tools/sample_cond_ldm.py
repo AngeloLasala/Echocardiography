@@ -324,10 +324,14 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    current_directory = os.path.dirname(__file__)
-    par_dir = os.path.dirname(current_directory)
-    configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
+    # current_directory = os.path.dirname(__file__)
+    # par_dir = os.path.dirname(current_directory)
+    # configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
+
+    experiment_dir = os.path.join(args.save_dir, args.trial, args.experiment)
+    config = os.path.join(experiment_dir, 'config.yaml')
+
     # save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = args.save_folder, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
+    infer(par_dir = args.save_folder, conf=config, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
     plt.show()
 
