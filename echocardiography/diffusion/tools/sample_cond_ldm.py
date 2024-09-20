@@ -328,7 +328,7 @@ if __name__ == '__main__':
     # par_dir = os.path.dirname(current_directory)
     # configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
-    experiment_dir = os.path.join(args.save_dir, args.trial, args.experiment)
+    experiment_dir = os.path.join(args.save_folder, args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
 
     # save_folder = os.path.join(par_dir, 'trained_model', args.trial)
