@@ -107,8 +107,10 @@ def read_eval_fid_dict(eval_dict, fid_dict):
 
     ## read the fid_dict
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 8), tight_layout=True)
+    label_dict = {'-1.0': 'uncond LDM', '0.0': 'vanilla cond LDM ', '0.2': 'cond LDM - w=0.2',
+                 '0.4': 'cond LDM - w=0.4', '0.6': 'cond LDM - w=0.6', '0.8': 'cond LDM - w=0.8',  '1.0': 'cond LDM - w=1.0', '2.0': 'cond LDM - w=2.0'}
     for guide_w in fid_dict.keys():
-        ax.plot(fid_dict[guide_w]['epoch'], fid_dict[guide_w]['fid'], label=guide_w, lw=4)
+        ax.plot(fid_dict[guide_w]['epoch'], fid_dict[guide_w]['fid'], label=label_dict[guide_w], lw=2, marker='o', markersize=10)
         ax.set_xlabel('Epoch', fontsize=20)
         ax.set_ylabel('FID', fontsize=20)
         ax.tick_params(axis='both', which='major', labelsize=18)
