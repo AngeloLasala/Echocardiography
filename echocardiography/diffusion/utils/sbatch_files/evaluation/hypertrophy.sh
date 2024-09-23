@@ -5,8 +5,8 @@
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
 #SBATCH --time=10:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
-#SBATCH --error=eval_tot.err       # standard error file
-#SBATCH --output=eval_tot.out      # standard output file
+#SBATCH --error=eval_1.err       # standard error file
+#SBATCH --output=eval_1.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 for w in -1.0 0.0 0.2 0.4 0.6 0.8 1.0 2.0; do
@@ -16,7 +16,7 @@ for w in -1.0 0.0 0.2 0.4 0.6 0.8 1.0 2.0; do
                 --par_dir_regression '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression'\
                 --trial_regression trial_3\
                 --trial trial_2\
-                --experiment cond_ldm_2\
+                --experiment cond_ldm_1\
                 --guide_w $w\
                 --epoch $epoch
     done
