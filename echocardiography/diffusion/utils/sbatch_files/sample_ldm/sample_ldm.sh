@@ -5,8 +5,8 @@
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
 #SBATCH --time=24:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
-#SBATCH --error=sample_cond_ldm_2.err       # standard error file
-#SBATCH --output=sample_cond_ldm_2.out      # standard output file
+#SBATCH --error=sample_ldm.err       # standard error file
+#SBATCH --output=sample_ldm.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 
