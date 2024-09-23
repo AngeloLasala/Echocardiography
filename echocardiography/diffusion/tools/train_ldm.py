@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from torch.optim import Adam
 from echocardiography.diffusion.models.unet_base import Unet
-from echocardiography.diffusion.scheduler import LinearNoiseScheduler
+from echocardiography.diffusion.sheduler.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE 
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
@@ -52,11 +52,18 @@ def train(par_dir, conf, trial):
         'eco': EcoDataset,
     }.get(dataset_config['name'])
 
-    # Create the dataset and dataloader
-    data = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
-                         im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'] , phase=dataset_config['phase'])
-    data_loader = DataLoader(data, batch_size=train_config['ldm_batch_size'], shuffle=True, num_workers=8)
- 
+    print('dataset', dataset_config['dataset_batch'])
+    data_list = []
+    for dataset_batch in dataset_config['dataset_batch']:
+        data_batch = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
+                            parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'])
+        data_list.append(data_batch)
+    
+    data_img = torch.utils.data.ConcatDataset(data_list)
+    data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=True, num_workers=8)
+
+    print('len of the dataset', len(data_img))
+
     # Create the model and scheduler
     scheduler = LinearNoiseScheduler(num_timesteps=diffusion_config['num_timesteps'],
                                      beta_start=diffusion_config['beta_start'],
@@ -71,7 +78,7 @@ def train(par_dir, conf, trial):
     # if not os.path.exists(save_folder):
     #     os.mkdir(save_folder)
 
-    trial_folder = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
+    trial_folder = trial #os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
     assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
     print(os.listdir(trial_folder))
     if 'vae' in os.listdir(trial_folder):
@@ -109,7 +116,7 @@ def train(par_dir, conf, trial):
     print('Start training ...')
     for epoch_idx in range(num_epochs):
         losses = []
-        for im in tqdm(data_loader):
+        for im in data_loader:
             optimizer.zero_grad()
             im = im.float().to(device)
             with torch.no_grad():
@@ -126,6 +133,7 @@ def train(par_dir, conf, trial):
 
             loss = criterion(noise_pred, noise)
             losses.append(loss.item())
+            print(loss.item())
             loss.backward()
             optimizer.step()
         print(f'Finished epoch:{epoch_idx+1} | Loss : {np.mean(losses):.4f}')
@@ -143,6 +151,7 @@ def train(par_dir, conf, trial):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
     parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco')
+    parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model, default = trained_model')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name for the trained VAE  model')
     args = parser.parse_args()
 
@@ -150,7 +159,6 @@ if __name__ == '__main__':
     par_dir = os.path.dirname(current_directory)
     configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
-    save_folder = os.path.join(par_dir, 'trained_model', args.trial)
     train(par_dir = par_dir,
         conf = configuration, 
-        trial = args.trial)
+        trial = os.path.join(args.save_folder, args.trial))
