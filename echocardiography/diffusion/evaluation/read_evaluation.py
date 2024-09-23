@@ -99,10 +99,96 @@ def read_eval_fid_dict(eval_dict, fid_dict):
     read and plot the results in the eval and fid dictionary
     """
     ## read the eval_dict
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(20, 8), tight_layout=True)
+    fig1, ax1 = plt.subplots(nrows=2, ncols=1, figsize=(10, 8), tight_layout=True)
+    label_dict = {'-1.0': 'uncond LDM', '0.0': 'vanilla cond LDM ', '0.2': 'cond LDM - w=0.2',
+                 '0.4': 'cond LDM - w=0.4', '0.6': 'cond LDM - w=0.6', '0.8': 'cond LDM - w=0.8',  '1.0': 'cond LDM - w=1.0', '2.0': 'cond LDM - w=2.0'}
     for guide_w in eval_dict.keys():
+        mpe_pw, mpe_lvid, mpe_ivs = {}, {}, {}
+        mae_rwt, mae_rst = {}, {}
         for epoch in eval_dict[guide_w].keys():
+            rwt_real = eval_dict[guide_w][epoch]['rwt_real']
+            rwt_gen = eval_dict[guide_w][epoch]['rwt_gen']
+            rst_real = eval_dict[guide_w][epoch]['rst_real']
+            rst_gen = eval_dict[guide_w][epoch]['rst_gen']
+            eco_list_real = eval_dict[guide_w][epoch]['eco_list_real']
+            eco_list_gen = eval_dict[guide_w][epoch]['eco_list_gen']
+
+            ## absolute diffrece eco_list
+            eco_list_diff = np.abs(eco_list_real - eco_list_gen)
+            eco_percentages_error = np.abs(eco_list_diff / eco_list_real) * 100
+            mean_absolute_diff, std_absolute_diff = np.mean(eco_list_diff, axis=0), np.std(eco_list_diff, ddof=1, axis=0)
+            mpe_pw[float(epoch)] = np.mean(eco_percentages_error[0]) #mean_absolute_diff[0]
+            mpe_lvid[float(epoch)] = np.mean(eco_percentages_error[1]) #mean_absolute_diff[1]
+            mpe_ivs[float(epoch)] = np.mean(eco_percentages_error[2]) #mean_absolute_diff[2]
+
+            ## median avarenge error rwt and rst
+            mae_rwt[float(epoch)] = np.median(np.abs(rwt_real - rwt_gen))
+            mae_rst[float(epoch)] = np.median(np.abs(rst_real - rst_gen))
+
+            ## classification error of rwt and rst
+            rwt_real_class = np.where(rwt_real > 0.42, 1, 0) # 1 > 0.42, 0 < 0.42
+            rwt_gen_class = np.where(rwt_gen > 0.42, 1, 0)
+
+            rst_real_class = np.where(rst_real > 0.42, 1, 0)
+            rst_gen_class = np.where(rst_gen > 0.42, 1, 0)
+            print(rwt_real_class)
+
+        epoch_pw = list(mpe_pw.keys())
+        epoch_pw.sort()
+        mpe_pw = [mpe_pw[epoch] for epoch in epoch_pw]
+
+        epoch_lvid = list(mpe_lvid.keys())
+        epoch_lvid.sort()
+        mpe_lvid = [mpe_lvid[epoch] for epoch in epoch_lvid]
+
+        epoch_ivs = list(mpe_ivs.keys())
+        epoch_ivs.sort()
+        mpe_ivs = [mpe_ivs[epoch] for epoch in epoch_ivs]
+
+        epoch_rwt = list(mae_rwt.keys())
+        epoch_rwt.sort()
+        mae_rwt = [mae_rwt[epoch] for epoch in epoch_rwt]
+
+        epoch_rst = list(mae_rst.keys())
+        epoch_rst.sort()
+        mae_rst = [mae_rst[epoch] for epoch in epoch_rst]
+
+
+        ax[0].set_title('PW', fontsize=20)
+        ax[0].plot(epoch_pw, mpe_pw, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        ax[0].legend(fontsize=20)
+        ax[1].set_title('LVID', fontsize=20)
+        ax[1].plot(epoch_lvid, mpe_lvid, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        ax[2].set_title('IVS', fontsize=20)
+        ax[2].plot(epoch_ivs, mpe_ivs, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        for aa in ax:
+            aa.set_xlabel('Epoch', fontsize=20)
+            aa.set_ylabel('Mean Percentage error', fontsize=20)
+            aa.tick_params(axis='both', which='major', labelsize=18)
+            aa.grid('dashed')
+
+        ax1[0].set_title('RWT', fontsize=20)
+        ax1[0].plot(epoch_rwt, mae_rwt, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        ax1[0].legend(fontsize=20)
+        ax1[1].set_title('RST', fontsize=20)
+        ax1[1].plot(epoch_rst, mae_rst, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        for aa in ax1:
+            aa.set_xlabel('Epoch', fontsize=20)
+            aa.set_ylabel('Median Absolute Error', fontsize=20)
+            aa.tick_params(axis='both', which='major', labelsize=18)
+            aa.grid('dashed')
             
-            pass
+
+        print(f'Epoch: {epoch}')
+        print(f'PW: {mean_absolute_diff[0]:.4f} +- {std_absolute_diff[0]:.4f} - percentage error: {np.mean(eco_percentages_error[0]):.4f} ')
+        print(f'LVID: {mean_absolute_diff[1]:.4f} +- {std_absolute_diff[1]:.4f} - percentage error: {np.mean(eco_percentages_error[1]):.4f} ')
+        print(f'IVS: {mean_absolute_diff[2]:.4f} +- {std_absolute_diff[2]:.4f} - percentage error: {np.mean(eco_percentages_error[2]):.4f}\n')
+    
+        print('----------------------------------------------')
+
+            
+            
 
 
     ## read the fid_dict
