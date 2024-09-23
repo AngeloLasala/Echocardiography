@@ -198,9 +198,9 @@ def main(conf, args_parser, show_plot=True):
             eco_list_real.append(i_real)
             eco_list_gen.append(j_gen)
             rwt_real.append(2*i_real[0]/i_real[1])
-            rwt_gen.append(j_gen[0]/j_gen[1])
-            rst_real.append(i_real[2]/i_real[1])
-            rst_gen.append(j_gen[2]/j_gen[1])
+            rwt_gen.append(2*j_gen[0]/j_gen[1])
+            rst_real.append(2*i_real[2]/i_real[1])
+            rst_gen.append(2*j_gen[2]/j_gen[1])
 
     eco_list_real, rwt_real, rst_real = np.array(eco_list_real), np.array(rwt_real), np.array(rst_real)
     eco_list_gen, rwt_gen, rst_gen = np.array(eco_list_gen), np.array(rwt_gen), np.array(rst_gen)
@@ -209,7 +209,7 @@ def main(conf, args_parser, show_plot=True):
     for i, j in zip(rwt_gen, rst_real):
         print(f'rwt gen: {i:.4f}, real: {j:.4f}')
 
-    ## create the evlautation of if does not exist
+    # create the evlautation of if does not exist
     hypertrophy_evaluation_path = os.path.join(args_parser.par_dir, args_parser.trial, args_parser.experiment, 'hypertrophy_evaluation', f'w_{args_parser.guide_w}')
     if not os.path.exists(hypertrophy_evaluation_path):
         os.makedirs(hypertrophy_evaluation_path)
