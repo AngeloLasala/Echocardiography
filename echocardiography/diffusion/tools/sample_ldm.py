@@ -157,7 +157,7 @@ def infer(par_dir, conf, trial, experiment, epoch):
     
 
     # Create output directories
-    save_folder = os.path.join(model_dir, f'samples_ep_{epoch}')
+    save_folder = os.path.join(model_dir, f'w_-1.0', f'samples_ep_{epoch}')
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
     else:
