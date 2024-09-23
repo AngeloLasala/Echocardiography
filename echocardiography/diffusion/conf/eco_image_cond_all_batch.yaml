@@ -2,7 +2,7 @@ dataset_params:
   # parent directory of the dataset
   # local path: 
   #            1) '/home/angelo/Documents/Echocardiography/echocardiography/regression' with 'DATA'
-  #            2) '/media/angelo/OS/Users/lasal/Desktop' with 'DATA_h' from settember 2024
+  #            2) '' with 'DATA_h' from settember 2024
   # one drive: '...'
   # cineca: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'
   parent_dir: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'   

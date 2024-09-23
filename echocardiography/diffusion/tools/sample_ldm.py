@@ -10,7 +10,7 @@ from torchvision.utils import make_grid
 from PIL import Image
 from tqdm import tqdm
 from echocardiography.diffusion.models.unet_base import Unet
-from echocardiography.diffusion.scheduler import LinearNoiseScheduler
+from echocardiography.diffusion.sheduler.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE
@@ -39,9 +39,16 @@ def sample(model, scheduler, train_config, diffusion_model_config,
     }.get(dataset_config['name'])
 
 
-    data_img = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
-                              im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'])
-    data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size'], shuffle=False, num_workers=8)
+    print('dataset', dataset_config['dataset_batch'])
+    data_list = []
+    for dataset_batch in dataset_config['dataset_batch']:
+        data_batch = im_dataset_cls(split=dataset_config['split_val'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
+                            parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'])
+        data_list.append(data_batch)
+    
+    data_img = torch.utils.data.ConcatDataset(data_list)
+    print('len of the dataset', len(data_img))
+    data_loader = DataLoader(data_img, batch_size=train_config['ldm_batch_size_sample'], shuffle=False, num_workers=8)
 
     for btc, img in enumerate(data_loader):
         print(img.shape)
@@ -69,7 +76,7 @@ def sample(model, scheduler, train_config, diffusion_model_config,
             ims = (ims + 1) / 2
         
         for i in range(ims.shape[0]):
-            cv2.imwrite(os.path.join(save_folder, f'x0_{btc * train_config["ldm_batch_size"] + i}.png'), ims[i].numpy()[0]*255)
+            cv2.imwrite(os.path.join(save_folder, f'x0_{btc * train_config["ldm_batch_size_sample"] + i}.png'), ims[i].numpy()[0]*255)
 
     ## OLD CODE - EXAMPLE OF GENERATION FOR SINGLE IMAGE #####################################À
     if False: 
@@ -128,10 +135,10 @@ def infer(par_dir, conf, trial, experiment, epoch):
     model = Unet(im_channels=autoencoder_model_config['z_channels'],
                  model_config=diffusion_model_config).to(device)
     model.eval()
-    model_dir = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial, experiment)
+    model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
     model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device))
     
-    trial_folder = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
+    trial_folder = os.path.join(par_dir, dataset_config['name'], trial)
     assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
     print(os.listdir(trial_folder))
     if 'vae' in os.listdir(trial_folder):
@@ -167,16 +174,23 @@ def infer(par_dir, conf, trial, experiment, epoch):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train unconditional LDM with VQVAE')
-    parser.add_argument('--data', type=str, default='mnist', help='type of the data, mnist, celebhq, eco') 
-    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for the trained model')
-    parser.add_argument('--experiment', type=str, default='ldm_1', help="""name of expermient, it is refed to the  hyperparameters (file .yaml) that is used for the training, it can be ldm_1, ldm_2""")
-    parser.add_argument('--epoch', type=int, default=100, help='epoch of trained LDM model')
+    parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco, eco_image_cond') 
+    parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model, default = trained_model')
+    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model, it is the trial folde that contain the VAE model')
+    parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
+                                                                              hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
+    parser.add_argument('--epoch', type=int, default=100, help='epoch to sample, this is the epoch of cond ldm model')
+    # mp.set_start_method("spawn")
 
     args = parser.parse_args()
 
-    current_directory = os.path.dirname(__file__)
-    par_dir = os.path.dirname(current_directory)
-    configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
-    save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = par_dir, conf=configuration, trial=args.trial, experiment=args.experiment ,epoch=args.epoch)
+    # current_directory = os.path.dirname(__file__)
+    # par_dir = os.path.dirname(current_directory)
+    # configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
+    experiment_dir = os.path.join(args.save_folder, 'eco', args.trial, args.experiment)
+    config = os.path.join(experiment_dir, 'config.yaml')
+
+    # save_folder = os.path.join(par_dir, 'trained_model', args.trial)
+    infer(par_dir = args.save_folder, conf=config, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
+    plt.show()

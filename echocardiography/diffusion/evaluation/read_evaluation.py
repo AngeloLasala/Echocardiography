@@ -94,18 +94,27 @@ def read_fid_value(experiment):
     return fid_dict
 
 
-def read_eval_fid_dict(eval_dict, fid_dict):
+def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
     """
     read and plot the results in the eval and fid dictionary
     """
+
+    ## craete the folder for the results
+    if not os.path.exists(os.path.join(experiment_dir, 'results')):
+        os.makedirs(os.path.join(experiment_dir, 'results'))
+
     ## read the eval_dict
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 8), tight_layout=True)
-    fig1, ax1 = plt.subplots(nrows=2, ncols=1, figsize=(10, 8), tight_layout=True)
+    fig1, ax1 = plt.subplots(nrows=2, ncols=1, figsize=(15, 11), num='Fidelity_eco_parameters_cond',  tight_layout=True)
+    fig2, ax2 = plt.subplots(nrows=2, ncols=1, figsize=(15, 11), num='Fidelity_class_cond', tight_layout=True)
     label_dict = {'-1.0': 'uncond LDM', '0.0': 'vanilla cond LDM ', '0.2': 'cond LDM - w=0.2',
                  '0.4': 'cond LDM - w=0.4', '0.6': 'cond LDM - w=0.6', '0.8': 'cond LDM - w=0.8',  '1.0': 'cond LDM - w=1.0', '2.0': 'cond LDM - w=2.0'}
     for guide_w in eval_dict.keys():
         mpe_pw, mpe_lvid, mpe_ivs = {}, {}, {}
         mae_rwt, mae_rst = {}, {}
+        class_real_dict, class_gen_dict = {}, {}
+        eco_real_dict, eco_gen_dict = {}, {}
+        print(f'Guide_w: {guide_w}')
         for epoch in eval_dict[guide_w].keys():
             rwt_real = eval_dict[guide_w][epoch]['rwt_real']
             rwt_gen = eval_dict[guide_w][epoch]['rwt_gen']
@@ -132,8 +141,12 @@ def read_eval_fid_dict(eval_dict, fid_dict):
 
             rst_real_class = np.where(rst_real > 0.42, 1, 0)
             rst_gen_class = np.where(rst_gen > 0.42, 1, 0)
-            print('real:', rwt_real_class[:10])
-            print('gen:',rwt_gen_class[:10])
+
+            eco_real_dict[float(epoch)] = {'rwt': rwt_real, 'rst': rst_real}
+            eco_gen_dict[float(epoch)] = {'rwt': rwt_gen, 'rst': rst_gen}
+
+            class_real_dict[float(epoch)] = {'rwt': rwt_real_class, 'rst': rst_real_class}
+            class_gen_dict[float(epoch)] = {'rwt': rwt_gen_class, 'rst': rst_gen_class}
 
         epoch_pw = list(mpe_pw.keys())
         epoch_pw.sort()
@@ -155,7 +168,36 @@ def read_eval_fid_dict(eval_dict, fid_dict):
         epoch_rst.sort()
         mae_rst = [mae_rst[epoch] for epoch in epoch_rst]
 
+        epoch_class = list(class_real_dict.keys())
+        epoch_class.sort()
+        class_real_list = [class_real_dict[epoch] for epoch in epoch_class]
+        class_gen_list = [class_gen_dict[epoch] for epoch in epoch_class]
 
+        epoch_eco = list(eco_real_dict.keys())
+        epoch_eco.sort()
+        eco_real_list = [eco_real_dict[epoch] for epoch in epoch_eco]
+
+        ## distribuction evaluation
+        with open(os.path.join(experiment_dir, 'results', f'statistical_eval_{guide_w}.txt'), 'w') as f:
+            f.write(f'Guide_w: {guide_w}\n')
+            for epoch in epoch_eco:
+                eco_rwt_real = eco_real_dict[epoch]['rwt']
+                eco_rst_real = eco_real_dict[epoch]['rst']
+                eco_rwt_gen = eco_gen_dict[epoch]['rwt']
+                eco_rst_gen = eco_gen_dict[epoch]['rst']
+
+                ## print median 1 and 3 quantile
+                f.write(f'Epoch: {epoch}\n')
+                f.write(f'RWT real- median: {np.median(eco_rwt_real):.4f}, 1 quantile: {np.quantile(eco_rwt_real, 0.25):.4f}, 3 quantile: {np.quantile(eco_rwt_real, 0.75):.4f}\n')
+                f.write(f'RWT gen- median: {np.median(eco_rwt_gen):.4f}, 1 quantile: {np.quantile(eco_rwt_gen, 0.25):.4f}, 3 quantile: {np.quantile(eco_rwt_gen, 0.75):.4f}\n')
+                f.write(f'RWT median error: {np.median(eco_rst_real) - np.median(eco_rwt_gen):.4f}, \n')
+                f.write(f'RST real- median: {np.median(eco_rst_real):.4f}, 1 quantile: {np.quantile(eco_rst_real, 0.25):.4f}, 3 quantile: {np.quantile(eco_rst_real, 0.75):.4f}\n')
+                f.write(f'RST gen- median: {np.median(eco_rst_gen):.4f}, 1 quantile: {np.quantile(eco_rst_gen, 0.25):.4f}, 3 quantile: {np.quantile(eco_rst_gen, 0.75):.4f}\n')
+                f.write(f'RST median error: {np.median(eco_rst_real) - np.median(eco_rst_gen):.4f}, \n')
+            f.write('----------------------------------------------------\n\n')
+            
+
+        ## regression evaluation
         ax[0].set_title('PW', fontsize=20)
         ax[0].plot(epoch_pw, mpe_pw, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
         ax[0].legend(fontsize=20)
@@ -179,17 +221,73 @@ def read_eval_fid_dict(eval_dict, fid_dict):
             aa.set_ylabel('Median Absolute Error', fontsize=20)
             aa.tick_params(axis='both', which='major', labelsize=18)
             aa.grid('dashed')
+
+        ## classification evaluation
+        accuracy_rwt_list, precision_rwt_list, recall_rwt_list, f1_score_rwt_list = [], [], [], []
+        accuracy_rst_list, precision_rst_list, recall_rst_list, f1_score_rst_list = [], [], [], []
+        for epoch in epoch_class:
+            rwt_real = class_real_dict[epoch]['rwt']
+            rwt_gen = class_gen_dict[epoch]['rwt']
+            rst_real = class_real_dict[epoch]['rst']
+            rst_gen = class_gen_dict[epoch]['rst']
+
+            ## accuracy, precision, recall, f1-score
+            tp_rwt = np.sum(np.logical_and(rwt_real == 1, rwt_gen == 1))
+            tn_rwt = np.sum(np.logical_and(rwt_real == 0, rwt_gen == 0))
+            fp_rwt = np.sum(np.logical_and(rwt_real == 0, rwt_gen == 1))
+            fn_rwt = np.sum(np.logical_and(rwt_real == 1, rwt_gen == 0))
+
+            tp_rst = np.sum(np.logical_and(rst_real == 1, rst_gen == 1))
+            tn_rst = np.sum(np.logical_and(rst_real == 0, rst_gen == 0))
+            fp_rst = np.sum(np.logical_and(rst_real == 0, rst_gen == 1))
+            fn_rst = np.sum(np.logical_and(rst_real == 1, rst_gen == 0))
+
+            accuracy_rwt = (tp_rwt + tn_rwt) / (tp_rwt + tn_rwt + fp_rwt + fn_rwt)
+            precision_rwt = tp_rwt / (tp_rwt + fp_rwt)
+            recall_rwt = tp_rwt / (tp_rwt + fn_rwt)
+            f1_score_rwt = 2 * (precision_rwt * recall_rwt) / (precision_rwt + recall_rwt)
+
+            accuracy_rst = (tp_rst + tn_rst) / (tp_rst + tn_rst + fp_rst + fn_rst)
+            precision_rst = tp_rst / (tp_rst + fp_rst)
+            recall_rst = tp_rst / (tp_rst + fn_rst)
+            f1_score_rst = 2 * (precision_rst * recall_rst) / (precision_rst + recall_rst)
+
+            accuracy_rwt_list.append(accuracy_rwt)
+            precision_rwt_list.append(precision_rwt)
+            recall_rwt_list.append(recall_rwt)
+            f1_score_rwt_list.append(f1_score_rwt)
+
+            accuracy_rst_list.append(accuracy_rst)
+            precision_rst_list.append(precision_rst)
+            recall_rst_list.append(recall_rst)
+            f1_score_rst_list.append(f1_score_rst)
+
+
+        ax2[0].set_title('RWT - accuracy', fontsize=20)
+        ax2[0].plot(epoch_class, accuracy_rwt_list, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        # ax2[0].legend(fontsize=20)
+        ax2[0].set_xlabel('Epoch', fontsize=20)
+        ax2[0].set_ylabel('accuracy', fontsize=20)
+        ax2[0].tick_params(axis='both', which='major', labelsize=18)
+        ax2[0].grid('dashed')
+
+        ax2[1].set_title('RST - accuracy', fontsize=20)
+        ax2[1].plot(epoch_class, accuracy_rst_list, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        # ax2[1].legend(fontsize=20)
+        ax2[1].set_xlabel('Epoch', fontsize=20)
+        ax2[1].set_ylabel('accuracy', fontsize=20)
+        ax2[1].tick_params(axis='both', which='major', labelsize=18)
+        ax2[1].grid('dashed')
+
+        print('----------------------------------------------------')
+
+
             
 
-        print(f'Epoch: {epoch}')
-        print(f'PW: {mean_absolute_diff[0]:.4f} +- {std_absolute_diff[0]:.4f} - percentage error: {np.mean(eco_percentages_error[0]):.4f} ')
-        print(f'LVID: {mean_absolute_diff[1]:.4f} +- {std_absolute_diff[1]:.4f} - percentage error: {np.mean(eco_percentages_error[1]):.4f} ')
-        print(f'IVS: {mean_absolute_diff[2]:.4f} +- {std_absolute_diff[2]:.4f} - percentage error: {np.mean(eco_percentages_error[2]):.4f}\n')
     
-        print('----------------------------------------------')
 
     ## read the fid_dict
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 8), tight_layout=True)
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 8), num='fid', tight_layout=True)
     label_dict = {'-1.0': 'uncond LDM', '0.0': 'vanilla cond LDM ', '0.2': 'cond LDM - w=0.2',
                  '0.4': 'cond LDM - w=0.4', '0.6': 'cond LDM - w=0.6', '0.8': 'cond LDM - w=0.8',  '1.0': 'cond LDM - w=1.0', '2.0': 'cond LDM - w=2.0'}
     for guide_w in fid_dict.keys():
@@ -199,6 +297,9 @@ def read_eval_fid_dict(eval_dict, fid_dict):
         ax.tick_params(axis='both', which='major', labelsize=18)
         ax.grid('dashed')
         ax.legend(fontsize=20)
+    plt.savefig(os.path.join(experiment_dir, 'results', 'fid.png'))
+    plt.savefig(os.path.join(experiment_dir, 'results', 'Fidelity_class_cond'))
+    plt.savefig(os.path.join(experiment_dir, 'results', 'Fidelity_eco_parameters_cond'))
     plt.show()
 
 
@@ -214,7 +315,7 @@ def main(args_parser):
     
 
     # read the eval and the fid dict
-    read_eval_fid_dict(eval_dict, fid_dict)
+    read_eval_fid_dict(eval_dict, fid_dict, experiment_dir)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for reading evaluation files')
