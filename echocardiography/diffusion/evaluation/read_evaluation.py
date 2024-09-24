@@ -6,6 +6,8 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import wilcoxon
+
 
 def read_hypertrophy_consistency(hypertrophy_path):
     """
@@ -93,6 +95,14 @@ def read_fid_value(experiment):
                 fid_dict[guide_w] = {'epoch': np.array(epoch_list), 'fid': np.array(fid_list)}     
     return fid_dict
 
+def wilcoxon_analysisi(p_value):
+    """
+    Wilcoxon analysis
+    """
+    if p_value < 0.05:
+        return 'The null hypothesis is rejected - Significant difference between the medians'
+    else:
+        return 'The null hypothesis is accepted - Same distribution'
 
 def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
     """
@@ -186,14 +196,20 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
                 eco_rwt_gen = eco_gen_dict[epoch]['rwt']
                 eco_rst_gen = eco_gen_dict[epoch]['rst']
 
+                ## statistical analysis
+                _, p_value_rwt = wilcoxon(eco_rwt_real, eco_rwt_gen)
+                _, p_value_rst = wilcoxon(eco_rst_real, eco_rst_gen)
+
                 ## print median 1 and 3 quantile
                 f.write(f'Epoch: {epoch}\n')
                 f.write(f'RWT real- median: {np.median(eco_rwt_real):.4f}, 1 quantile: {np.quantile(eco_rwt_real, 0.25):.4f}, 3 quantile: {np.quantile(eco_rwt_real, 0.75):.4f}\n')
                 f.write(f'RWT gen- median: {np.median(eco_rwt_gen):.4f}, 1 quantile: {np.quantile(eco_rwt_gen, 0.25):.4f}, 3 quantile: {np.quantile(eco_rwt_gen, 0.75):.4f}\n')
                 f.write(f'RWT median error: {np.median(eco_rst_real) - np.median(eco_rwt_gen):.4f}, \n')
+                f.write(f'p-value RWT: {p_value_rwt:.4f} - {wilcoxon_analysisi(p_value_rwt)}\n')
                 f.write(f'RST real- median: {np.median(eco_rst_real):.4f}, 1 quantile: {np.quantile(eco_rst_real, 0.25):.4f}, 3 quantile: {np.quantile(eco_rst_real, 0.75):.4f}\n')
                 f.write(f'RST gen- median: {np.median(eco_rst_gen):.4f}, 1 quantile: {np.quantile(eco_rst_gen, 0.25):.4f}, 3 quantile: {np.quantile(eco_rst_gen, 0.75):.4f}\n')
                 f.write(f'RST median error: {np.median(eco_rst_real) - np.median(eco_rst_gen):.4f}, \n')
+                f.write(f'p-value RST: {p_value_rst:.4f} - {wilcoxon_analysisi(p_value_rst)}\n')
             f.write('----------------------------------------------------\n\n')
             
 
@@ -221,6 +237,8 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
             aa.set_ylabel('Median Absolute Error', fontsize=20)
             aa.tick_params(axis='both', which='major', labelsize=18)
             aa.grid('dashed')
+        # plt.savefig(os.path.join(experiment_dir, 'results', 'Fidelity_eco_parameters_cond.png'))
+        
 
         ## classification evaluation
         accuracy_rwt_list, precision_rwt_list, recall_rwt_list, f1_score_rwt_list = [], [], [], []
@@ -278,6 +296,7 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
         ax2[1].set_ylabel('accuracy', fontsize=20)
         ax2[1].tick_params(axis='both', which='major', labelsize=18)
         ax2[1].grid('dashed')
+        # plt.savefig(os.path.join(experiment_dir, 'results', 'Fidelity_class_cond.png'))
 
         print('----------------------------------------------------')
 
@@ -298,8 +317,7 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
         ax.grid('dashed')
         ax.legend(fontsize=20)
     plt.savefig(os.path.join(experiment_dir, 'results', 'fid.png'))
-    plt.savefig(os.path.join(experiment_dir, 'results', 'Fidelity_class_cond'))
-    plt.savefig(os.path.join(experiment_dir, 'results', 'Fidelity_eco_parameters_cond'))
+    
     plt.show()
 
 
