@@ -133,7 +133,6 @@ def train(par_dir, conf, trial):
 
             loss = criterion(noise_pred, noise)
             losses.append(loss.item())
-            print(loss.item())
             loss.backward()
             optimizer.step()
         print(f'Finished epoch:{epoch_idx+1} | Loss : {np.mean(losses):.4f}')
