@@ -10,4 +10,3 @@
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 python -m echocardiography.diffusion.tools.train_cond_vae --data eco_class_cond  --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion'
- 
