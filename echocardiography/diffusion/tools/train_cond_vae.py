@@ -7,7 +7,6 @@ import random
 import torchvision
 import os
 import numpy as np
-from tqdm import tqdm
 import json
 import yaml
 from echocardiography.diffusion.models.cond_vae import condVAE
@@ -68,18 +67,27 @@ def train(conf, save_folder):
     }.get(dataset_config['name'])
 
     # Create the dataset and dataloader
-    data_img = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
-                              im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
-                              dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
-                              condition_config=condition_config)
-    data_loader = DataLoader(data_img, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
-
-    val_data = im_dataset_cls(split='val', size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
-                              im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
-                              dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
-                              condition_config=condition_config)
-    val_data_loader = DataLoader(val_data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
+    # i have to change this, if a selet more that 1 Batch i want to concatanate the datatset
+    print('dataset', dataset_config['dataset_batch'])
+    data_list, val_data_list = [], []
+    for dataset_batch in dataset_config['dataset_batch']:
+        data_batch = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
+                            parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'],
+                            condition_config=condition_config)
+        val_data_batch = im_dataset_cls(split='val', size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
+                                parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'],
+                                condition_config=condition_config)
+        data_list.append(data_batch)
+        val_data_list.append(val_data_batch)
     
+    data = torch.utils.data.ConcatDataset(data_list)
+    val_data = torch.utils.data.ConcatDataset(val_data_list)
+    print(f'len data {len(data)} - len val_data {len(val_data)}')
+    
+    data_loader = DataLoader(data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
+    val_data_loader = DataLoader(val_data, batch_size=train_config['autoencoder_batch_size'], shuffle=True, num_workers=4, timeout=10)
+
+  
     ## generate save folder
     save_dir = os.path.join(save_folder, dataset_config['name'])
     if not os.path.exists(save_dir):
@@ -105,14 +113,14 @@ def train(conf, save_folder):
     optimizer_g = Adam(model.parameters(), lr=train_config['autoencoder_lr'], betas=(0.5, 0.999))
 
     # Configuration of the training loop
-    disc_step_start = train_config['disc_start'] * len(data_img) // train_config['autoencoder_batch_size']
+    disc_step_start = train_config['disc_start'] * len(data) // train_config['autoencoder_batch_size']
     step_count = 0
 
     # This is for accumulating gradients incase the images are huge
     # And one cant afford higher batch sizes
     # acc_steps = train_config['autoencoder_acc_steps']
     # image_save_steps = train_config['autoencoder_img_save_steps']
-    image_save_steps = len(data_img) // train_config['autoencoder_batch_size'] 
+    image_save_steps = len(data) // train_config['autoencoder_batch_size'] 
     losses_epoch = {'recon': [], 'kl': [], 'lpips': [], 'disc': [], 'gen': []}
     val_losses_epoch = {'recon': [], 'lpips': []}
 
@@ -127,7 +135,7 @@ def train(conf, save_folder):
         optimizer_g.zero_grad()
         optimizer_d.zero_grad()
         
-        for dat in tqdm(data_loader):
+        for dat in data_loader:
             step_count += 1
             im, cond_input = dat
             im = im.float().to(device)
@@ -200,7 +208,7 @@ def train(conf, save_folder):
         with torch.no_grad():
             val_recon_losses = []
             val_perceptual_losses = []
-            for data in tqdm(val_data_loader):
+            for data in val_data_loader:
                 im, cond_input = data
                 im = im.float().to(device)
                 for key in cond_input.keys(): ## for all the type of condition, we move the  tensor on the device
