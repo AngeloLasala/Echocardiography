@@ -3,6 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
+#SBATCH --cpus-per-task=4
 #SBATCH --time=24:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
 #SBATCH --error=ddp.err       # standard error file
