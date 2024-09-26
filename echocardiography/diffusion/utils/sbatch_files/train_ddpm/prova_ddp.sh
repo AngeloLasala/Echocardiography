@@ -9,8 +9,17 @@
 #SBATCH --output=ddp.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-export MASTER_ADDR=$(srun --ntasks=1 hostname 2>&1 | tail -n1)
-export MASTER_PORT=29500
+### change 5-digit MASTER_PORT as you wish, slurm will raise Error if duplicated with others
+### change WORLD_SIZE as gpus/node * num_nodes
+export MASTER_PORT=11111
 
-python -m echocardiography.diffusion.utils.dist_utils
+### get the first node name as master address - customized for vgg slurm
+### e.g. master(gnodee[2-5],gnoded1) == gnodee2
+master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+export MASTER_ADDR=$master_addr
+echo "MASTER_ADDR="$MASTER_ADDR
+echo "MASTER_PORT="$MASTER_PORT
+
+
+# python -m echocardiography.diffusion.utils.dist_utils
  
