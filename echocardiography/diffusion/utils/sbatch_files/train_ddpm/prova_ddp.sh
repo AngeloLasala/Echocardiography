@@ -1,9 +1,8 @@
 #!/bin/bash
-#SBATCH --nodes=1                  # 1 node
-#SBATCH --ntasks=1
-#SBATCH --gres=gpu:1
-#SBATCH --ntasks-per-node=1          # 1 tasks per node
-#SBATCH --cpus-per-task=4
+#SBATCH --nodes=1               # number of nodes
+#SBATCH --ntasks-per-node=4     # number of tasks per node
+#SBATCH --cpus-per-task=8       # number of threads per task
+#SBATCH --gres=gpu:4            # number of gpus per node
 #SBATCH --time=24:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
 #SBATCH --error=ddp.err       # standard error file
