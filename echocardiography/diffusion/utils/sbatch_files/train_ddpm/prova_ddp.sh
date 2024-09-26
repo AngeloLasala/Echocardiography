@@ -5,8 +5,8 @@
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
 #SBATCH --time=24:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
-#SBATCH --error=cond_ddpm_all.err       # standard error file
-#SBATCH --output=cond_ddpm_all.out      # standard output file
+#SBATCH --error=ddp.err       # standard error file
+#SBATCH --output=ddp.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 python -m echocardiography.diffusion.utils.dist_utils
