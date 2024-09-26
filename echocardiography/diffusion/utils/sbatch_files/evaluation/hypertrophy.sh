@@ -16,7 +16,7 @@ for w in -1.0; do
                 --par_dir_regression '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression'\
                 --trial_regression trial_3\
                 --trial trial_2\
-                --experiment ldm_1\
+                --experiment cond_ldm_3\
                 --guide_w $w\
                 --epoch $epoch
     done
