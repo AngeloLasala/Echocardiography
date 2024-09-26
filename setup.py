@@ -5,7 +5,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='echocardiography',
-    version='1.0',
+    version='2.0',
     description='Regression and Diffusion model for ecocardio data',
     author='Angelo Lasala',
     author_email='Lasala.Angelo@santannapisa.it',
