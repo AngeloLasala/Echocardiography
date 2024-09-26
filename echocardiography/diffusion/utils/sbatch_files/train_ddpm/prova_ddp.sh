@@ -21,5 +21,5 @@ echo "MASTER_ADDR="$MASTER_ADDR
 echo "MASTER_PORT="$MASTER_PORT
 
 
-python -m echocardiography.diffusion.utils.dist_utils
- 
+# python -m echocardiography.diffusion.utils.dist_utils
+torchrun /leonardo_work/IscrC_Med-LMGM/Angelo/Echocardiography/echocardiography/diffusion/utils
