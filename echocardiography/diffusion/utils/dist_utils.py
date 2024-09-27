@@ -97,10 +97,10 @@ if __name__ == '__main__':
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
     if rank == 0:
-        print(f"Dataset path .............. {dataset_path}")
-        print(f"Num. Images ............... {len(dataset)}")
-        print(f"Batch Size ................ {batch_size}")
-        print(f"Num. Batches .............. {len(loader)}")
+        # print(f"Dataset path .............. {dataset_path}")
+        # print(f"Num. Images ............... {len(dataset)}")
+        # print(f"Batch Size ................ {batch_size}")
+        # print(f"Num. Batches .............. {len(loader)}")
         print(f"Num. processors ........... {world_size}")
         print(f"Num. GPUs per node ........ {local_size}")
         print(f"Num. Workers .............. {num_workers}")
