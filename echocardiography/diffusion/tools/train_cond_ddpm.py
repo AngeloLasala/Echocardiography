@@ -1,5 +1,6 @@
 """
 Train conditional DDPM model with the classifier free guideline
+For the DDPM model, the Distributed Data Parallel is mandatory
 """
 import torch
 import yaml
@@ -14,10 +15,13 @@ from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE 
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from echocardiography.diffusion.tools.infer_vae import get_best_model
+from echocardiography.diffusion.utils.dist_utils import get_resources, cleanup
 from torch.utils.data import DataLoader
 import random
 import multiprocessing as mp
 import time
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
 
 mp.set_start_method('spawn', force=True)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -84,6 +88,11 @@ def train(par_dir, conf, trial):
     if device == 'cuda':
         torch.cuda.manual_seed_all(seed)
     #############################
+
+    ## set the configuratio for the DDP
+
+    rank, local_rank, world_size, local_size, num_workers = get_resources()
+
 
     # Create the dataset
     im_dataset_cls = {

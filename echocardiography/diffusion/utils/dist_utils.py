@@ -19,10 +19,14 @@ from torch.utils.data.distributed import DistributedSampler
 
 
 def get_resources(verbose=True):
-
-    # rank = 0
-    # local_rank = 0
-    # world_size = 1
+    """
+    Get the resources for distributed training
+    - rank: the rank of the current process
+    - local_rank: the rank of the current process on the current node
+    - world_size: the total number of processes
+    - local_size: the number of processes per node
+    - num_workers: the number of workers per process
+    """
 
     if os.environ.get("RANK"):
         # launched with torchrun (python -m torch.distributed.run)
@@ -55,36 +59,8 @@ def get_resources(verbose=True):
 
     return rank, local_rank, world_size, local_size, num_workers
 
-# def setup_dist():
-#     """
-#     Setup a distributed process group.
-#     """
-#     if dist.is_initialized():
-#         return
-
-#     comm = MPI.COMM_WORLD
-#     backend = "gloo" if not th.cuda.is_available() else "nccl"
-
-#     if backend == "gloo":
-#         hostname = "localhost"
-#     else:
-#         hostname = socket.gethostbyname(socket.getfqdn())
-#     os.environ["MASTER_ADDR"] = comm.bcast(hostname, root=0)
-#     os.environ["RANK"] = str(comm.rank)
-#     os.environ["WORLD_SIZE"] = str(comm.size)
-
-#     port = comm.bcast(_find_free_port(), root=0)
-#     os.environ["MASTER_PORT"] = str(port)
-#     dist.init_process_group(backend=backend, init_method="env://")
-
-
-# def dev():
-    """
-    Get the device to use for torch.distributed.
-    """
-    if th.cuda.is_available():
-        return th.device(f"cuda:{MPI.COMM_WORLD.Get_rank() % GPUS_PER_NODE}")
-    return th.device("cpu")
+def cleanup():
+    dist.destroy_process_group()
 
 
 
