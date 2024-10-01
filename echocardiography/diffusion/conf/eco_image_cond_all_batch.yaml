@@ -71,7 +71,7 @@ autoencoder_params:
   num_mid_layers : 2
   num_up_layers : 2
   condition_config:
-    condition_types: [ 'class' ]      # could be also ['class', 'text', 'image' ]: PUT THE DEFAULT VALUE AS 'image'
+    condition_types: [ 'image' ]      # could be also ['class', 'text', 'image' ]: PUT THE DEFAULT VALUE AS 'image'
     text_condition_config:
       text_embed_model: 'clip'
       train_text_embed_model: False
@@ -80,8 +80,8 @@ autoencoder_params:
     image_condition_config:                 ## this is for the image conditioning - seg/heatmaps stacked on the input
       image_condition_input_channels: 6     # total number of spatial channels in the conditional heatmaps
       image_condition_output_channels: 3
-      image_condition_h : 256
-      image_condition_w : 256
+      image_condition_h : 240
+      image_condition_w : 320
       cond_drop_prob: 0.1
     class_condition_config :     ## this is for the class conditioning of different type of hypertrophy 
       num_classes : 4           # numebr of classes, for now it is 4
