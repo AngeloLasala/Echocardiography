@@ -9,4 +9,4 @@
 #SBATCH --output=cond_vae_all.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-python -m echocardiography.diffusion.tools.train_cond_vae --data eco_class_cond  --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion'
+python -m echocardiography.diffusion.tools.train_cond_vae --data eco_image_cond_all_batch  --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion'
