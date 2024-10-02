@@ -8,9 +8,12 @@ import os
 import numpy as np
 from tqdm import tqdm
 from torch.optim import Adam
-from echocardiography.diffusion.models.unet_cond_base import Unet, get_config_value
+from echocardiography.diffusion.models.unet_cond_base import get_config_value
+import echocardiography.diffusion.models.unet_cond_base as unet_cond_base
+import echocardiography.diffusion.models.unet_base as unet_base
 from echocardiography.diffusion.sheduler.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.models.vqvae import VQVAE
+from echocardiography.diffusion.models.cond_vae import condVAE
 from echocardiography.diffusion.models.vae import VAE 
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from echocardiography.diffusion.tools.infer_vae import get_best_model
@@ -116,13 +119,32 @@ def train(par_dir, conf, trial):
                                      beta_start=diffusion_config['beta_start'],
                                      beta_end=diffusion_config['beta_end'])
 
-    model = Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
-    model.train()
     
     trial_folder = trial #os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
     assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
     print(os.listdir(trial_folder))
+
+    if 'cond_vae' in os.listdir(trial_folder):
+        ## Condition VAE + LDM
+        type_model = 'cond_vae'
+        print(f'type model {type_model}')
+        print(f'Load trained {os.listdir(trial_folder)[0]} model')
+        best_model = get_best_model(os.path.join(trial_folder,'cond_vae'))
+        print(f'best model  epoch {best_model}')
+        vae = condVAE(im_channels=dataset_config['im_channels'], model_config=autoencoder_model_config, condition_config=condition_config).to(device)
+        vae.eval()
+        vae.load_state_dict(torch.load(os.path.join(trial_folder, 'cond_vae', f'vae_best_{best_model}.pth'), map_location=device))
+
+        ## unconditional ldm
+        model = unet_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+        model.train()
+
+
+
     if 'vae' in os.listdir(trial_folder):
+        ## VAE + conditional LDM
+        type_model = 'vae'
+        print(f'type model {type_model}')
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
         best_model = get_best_model(os.path.join(trial_folder,'vae'))
         print(f'best model  epoch {best_model}')
@@ -130,11 +152,18 @@ def train(par_dir, conf, trial):
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vae', f'vae_best_{best_model}.pth'), map_location=device))
 
+        # conditional ldm
+        model = unet_cond_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+        model.train()
+
     if 'vqvae' in os.listdir(trial_folder):
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
         vae = VQVAE(im_channels=dataset_config['im_channels'], model_config=autoencoder_model_config).to(device)
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vqvae', 'vqvae.pth'),map_location=device))
+
+        model = unet_cond_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+        model.train()
 
     ## if the condition is 'text' i have to load the text model
     if 'text' in condition_types:
@@ -174,24 +203,31 @@ def train(par_dir, conf, trial):
             optimizer.zero_grad()
             im = im.float().to(device)
             with torch.no_grad():
-                im, _ = vae.encode(im)
+                ## get the VAE/conditional_VAE latent space
+                if type_model == 'cond_vae': 
+                    for key in condition_types:  ## fake for loop., for now it is only one, get only one type of condition
+                        cond_input = cond_input[key].to(device)
+                    im, _ = vae.encode(im, cond_input)
+                if type_model == 'vae': 
+                    im, _ = vae.encode(im)
+                
 
-            #############    Handiling the condition input ########################################
-            if 'image' in condition_types:
+            #############  Handiling the condition input for cond LDM ########################################
+            if 'image' in condition_types and type_model == 'vae':
                 assert 'image' in cond_input, 'Conditioning Type Image but no image conditioning input present'
                 cond_input_image = cond_input['image'].to(device) 
                 # Drop condition
                 im_drop_prob = get_config_value(condition_config['image_condition_config'], 'cond_drop_prob', 0.)
                 cond_input['image'] = drop_image_condition(cond_input_image, im, im_drop_prob)
 
-            if 'class' in condition_types:
+            if 'class' in condition_types and type_model == 'vae':
                 assert 'class' in cond_input, 'Conditioning Type Class but no class conditioning input present'
                 class_condition = cond_input['class'].to(device)
                 class_drop_prob = get_config_value(condition_config['class_condition_config'],'cond_drop_prob', 0.)
                 # Drop condition
                 cond_input['class'] = drop_class_condition(class_condition, class_drop_prob, im)
 
-            if 'text' in condition_types:
+            if 'text' in condition_types and type_model == 'vae':
                 assert 'text' in cond_input, 'Conditioning Type Text but no text conditioning input present'
                 text_condition_input = cond_input['text'].to(device)
                 text_embedding = get_text_embeddeing(text_condition_input, regression_model, device).to(device)
@@ -208,7 +244,11 @@ def train(par_dir, conf, trial):
             
             # Add noise to images according to timestep
             noisy_im = scheduler.add_noise(im, noise, t)
-            noise_pred = model(noisy_im, t, cond_input=cond_input)
+
+            if type_model == 'cond_vae': 
+                noise_pred = model(noisy_im, t)
+            if type_model == 'vae': 
+                noise_pred = model(noisy_im, t, cond_input=cond_input)
 
             loss = criterion(noise_pred, noise)
             losses.append(loss.item())
