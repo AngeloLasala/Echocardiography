@@ -144,7 +144,6 @@ def train(conf, save_folder):
 
             ##########################  Generator ################################
             model_output = model(im, cond_input[key])
-            print(model_output[0].shape, cond_input.keys())    
             output, encoder_out = model_output
             mean, logvar = torch.chunk(encoder_out, 2, dim=1) 
 
