@@ -143,7 +143,8 @@ def train(conf, save_folder):
                 cond_input[key] = cond_input[key].to(device)
 
             ##########################  Generator ################################
-            model_output = model(im, cond_input['class'])
+            model_output = model(im, cond_input[key])
+            print(model_output[0].shape, cond_input.keys())    
             output, encoder_out = model_output
             mean, logvar = torch.chunk(encoder_out, 2, dim=1) 
 
@@ -215,7 +216,7 @@ def train(conf, save_folder):
                     cond_input[key] = cond_input[key].to(device)
                 
                 im = im.float().to(device)
-                model_output = model(im, cond_input['class'])
+                model_output = model(im, cond_input[key])
                 output, encoder_out = model_output
                 mean, logvar = torch.chunk(encoder_out, 2, dim=1) 
 

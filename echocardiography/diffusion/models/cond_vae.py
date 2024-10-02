@@ -17,11 +17,30 @@ class condVAE(nn.Module):
         self.num_down_layers = model_config['num_down_layers']
         self.num_mid_layers = model_config['num_mid_layers']
         self.num_up_layers = model_config['num_up_layers']
+        self.condition_config = condition_config
 
-        self.class_conditioning = True if condition_config['condition_types'] is not None else False
-        self.num_classes =  condition_config['class_condition_config']['num_classes']
-        print(f'Number of classes: {self.num_classes}')
+        # self.class_conditioning = True if condition_config['condition_types'] is not None else False
+        # if 'num_classes' in condition_config['class_condition_config']:
+        #     self.num_classes = condition_config['class_condition_config']['num_classes']
+        # if 'image_condition_input_channels' in condition_config['class_condition_config']:
+        #     self.num_classes = condition_config['class_condition_config']['image_condition_input_channels']
+        # else:
+        #     ValueError('Number of classes not provided in class_condition_config')
+        
+        ## conditioning types
+        self.class_conditioning = False
+        self.image_conditioning = False
+        assert 'condition_types' in self.condition_config, 'Condition Type not provided in model config'
+        condition_types = self.condition_config['condition_types']
+        if 'class' in condition_types:
+            self.class_conditioning = True
+            self.num_classes = self.condition_config['class_condition_config']['num_classes']
+        if 'image' in condition_types:
+            self.image_conditioning = True
+            self.im_cond_input_ch = self.condition_config['image_condition_config']['image_condition_input_channels']
+
         print(f'Class conditioning: {self.class_conditioning}')
+        print(f'Image conditioning: {self.image_conditioning}')
         
         # To disable attention in Downblock of Encoder and Upblock of Decoder
         self.attns = model_config['attn_down']
@@ -48,7 +67,11 @@ class condVAE(nn.Module):
         ## here i have to change the input channel of the first conv becouse i have to stack the class conditioninh
         # im_channels = im_channels + num_classes
         if self.class_conditioning == True:
+            print('sto dentro encoder class conditioning')
             self.encoder_conv_in = nn.Conv2d(im_channels + self.num_classes, self.down_channels[0], kernel_size=3, padding=(1, 1))
+        elif self.image_conditioning == True:
+            print('sto dentro encoder image conditioning')
+            self.encoder_conv_in = nn.Conv2d(im_channels + self.im_cond_input_ch, self.down_channels[0], kernel_size=3, padding=(1, 1))
         else:
             self.encoder_conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=(1, 1))
         
@@ -104,6 +127,8 @@ class condVAE(nn.Module):
         ## Also the decoder should take the class conditioning, so i have to stacjìk the condition to the input of the decoder
         if self.class_conditioning == True: 
             self.post_quant_conv = nn.Conv2d(self.z_channels + self.num_classes, self.z_channels, kernel_size=1)
+        elif self.image_conditioning == True:
+            self.post_quant_conv = nn.Conv2d(self.z_channels + self.im_cond_input_ch, self.z_channels, kernel_size=1)
         else:
             self.post_quant_conv = nn.Conv2d(self.z_channels, self.z_channels, kernel_size=1)
 
@@ -156,6 +181,11 @@ class condVAE(nn.Module):
             y = y.view(-1, self.num_classes, 1, 1)
             y = y.repeat(1, 1, x.shape[2], x.shape[3])
             x = torch.cat([x, y], dim=1)
+
+        if self.image_conditioning == True:
+            # resize y to the same shape of xonly for the -2 and -1 dimentions
+            y = nn.functional.interpolate(y, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=False)
+            x = torch.cat([x, y], dim=1)
     
         out = self.encoder_conv_in(x)
         
@@ -191,6 +221,11 @@ class condVAE(nn.Module):
         if self.class_conditioning == True:
             y = y.view(-1, self.num_classes, 1, 1)
             y = y.repeat(1, 1, z.shape[2], z.shape[3])
+            z = torch.cat([z, y], dim=1)
+
+        if self.image_conditioning == True:
+            # resize y to the same shape of z only for the -2 and -1 dimentions
+            y = nn.functional.interpolate(y, size=(z.shape[2], z.shape[3]), mode='bilinear', align_corners=False)
             z = torch.cat([z, y], dim=1)
         
         out = z
@@ -245,10 +280,26 @@ if __name__ == '__main__':
         'num_mid_layers': 1,
         'num_up_layers': 1
     }
-    model = VAE(1, model_config)
-    x = torch.randn(2, 1, 256, 256)
+
+    condition_class = {
+        'condition_types': ['class'],
+        'class_condition_config': {
+            'num_classes': 4
+        }
+    }
+
+    condition_image = {
+        'condition_types': ['image'],
+        'image_condition_config': {
+            'image_condition_input_channels': 6
+        }
+    }   
+
+    model = condVAE(1, model_config, condition_image)
+    x = torch.randn(2, 1, 240, 320)
     class_x = torch.tensor([[0,1,0,0], [0,0,1,0]])
-    out = model(x, class_x)
+    image_x = torch.randn(2, 6, 240, 320)
+    out = model(x, image_x)
     print(out[0].shape)
     
     # #print(summary(model))
