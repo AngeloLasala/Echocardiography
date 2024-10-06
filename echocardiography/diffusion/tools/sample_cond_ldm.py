@@ -174,10 +174,8 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
                 if type_model == 'vae':
                     ims = vae.decode(xt)
                 if type_model == 'cond_vae':
-                    print('cond_vae decoder')
                     for key in condition_types:  ## fake for loop., for now it is only one, get only one type of condition
                         cond_input = cond_input[key].to(device)
-                    print(cond_input.shape)
                     ims = vae.decode(xt, cond_input)
                     pass
             else:
