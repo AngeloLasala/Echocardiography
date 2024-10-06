@@ -16,13 +16,13 @@
 #                     --epoch 120\
 #                     --guide_w 1.0
 
-for w in -1.0 ; do
+for trial in trial_3 trial_4 ; do
     for epoch in 20 40 60 80 100 120 150; do
             python -m echocardiography.diffusion.tools.sample_cond_ldm --data eco_image_cond_all_batch\
                     --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/'\
-                    --trial trial_3\
+                    --trial $trial\
                     --experiment cond_ldm_1\
                     --epoch $epoch\
-                    --guide_w $w
+                    --guide_w -1.0
      done
 done
