@@ -16,7 +16,7 @@ for trial in trial_3 trial_4; do
                 --par_dir_regression '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression'\
                 --trial_regression trial_3\
                 --trial $trial\
-                --experiment cond_ldm_3\
+                --experiment cond_ldm_1\
                 --guide_w -1.0\
                 --epoch $epoch
     done
