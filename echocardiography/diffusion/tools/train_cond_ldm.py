@@ -59,7 +59,7 @@ def get_text_embeddeing(text, model, device):
     return text_embedding
 
 
-def train(par_dir, conf, trial):
+def train(par_dir, conf, trial, activate_cond_ldm=False):
    # Read the config file #
     with open(conf, 'r') as file:
         try:
@@ -136,8 +136,12 @@ def train(par_dir, conf, trial):
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'cond_vae', f'vae_best_{best_model}.pth'), map_location=device))
 
         ## unconditional ldm
-        model = unet_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
-        model.train()
+        if activate_cond_ldm:
+            model = unet_cond_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+            model.train()
+        else:
+            model = unet_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+            model.train()
 
 
 
@@ -206,28 +210,29 @@ def train(par_dir, conf, trial):
                 ## get the VAE/conditional_VAE latent space
                 if type_model == 'cond_vae': 
                     for key in condition_types:  ## fake for loop., for now it is only one, get only one type of condition
-                        cond_input = cond_input[key].to(device)
-                    im, _ = vae.encode(im, cond_input)
+                        key_vae = key # cond_input = cond_input[key].to(device)
+                    im, _ = vae.encode(im, cond_input[key_vae].to(device))
                 if type_model == 'vae': 
                     im, _ = vae.encode(im)
                 
 
             #############  Handiling the condition input for cond LDM ########################################
-            if 'image' in condition_types and type_model == 'vae':
+            if 'image' in condition_types and (type_model == 'vae' or activate_cond_ldm):
                 assert 'image' in cond_input, 'Conditioning Type Image but no image conditioning input present'
                 cond_input_image = cond_input['image'].to(device) 
                 # Drop condition
                 im_drop_prob = get_config_value(condition_config['image_condition_config'], 'cond_drop_prob', 0.)
                 cond_input['image'] = drop_image_condition(cond_input_image, im, im_drop_prob)
 
-            if 'class' in condition_types and type_model == 'vae':
+            if 'class' in condition_types and (type_model == 'vae' or activate_cond_ldm):
+                print('dentro a class dropping')
                 assert 'class' in cond_input, 'Conditioning Type Class but no class conditioning input present'
                 class_condition = cond_input['class'].to(device)
                 class_drop_prob = get_config_value(condition_config['class_condition_config'],'cond_drop_prob', 0.)
                 # Drop condition
                 cond_input['class'] = drop_class_condition(class_condition, class_drop_prob, im)
 
-            if 'text' in condition_types and type_model == 'vae':
+            if 'text' in condition_types and (type_model == 'vae' or activate_cond_ldm):
                 assert 'text' in cond_input, 'Conditioning Type Text but no text conditioning input present'
                 text_condition_input = cond_input['text'].to(device)
                 text_embedding = get_text_embeddeing(text_condition_input, regression_model, device).to(device)
@@ -246,7 +251,12 @@ def train(par_dir, conf, trial):
             noisy_im = scheduler.add_noise(im, noise, t)
 
             if type_model == 'cond_vae': 
-                noise_pred = model(noisy_im, t)
+                if activate_cond_ldm:
+                    print('dentro a activate_cond_ldm')
+                    noise_pred = model(noisy_im, t, cond_input=cond_input)
+                else:
+                    print('dentro a uncond ldm')
+                    noise_pred = model(noisy_im, t)
             if type_model == 'vae': 
                 noise_pred = model(noisy_im, t, cond_input=cond_input)
 
@@ -278,6 +288,10 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str, default='eco', help='type of the data, mnist, celebhq, eco')
     parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model, default = trained_model')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial name, here you select the trained VAE to compute the latent space')
+    parser.add_argument('--cond_ldm', action='store_true', help="""Choose whether or not activate the conditional ldm. Id activate enable the combo condVAE + condLDM
+                                                                     Default=False that means
+                                                                     'cond_vae' -> cond VAE + unconditional LDM
+                                                                     'vae' -> VAE + conditional LDM""")
     args = parser.parse_args()
 
     current_directory = os.path.dirname(__file__)
@@ -286,4 +300,5 @@ if __name__ == '__main__':
     # save_folder = os.path.join(args.save_folder, args.trial)
     train(par_dir = par_dir,
         conf = configuration, 
-        trial = os.path.join(args.save_folder, args.trial))
+        trial = os.path.join(args.save_folder, args.trial),
+        activate_cond_ldm=args.cond_ldm)
