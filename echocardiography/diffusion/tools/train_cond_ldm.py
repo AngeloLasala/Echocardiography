@@ -225,7 +225,6 @@ def train(par_dir, conf, trial, activate_cond_ldm=False):
                 cond_input['image'] = drop_image_condition(cond_input_image, im, im_drop_prob)
 
             if 'class' in condition_types and (type_model == 'vae' or activate_cond_ldm):
-                print('dentro a class dropping')
                 assert 'class' in cond_input, 'Conditioning Type Class but no class conditioning input present'
                 class_condition = cond_input['class'].to(device)
                 class_drop_prob = get_config_value(condition_config['class_condition_config'],'cond_drop_prob', 0.)
@@ -252,10 +251,8 @@ def train(par_dir, conf, trial, activate_cond_ldm=False):
 
             if type_model == 'cond_vae': 
                 if activate_cond_ldm:
-                    print('dentro a activate_cond_ldm')
                     noise_pred = model(noisy_im, t, cond_input=cond_input)
                 else:
-                    print('dentro a uncond ldm')
                     noise_pred = model(noisy_im, t)
             if type_model == 'vae': 
                 noise_pred = model(noisy_im, t, cond_input=cond_input)
