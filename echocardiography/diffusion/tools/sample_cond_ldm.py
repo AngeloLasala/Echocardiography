@@ -36,7 +36,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def sample(model, scheduler, train_config, diffusion_model_config, condition_config,
-           autoencoder_model_config, diffusion_config, dataset_config, type_model, vae, save_folder, guide_w):
+           autoencoder_model_config, diffusion_config, dataset_config, type_model, vae, save_folder, guide_w, activate_cond_ldm):
     """
     Sample stepwise by going backward one timestep at a time.
     We save the x0 predictions
@@ -45,13 +45,6 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
     im_size_w = dataset_config['im_size_w'] // 2**sum(autoencoder_model_config['down_sample'])
     print(f'Resolution of latent space [{im_size_h},{im_size_w}]')
 
-    
-    ############ Create Conditional input ###############
-    ## FUTURE WORK: Add text-like conditioning
-    # Here put the text-like condiction with cross-attetion conditioning
-    # ...
-    # ...
-    # ...   
 
 
     # Get the spatial conditional mask, i.e. the heatmaps
@@ -143,7 +136,18 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
                 noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
 
             if type_model == 'cond_vae':
-                noise_pred = model(xt, t)
+                if activate_cond_ldm:
+                    print('double conditional ldm')
+                    ## get the noise prediction for the conditional and unconditional model
+                    noise_pred_cond = model(xt, t, cond_input)
+                    noise_pred_uncond = model(xt, t, uncond_input)
+
+                    ## sampling the noise for the conditional and unconditional model
+                    noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
+
+                else:
+                    print('unconditional ldm')
+                    noise_pred = model(xt, t)
             # if i%100 == 0:
             #     plt.figure(f'noise_pred_cond_{i}')
             #     plt.imshow(noise_pred_cond[0][0].cpu().numpy())
@@ -240,7 +244,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
             img.close()
         #############################################################
 
-def infer(par_dir, conf, trial, experiment, epoch, guide_w):
+def infer(par_dir, conf, trial, experiment, epoch, guide_w, activate_cond_ldm):
     # Read the config file #
     with open(conf, 'r') as file:
         try:
@@ -306,11 +310,20 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w):
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'cond_vae', f'vae_best_{best_model}.pth'), map_location=device))
 
-        ## unconditional ldm
-        model = unet_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
-        model.eval()
-        model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
-        model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
+        
+        if activate_cond_ldm:
+            ## conditional ldm
+            model = unet_cond_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+            model.eval()
+            model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
+            model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
+        
+        else:
+            ## unconditional ldm
+            model = unet_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+            model.eval()
+            model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
+            model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
 
     if 'vae' in os.listdir(trial_folder):
         ## VAE + conditional LDM
@@ -349,7 +362,7 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w):
     ######## Sample from the model 
     with torch.no_grad():
         sample(model, scheduler, train_config, diffusion_model_config, condition_config,
-               autoencoder_model_config, diffusion_config, dataset_config, type_model, vae, save_folder, guide_w)
+               autoencoder_model_config, diffusion_config, dataset_config, type_model, vae, save_folder, guide_w, activate_cond_ldm)
 
 
 if __name__ == '__main__':
@@ -360,19 +373,17 @@ if __name__ == '__main__':
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
     parser.add_argument('--epoch', type=int, default=100, help='epoch to sample, this is the epoch of cond ldm model')
     parser.add_argument('--guide_w', type=float, default=0.0, help='guide_w for the conditional model, w=-1 [unconditional], w=0 [vanilla conditioning], w>0 [guided conditional]')
+    parser.add_argument('--cond_ldm', action='store_true', help="""Choose whether or not activate the conditional ldm. Id activate enable the combo condVAE + condLDM
+                                                                     Default=False that means
+                                                                     'cond_vae' -> cond VAE + unconditional LDM
+                                                                     'vae' -> VAE + conditional LDM""")
 
-    # mp.set_start_method("spawn")
-
+    
     args = parser.parse_args()
-
-    # current_directory = os.path.dirname(__file__)
-    # par_dir = os.path.dirname(current_directory)
-    # configuration = os.path.join(par_dir, 'conf', f'{args.data}.yaml')
 
     experiment_dir = os.path.join(args.save_folder, 'eco', args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
 
-    # save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = args.save_folder, conf=config, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
+    infer(par_dir = args.save_folder, conf=config, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w, activate_cond_ldm=args.cond_ldm)
     plt.show()
 
