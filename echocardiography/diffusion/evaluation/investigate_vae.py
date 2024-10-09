@@ -63,11 +63,11 @@ def plot_image_latent(image, latent):
     ax.set_title('Image', fontsize=20)
     ax.axis('off')
     ax.imshow(image[0, 0, :, :].cpu().numpy(), cmap='gray')
-    
+
 
 
     laten_img = torchvision.transforms.Resize((image.shape[2], image.shape[3]))(latent)
-    
+
     fig, ax = plt.subplots(1, laten_img.shape[1], figsize=(21, 8), tight_layout=True)
     for i in range(laten_img.shape[1]):
         ax[i].set_title(f'Image - ch latent {i}', fontsize=20)
@@ -77,9 +77,9 @@ def plot_image_latent(image, latent):
     for axis in ax:
         axis.axis('off')
 
-    ## 
+    ##
     if latent.shape[1] == 4:
-        latent_1 = laten_img[0, 0, :, :].cpu().numpy() + laten_img[0, 2, :, :].cpu().numpy() 
+        latent_1 = laten_img[0, 0, :, :].cpu().numpy() + laten_img[0, 2, :, :].cpu().numpy()
         latent_2 = laten_img[0, 1, :, :].cpu().numpy() + laten_img[0, 3, :, :].cpu().numpy()
         #normalize the latent in the range 0-1
         latent_1 = (latent_1 - np.min(latent_1)) / (np.max(latent_1) - np.min(latent_1))
@@ -96,7 +96,55 @@ def plot_image_latent(image, latent):
         ax[1].set_title('Image - ch latent 1 + ch latent 3', fontsize=20)
         ax[1].axis('off')
 
-    plt.show()
+def get_hypertrophy_from_one_hot(one_hot):
+    """
+    Get the hypertrophy from the one hot encoding
+    """
+    one_hot = one_hot.cpu().numpy()
+    hypertrophy = np.argmax(one_hot)
+    if hypertrophy == 0: return 'Concentric hypertrophy'
+    if hypertrophy == 1: return 'Concentric remodeling'
+    if hypertrophy == 2: return 'Eccentric hypertrophy'
+    if hypertrophy == 3: return 'Normal geometry'
+
+
+def plot_im_cond_rec(im, rec, cond):
+    """
+    Plot the image, condition and the reconstructed image
+    """
+    im = (im + 1) / 2
+    rec = (rec + 1) / 2
+    fig, ax = plt.subplots(1, 3, figsize=(21, 8), num=get_hypertrophy_from_one_hot(cond), tight_layout=True)
+    ax[0].imshow(im[0, 0, :, :].cpu().numpy(), cmap='gray')
+    ax[0].set_title('Original image', fontsize=20)
+    ax[0].axis('off')
+
+
+    ax[1].imshow(rec[0, 0, :, :].cpu().numpy(), cmap='gray')
+    ax[1].set_title('Reconstructed Image', fontsize=20)
+    ax[1].axis('off')
+
+    ax[2].imshow(np.abs(im[0, 0, :, :].cpu().numpy() - rec[0, 0, :, :].cpu().numpy()), cmap='hot')
+    ax[2].set_title('Difference', fontsize=20)
+
+def plot_difference_matrix(original, out_1, out_2, out_3, out_4):
+    """
+    Plot the difference matrix
+    """
+    original = (original + 1) / 2
+    out_1 = (out_1 + 1) / 2
+    out_2 = (out_2 + 1) / 2
+    out_3 = (out_3 + 1) / 2
+    out_4 = (out_4 + 1) / 2
+    
+    generations = [original.cpu().numpy(), out_1.cpu().numpy(), out_2.cpu().numpy(), out_3.cpu().numpy(), out_4.cpu().numpy()]
+    label = ['Original_cond', 'CH', 'CR', 'EC', 'Normal geometry']
+    fig, ax = plt.subplots(5, 5, figsize=(30, 20), num='Difference between cond', tight_layout=True)
+    for i,data_1 in enumerate(generations):
+        for j, data_2 in enumerate(generations):
+            ax[i, j].imshow(np.abs(generations[i][0,0,:,:] - generations[j][0,0,:,:]), cmap='hot')
+            ax[i, j].set_title(f'{label[i]} - {label[j]}', fontsize=20)
+            ax[i, j].axis('off')
 
 def infer(par_dir, conf, trial, show_plot=False):
     ######## Read the config file #######
@@ -106,7 +154,7 @@ def infer(par_dir, conf, trial, show_plot=False):
         except yaml.YAMLError as exc:
             print(exc)
     print(config)
-    
+
     autoencoder_model_config = config['autoencoder_params']
     train_config = config['train_params']
     diffusion_config = config['diffusion_params']
@@ -119,7 +167,7 @@ def infer(par_dir, conf, trial, show_plot=False):
         assert 'condition_types' in condition_config, \
             "condition type missing in conditioning config"
         condition_types = condition_config['condition_types']
-    
+
     #############################
 
     # Create the dataset
@@ -130,19 +178,26 @@ def infer(par_dir, conf, trial, show_plot=False):
     }.get(dataset_config['name'])
 
     # Create the dataset and dataloader
-    data = im_dataset_cls(split='train', size=(dataset_config['im_size_h'], dataset_config['im_size_w']), 
-                              im_path=dataset_config['im_path'], dataset_batch=dataset_config['dataset_batch'], phase=dataset_config['phase'],
-                              dataset_batch_regression=dataset_config['dataset_batch_regression'], trial=dataset_config['trial'],
-                              condition_config=condition_config)
-    data_loader = DataLoader(data, batch_size=1, shuffle=False, num_workers=4)
+    print('dataset', dataset_config['dataset_batch'])
+    data_list = []
+    for dataset_batch in dataset_config['dataset_batch']:
+        data_batch = im_dataset_cls(split=dataset_config['split'], size=(dataset_config['im_size_h'], dataset_config['im_size_w']),
+                            parent_dir=dataset_config['parent_dir'], im_path=dataset_config['im_path'], dataset_batch=dataset_batch , phase=dataset_config['phase'],
+                            condition_config=condition_config)
+        data_list.append(data_batch)
+
+    data_img = torch.utils.data.ConcatDataset(data_list)
+    print('len of the dataset', len(data_img))
+    data_loader = DataLoader(data_img, batch_size=1, shuffle=False, num_workers=8)
+
 
     num_images = train_config['num_samples']
     ngrid = train_config['num_grid_rows']
-    
-    trial_folder = os.path.join(par_dir, 'trained_model', dataset_config['name'], trial)
-    assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
 
-    
+    trial_folder = os.path.join(par_dir, dataset_config['name'], trial)
+    assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
+    print(os.listdir(trial_folder))
+
     if 'cond_vae' in os.listdir(trial_folder):
         type_model = 'cond_vae'
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
@@ -169,9 +224,15 @@ def infer(par_dir, conf, trial, show_plot=False):
 
     ## evalaute the recon loss on test set
     recon_criterion = torch.nn.MSELoss()            # L1/L2 loss for Reconstruction
-    lpips_model = LPIPS().eval().to(device) 
+    lpips_model = LPIPS().eval().to(device)
     encoded_output_list = []
     hypertrophy_list = []
+    ## type of condition
+    cond_1 = torch.tensor([1, 0, 0, 0]).to(device)
+    cond_2 = torch.tensor([0, 1, 0, 0]).to(device)
+    cond_3 = torch.tensor([0, 0, 1, 0]).to(device)
+    cond_4 = torch.tensor([0, 0, 0, 1]).to(device)
+
     with torch.no_grad():
         test_recon_losses = []
         test_perceptual_losses = []
@@ -180,25 +241,48 @@ def infer(par_dir, conf, trial, show_plot=False):
             for key in cond.keys(): ## for all the type of condition, we move the  tensor on the device
                 cond[key] = cond[key].to(device)
 
-            ## add the condition only for the conditional model
-            if type_model == 'cond_vae': model_output = vae(im, cond['class'])
-            else: model_output = vae(im)
+            ## Get the reconstracted image from the VAE/condVAE
+            print(type_model)
+            # if type_model == 'cond_vae': model_output = vae(im, cond['class'])
+            # else: model_output = vae(im)
+            # output, encoder_out = model_output
 
-            output, encoder_out = model_output
-            mean, logvar = torch.chunk(encoder_out, 2, dim=1) 
-
+            ## Encoder - get the latent space
             if type_model == 'cond_vae': encoded_output, _ = vae.encode(im, cond['class'])
             else: encoded_output, _ = vae.encode(im)
+
+            ## decoder - get the reconstructed image
+            if type_model == 'cond_vae':
+                ## output from original condition
+                output = torch.clamp(vae.decode(encoded_output, cond['class']),-1., 1.)
+
+                output_1 = torch.clamp(vae.decode(encoded_output, cond_1),-1., 1.)
+                output_2 = torch.clamp(vae.decode(encoded_output, cond_2),-1., 1.)
+                output_3 = torch.clamp(vae.decode(encoded_output, cond_3),-1., 1.)
+                output_4 = torch.clamp(vae.decode(encoded_output, cond_4),-1., 1.)
+            else:
+                output = vae.decode(encoded_output)
+
             recon_loss = recon_criterion(output, im)
             encoded_output = torch.clamp(encoded_output, -1., 1.)
             encoded_output = (encoded_output + 1) / 2
-            
-            if show_plot: plot_image_latent(im, encoded_output)
-            
+
+            if show_plot:
+                # plot_image_latent(im, encoded_output)
+                plot_im_cond_rec(im, output, cond['class'])
+                plot_im_cond_rec(im, output_1, cond_1)
+                plot_im_cond_rec(im, output_2, cond_2)
+                plot_im_cond_rec(im, output_3, cond_3)
+                plot_im_cond_rec(im, output_4, cond_4)
+                plot_difference_matrix(output, output_1, output_2, output_3, output_4)
+                plt.show()
+
+            ## calculate the perceptual loss
+
             encoded_output = encoded_output[0,:,:,:].flatten()
             encoded_output_list.append(encoded_output.cpu().numpy())
             hypertrophy_list.append(np.argmax(cond['class'].cpu().numpy()))
-    
+
     encoded_output_list = np.array(encoded_output_list)
 
     # Reduce dimensionality with PCA
@@ -250,7 +334,7 @@ def infer(par_dir, conf, trial, show_plot=False):
     plt.yticks(fontsize=18)
     # plt.show()
 
-    ## plt the 3d scatter plot of LDA 
+    ## plt the 3d scatter plot of LDA
     fig = plt.figure(figsize=(8,8), num=f'{type_model} - 3D LDA of latent space of PLAX')
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(encoded_output_lda[:,0], encoded_output_lda[:,1], encoded_output_lda[:,2], c=color)
@@ -282,21 +366,34 @@ def infer(par_dir, conf, trial, show_plot=False):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Arguments for vq vae inference')
-    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model')
+    parser = argparse.ArgumentParser(description='Invastigate the latent space')
+    parser.add_argument('--save_folder', type=str, default='trained_model', help='folder to save the model, default = trained_model')
+    parser.add_argument('--trial', type=str, default='trial_1', help='trial name for saving the model, it is the trial folde that contain the VAE model')
     parser.add_argument('--show_plot', action='store_true', help="show the latent space imgs, default=False")
-    
+
     args = parser.parse_args()
 
-    current_directory = os.path.dirname(__file__)
-    par_dir = os.path.dirname(current_directory)
-    eco_dir = os.path.join(par_dir, 'trained_model', 'eco')
+    # current_directory = os.path.dirname(__file__)
+    # par_dir = os.path.dirname(current_directory)
+    # eco_dir = os.path.join(par_dir, 'trained_model', 'eco')
 
-    experiment_dir = os.path.join(eco_dir, args.trial)
-    if 'vae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'vae', 'config.yaml')
-    if 'vqvae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'vqvae', 'config.yaml')
-    if 'cond_vae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'cond_vae', 'config.yaml')
+    # experiment_dir = os.path.join(eco_dir, args.trial)
+    # if 'vae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'vae', 'config.yaml')
+    # if 'vqvae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'vqvae', 'config.yaml')
+    # if 'cond_vae' in os.listdir(experiment_dir): configuration = os.path.join(experiment_dir, 'cond_vae', 'config.yaml')
 
-    config = os.path.join(experiment_dir, 'config.yaml')
-    save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = par_dir, conf = configuration, trial = args.trial, show_plot=args.show_plot)
+    # config = os.path.join(experiment_dir, 'config.yaml')
+    # save_folder = os.path.join(par_dir, 'trained_model', args.trial)
+    # infer(par_dir = par_dir, conf = configuration, trial = args.trial, show_plot=args.show_plot)
+
+    ###########################
+    args = parser.parse_args()
+
+    experiment_dir = os.path.join(args.save_folder, 'eco', args.trial)
+    if 'vae' in os.listdir(experiment_dir): config = os.path.join(experiment_dir, 'vae', 'config.yaml')
+    if 'vqvae' in os.listdir(experiment_dir): config = os.path.join(experiment_dir, 'vqvae', 'config.yaml')
+    if 'cond_vae' in os.listdir(experiment_dir): config = os.path.join(experiment_dir, 'cond_vae', 'config.yaml')
+
+
+    infer(par_dir = args.save_folder, conf=config, trial=args.trial, show_plot=args.show_plot)
+    plt.show()

@@ -38,6 +38,8 @@ class condVAE(nn.Module):
         if 'image' in condition_types:
             self.image_conditioning = True
             self.im_cond_input_ch = self.condition_config['image_condition_config']['image_condition_input_channels']
+            self.im_cond_output_ch = self.condition_config['image_condition_config']['image_condition_output_channels']
+            
 
         print(f'Class conditioning: {self.class_conditioning}')
         print(f'Image conditioning: {self.image_conditioning}')
@@ -71,7 +73,14 @@ class condVAE(nn.Module):
             self.encoder_conv_in = nn.Conv2d(im_channels + self.num_classes, self.down_channels[0], kernel_size=3, padding=(1, 1))
         elif self.image_conditioning == True:
             print('sto dentro encoder image conditioning')
-            self.encoder_conv_in = nn.Conv2d(im_channels + self.im_cond_input_ch, self.down_channels[0], kernel_size=3, padding=(1, 1))
+            # Map the mask image to a N channel image and
+            # concat that with input across channel dimension
+            # similar to the Unet cond acrctitecture for the DDPM
+            self.cond_conv_in = nn.Conv2d(in_channels=self.im_cond_input_ch,
+                                          out_channels=self.im_cond_output_ch,
+                                          kernel_size=1,
+                                          bias=False)
+            self.encoder_conv_in = nn.Conv2d(im_channels + self.im_cond_output_ch, self.down_channels[0], kernel_size=3, padding=(1, 1))
         else:
             self.encoder_conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=(1, 1))
         
@@ -128,7 +137,7 @@ class condVAE(nn.Module):
         if self.class_conditioning == True: 
             self.post_quant_conv = nn.Conv2d(self.z_channels + self.num_classes, self.z_channels, kernel_size=1)
         elif self.image_conditioning == True:
-            self.post_quant_conv = nn.Conv2d(self.z_channels + self.im_cond_input_ch, self.z_channels, kernel_size=1)
+            self.post_quant_conv = nn.Conv2d(self.z_channels + self.im_cond_output_ch, self.z_channels, kernel_size=1)
         else:
             self.post_quant_conv = nn.Conv2d(self.z_channels, self.z_channels, kernel_size=1)
 
@@ -184,7 +193,8 @@ class condVAE(nn.Module):
 
         if self.image_conditioning == True:
             # resize y to the same shape of xonly for the -2 and -1 dimentions
-            y = nn.functional.interpolate(y, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=False)
+            y = nn.functional.interpolate(y, size=x.shape[-2:], mode='bilinear', align_corners=False)
+            y = self.cond_conv_in(y)
             x = torch.cat([x, y], dim=1)
     
         out = self.encoder_conv_in(x)
@@ -225,7 +235,8 @@ class condVAE(nn.Module):
 
         if self.image_conditioning == True:
             # resize y to the same shape of z only for the -2 and -1 dimentions
-            y = nn.functional.interpolate(y, size=(z.shape[2], z.shape[3]), mode='bilinear', align_corners=False)
+            y = nn.functional.interpolate(y, size=z.shape[-2:], mode='bilinear', align_corners=False)
+            y = self.cond_conv_in(y)
             z = torch.cat([z, y], dim=1)
         
         out = z
@@ -291,7 +302,8 @@ if __name__ == '__main__':
     condition_image = {
         'condition_types': ['image'],
         'image_condition_config': {
-            'image_condition_input_channels': 6
+            'image_condition_input_channels': 6,
+            'image_condition_output_channels': 3
         }
     }   
 
