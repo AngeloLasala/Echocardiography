@@ -9,14 +9,14 @@
 #SBATCH --output=eval_1.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-for trial in trial_3 trial_4; do
+for trial in trial_3 ; do
     for epoch in 20 40 60 80 100 120 150; do
         python -m echocardiography.diffusion.evaluation.hypertropy_eval\
                 --par_dir '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco'\
                 --par_dir_regression '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression'\
                 --trial_regression trial_3\
                 --trial $trial\
-                --experiment cond_ldm_1\
+                --experiment cond_ldm_2\
                 --guide_w -1.0\
                 --epoch $epoch
     done

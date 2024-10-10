@@ -115,16 +115,19 @@ def plot_im_cond_rec(im, rec, cond):
     im = (im + 1) / 2
     rec = (rec + 1) / 2
     fig, ax = plt.subplots(1, 3, figsize=(21, 8), num=get_hypertrophy_from_one_hot(cond), tight_layout=True)
-    ax[0].imshow(im[0, 0, :, :].cpu().numpy(), cmap='gray')
+    real_img = (im[0, 0, :, :].cpu().numpy() * 255) + 0.00003
+    rec_img = (rec[0, 0, :, :].cpu().numpy() * 255) + 0.00003
+
+    ax[0].imshow(real_img, cmap='gray')
     ax[0].set_title('Original image', fontsize=20)
     ax[0].axis('off')
 
 
-    ax[1].imshow(rec[0, 0, :, :].cpu().numpy(), cmap='gray')
+    ax[1].imshow(rec_img, cmap='gray')
     ax[1].set_title('Reconstructed Image', fontsize=20)
     ax[1].axis('off')
 
-    ax[2].imshow(np.abs(im[0, 0, :, :].cpu().numpy() - rec[0, 0, :, :].cpu().numpy()), cmap='hot')
+    ax[2].imshow(np.abs(real_img - rec_img) / rec_img, cmap='hot')
     ax[2].set_title('Difference', fontsize=20)
 
 def plot_difference_matrix(original, out_1, out_2, out_3, out_4):
@@ -136,13 +139,14 @@ def plot_difference_matrix(original, out_1, out_2, out_3, out_4):
     out_2 = (out_2 + 1) / 2
     out_3 = (out_3 + 1) / 2
     out_4 = (out_4 + 1) / 2
-    
+
     generations = [original.cpu().numpy(), out_1.cpu().numpy(), out_2.cpu().numpy(), out_3.cpu().numpy(), out_4.cpu().numpy()]
+    generations = [(i * 255) + 0.00003 for i in generations]
     label = ['Original_cond', 'CH', 'CR', 'EC', 'Normal geometry']
     fig, ax = plt.subplots(5, 5, figsize=(30, 20), num='Difference between cond', tight_layout=True)
     for i,data_1 in enumerate(generations):
         for j, data_2 in enumerate(generations):
-            ax[i, j].imshow(np.abs(generations[i][0,0,:,:] - generations[j][0,0,:,:]), cmap='hot')
+            ax[i, j].imshow(np.abs(generations[i][0,0,:,:] - generations[j][0,0,:,:])/ generations[0][0,0,:,:], cmap='hot')
             ax[i, j].set_title(f'{label[i]} - {label[j]}', fontsize=20)
             ax[i, j].axis('off')
 
