@@ -132,12 +132,11 @@ def augumenting_heatmap(heatmap, delta):
     for step in number_of_step:
         displacement = np.abs(label_list[10]-label_list[11]) * step
         new_x1 = label_list[10] + displacement
-        new_y1 = heatmap.shape[2] - (m_pw * new_x1 + q_pw)
+        new_y1 = heatmap.shape[2] - (m_ivs * new_x1 + q_ivs)
         new_label = label_list.copy()
         new_label[10], new_label[11] = int(new_x1), int(new_y1)
         new_heatmap = get_heatmap(new_label)
         heatmap_ivs.append(new_heatmap)
-
     heatmaps_pw = np.array(heatmap_pw)
     heatmaps_ivs = np.array(heatmap_ivs)
     heatmaps_label = np.concatenate((heatmaps_pw, heatmaps_ivs), axis=0)
