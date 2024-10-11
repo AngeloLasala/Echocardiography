@@ -9,7 +9,7 @@
 #SBATCH --output=sample_double_4_6.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-for trial in trial_3 trial_4; do
+for trial in trial_5; do
     for w in 0.4 0.6 ; do
         for epoch in 20 40 60 80 100 120 150; do
                 python -m echocardiography.diffusion.tools.sample_cond_ldm\
