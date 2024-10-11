@@ -206,7 +206,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
 
 
         ## convert the cond and uncond with augumented heatmaps
-        new_heatmap = augumenting_heatmap(cond_input[key].cpu().numpy(), delta = 20).to(device)
+        new_heatmap = augumenting_heatmap(cond_input[key].cpu().numpy(), delta = 10).to(device)
         xt = torch.randn((1, autoencoder_model_config['z_channels'], im_size_h, im_size_w)).repeat(new_heatmap.shape[0],1,1,1).to(device) 
         cond_input[key] = new_heatmap
         uncond_input[key] = torch.zeros_like(cond_input[key])
