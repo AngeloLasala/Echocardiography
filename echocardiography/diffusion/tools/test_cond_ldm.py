@@ -24,9 +24,12 @@ from torchvision.utils import make_grid
 from torchvision import transforms
 from PIL import Image
 
-from echocardiography.diffusion.models.unet_cond_base import Unet, get_config_value
+from echocardiography.diffusion.models.unet_cond_base import get_config_value
+import echocardiography.diffusion.models.unet_cond_base as unet_cond_base
+import echocardiography.diffusion.models.unet_base as unet_base
 from echocardiography.diffusion.models.vqvae import VQVAE
-from echocardiography.diffusion.models.vae import VAE
+from echocardiography.diffusion.models.cond_vae import condVAE
+from echocardiography.diffusion.models.vae import VAE 
 from echocardiography.diffusion.sheduler.scheduler import LinearNoiseScheduler
 from echocardiography.diffusion.dataset.dataset import MnistDataset, EcoDataset, CelebDataset
 from echocardiography.diffusion.tools.infer_vae import get_best_model
@@ -149,7 +152,7 @@ def augumenting_heatmap(heatmap, delta):
 
 
 def sample(model, scheduler, train_config, diffusion_model_config, condition_config,
-           autoencoder_model_config, diffusion_config, dataset_config, vae, save_folder, guide_w):
+           autoencoder_model_config, diffusion_config, dataset_config, type_model, vae, save_folder, guide_w, activate_cond_ldm):
     """
     Sample stepwise by going backward one timestep at a time.
     We save the x0 predictions
@@ -217,28 +220,20 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
             # Get prediction of noise
             t = (torch.ones((xt.shape[0],)) * i).long().to(device)
 
-            noise_pred_cond = model(xt, t, cond_input)
-            noise_pred_uncond = model(xt, t, uncond_input)
-            # if i%100 == 0:
-            #     plt.figure(f'noise_pred_cond_{i}')
-            #     plt.imshow(noise_pred_cond[0][0].cpu().numpy())
+            if type_model == 'vae':
+                noise_pred_cond = model(xt, t, cond_input)
+                noise_pred_uncond = model(xt, t, uncond_input)
+                noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
 
-            #     plt.figure(f'noise_pred_uncond{i}')
-            #     plt.imshow(noise_pred_uncond[0][0].cpu().numpy())
-
-            #     plt.figure(f'pred_diff_{i}')
-            #     plt.imshow(noise_pred_cond[0][0].cpu().numpy() - noise_pred_uncond[0][0].cpu().numpy())
-            #     plt.show()
-
-            ## sampling the noise for the conditional and unconditional model
-            noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
-            # plt.figure('noise_pred')
-            # plt.imshow(noise_pred[0][0].cpu().numpy())
-
-            # plt.figure('noise_pred_diff')
-            # plt.imshow(noise_pred[0][0].cpu().numpy() - noise_pred_cond[0][0].cpu().numpy())
-            # plt.show()
-
+            if type_model == 'cond_vae':
+                if activate_cond_ldm:
+                    print('double condition')
+                    noise_pred_cond = model(xt, t, cond_input)
+                    noise_pred_uncond = model(xt, t, uncond_input)
+                    noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
+                else:
+                    print('unconditional ldm')
+                    noise_pred = model(xt, t)
 
             # Use scheduler to get x0 and xt-1
             xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
@@ -260,7 +255,7 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
         np.save(os.path.join(save_folder, f'heatmap_{btc}.npy'), new_heatmap.cpu().numpy())
 
 
-def infer(par_dir, conf, trial, experiment, epoch, guide_w):
+def infer(par_dir, conf, trial, experiment, epoch, guide_w, activate_cond_ldm):
     # Read the config file #
     with open(conf, 'r') as file:
         try:
@@ -294,18 +289,41 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w):
     ###############################################
 
 
-    ########## Load Unet #############
-    model = Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
-    model.eval()
-    model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
-    model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
-
-
+   
     ########## Load AUTOENCODER #############
     trial_folder = os.path.join(par_dir, dataset_config['name'], trial)
     assert os.listdir(trial_folder), f'No trained model found in trial folder {trial_folder}'
     print(os.listdir(trial_folder))
+    if 'cond_vae' in os.listdir(trial_folder):
+        ## Condition VAE + LDM
+        type_model = 'cond_vae'
+        print(f'type model {type_model}')
+        print(f'Load trained {os.listdir(trial_folder)[0]} model')
+        best_model = get_best_model(os.path.join(trial_folder,'cond_vae'))
+        print(f'best model  epoch {best_model}')
+        vae = condVAE(im_channels=dataset_config['im_channels'], model_config=autoencoder_model_config, condition_config=condition_config).to(device)
+        vae.eval()
+        vae.load_state_dict(torch.load(os.path.join(trial_folder, 'cond_vae', f'vae_best_{best_model}.pth'), map_location=device))
+
+        
+        if activate_cond_ldm:
+            ## conditional ldm
+            model = unet_cond_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+            model.eval()
+            model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
+            model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
+        
+        else:
+            ## unconditional ldm
+            model = unet_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+            model.eval()
+            model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
+            model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
+
     if 'vae' in os.listdir(trial_folder):
+        ## VAE + conditional LDM
+        type_model = 'vae'
+        print(f'type model {type_model}')
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
         best_model = get_best_model(os.path.join(trial_folder,'vae'))
         print(f'best model  epoch {best_model}')
@@ -313,12 +331,18 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w):
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vae', f'vae_best_{best_model}.pth'), map_location=device))
 
+        # conditional ldm
+        model = unet_cond_base.Unet(im_channels=autoencoder_model_config['z_channels'], model_config=diffusion_model_config).to(device)
+        model.eval()
+        model_dir = os.path.join(par_dir, dataset_config['name'], trial, experiment)
+        model.load_state_dict(torch.load(os.path.join(model_dir, f'ldm_{epoch}.pth'),map_location=device), strict=False)
+
     if 'vqvae' in os.listdir(trial_folder):
         print(f'Load trained {os.listdir(trial_folder)[0]} model')
         vae = VQVAE(im_channels=dataset_config['im_channels'], model_config=autoencoder_model_config).to(device)
         vae.eval()
         vae.load_state_dict(torch.load(os.path.join(trial_folder, 'vqvae', 'vqvae.pth'),map_location=device))
-    #####################################
+   #####################################
 
     ######### Create output directories #############
     save_folder = os.path.join(model_dir, 'test', f'w_{guide_w}', f'samples_ep_{epoch}')
@@ -329,7 +353,7 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w):
     ######## Sample from the model
     with torch.no_grad():
         sample(model, scheduler, train_config, diffusion_model_config, condition_config,
-               autoencoder_model_config, diffusion_config, dataset_config, vae, save_folder, guide_w)
+               autoencoder_model_config, diffusion_config, dataset_config, type_model, vae, save_folder, guide_w, activate_cond_ldm)
 
 
 if __name__ == '__main__':
@@ -340,14 +364,17 @@ if __name__ == '__main__':
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
     parser.add_argument('--epoch', type=int, default=100, help='epoch to sample, this is the epoch of cond ldm model')
     parser.add_argument('--guide_w', type=float, default=0.0, help='guide_w for the conditional model, w=-1 [unconditional], w=0 [vanilla conditioning], w>0 [guided conditional]')
+    parser.add_argument('--cond_ldm', action='store_true', help="""Choose whether or not activate the conditional ldm. Id activate enable the combo condVAE + condLDM
+                                                                     Default=False that means
+                                                                     'cond_vae' -> cond VAE + unconditional LDM
+                                                                     'vae' -> VAE + conditional LDM""")
 
     args = parser.parse_args()
 
     experiment_dir = os.path.join(args.save_folder, 'eco', args.trial, args.experiment)
     config = os.path.join(experiment_dir, 'config.yaml')
-    print(f'Configuration file: {experiment_dir}')
 
     # save_folder = os.path.join(par_dir, 'trained_model', args.trial)
-    infer(par_dir = args.save_folder, conf=config, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w)
+    infer(par_dir = args.save_folder, conf=config, trial=args.trial, experiment=args.experiment ,epoch=args.epoch, guide_w=args.guide_w, activate_cond_ldm=args.cond_ldm)
     plt.show()
 
