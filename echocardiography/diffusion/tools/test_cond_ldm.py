@@ -113,7 +113,7 @@ def augumenting_heatmap(heatmap, delta):
     Given a heatmap retern several augumented images chenges the RWT and RST
     """
     ## augementation steps
-    number_of_step = np.arange(-delta, delta + 5 , 5) / 100
+    number_of_step = np.arange(-delta, delta + 2 , 2) / 100
     label_list = get_corrdinate_from_heatmap(heatmap[0])
 
     ## get the line equation for the pw points
