@@ -227,12 +227,10 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
 
             if type_model == 'cond_vae':
                 if activate_cond_ldm:
-                    print('double condition')
                     noise_pred_cond = model(xt, t, cond_input)
                     noise_pred_uncond = model(xt, t, uncond_input)
                     noise_pred = (1 + guide_w) * noise_pred_cond - guide_w * noise_pred_uncond
                 else:
-                    print('unconditional ldm')
                     noise_pred = model(xt, t)
 
             # Use scheduler to get x0 and xt-1
