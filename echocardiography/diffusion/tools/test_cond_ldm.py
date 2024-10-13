@@ -239,7 +239,12 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
             # Save x0
             if i == 0:
                 # Decode ONLY the final image to save time
-                ims = vae.decode(xt)
+                if type_model == 'vae':
+                    ims = vae.decode(xt)
+                if type_model == 'cond_vae':
+                    for key in condition_types:  ## fake for loop., for now it is only one, get only one type of condition
+                        cond_input = cond_input[key].to(device)
+                    ims = vae.decode(xt, cond_input)
             else:
                 ims = x0_pred
 
