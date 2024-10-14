@@ -123,7 +123,7 @@ def augumenting_heatmap(heatmap, delta):
     ## augumentation of the LVPWd 
     heatmap_pw = []
     for step in number_of_step:
-        new_x1 = label_list[0] + displacement
+        new_x1 = label_list[0] + step
         new_y1 = heatmap.shape[2] - (m_pw * new_x1 + q_pw)
         new_label = label_list.copy()
         new_label[0], new_label[1] = int(new_x1), int(new_y1)
@@ -132,7 +132,7 @@ def augumenting_heatmap(heatmap, delta):
 
     heatmap_ivs = []
     for step in number_of_step:
-        new_x1 = label_list[10] + displacement
+        new_x1 = label_list[10] + step
         new_y1 = heatmap.shape[2] - (m_ivs * new_x1 + q_ivs)
         new_label = label_list.copy()
         new_label[10], new_label[11] = int(new_x1), int(new_y1)
