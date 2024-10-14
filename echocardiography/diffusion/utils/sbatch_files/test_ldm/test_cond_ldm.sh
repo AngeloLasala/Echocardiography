@@ -12,9 +12,8 @@
 
 python -m echocardiography.diffusion.tools.test_cond_ldm\
         --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/'\
-        --trial trial_5\
-        --experiment cond_ldm_2\
+        --trial trial_2\
+        --experiment cond_ldm_1\
         --epoch 100\
-        --guide_w 0.4\
-        --cond_ldm
+        --guide_w 0.6
 
