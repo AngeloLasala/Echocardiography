@@ -57,14 +57,6 @@ def line_give_points(p1, p2, x_max, y_max):
     q = y1 - m * x1
     return m, q, dist
 
-def distance_between_two_points(p1, p2, x_max, y_max):
-    """
-    Given two points p1 and p2 return the distance between them
-    """
-    x1, y1 = p1[0], y_max - p1[1]
-    x2, y2 = p2[0], y_max - p2[1]
-    return
-
 
 def get_heatmap(labels, w=320, h=240):
         """
@@ -107,43 +99,71 @@ def get_heatmap(labels, w=320, h=240):
 
         return heatmaps_label
 
+def echocardiografic_parameters(label):
+    """
+    given the array of 12 labels compute the RWT and LVmass
 
-def augumenting_heatmap(heatmap, delta):
+    Parameters
+    ----------
+    label: np.array
+        array of 12 labels [ in corrofinate order: x1, y1, x2, y2, x1, y1, x2, y2, x1, y1, x2, y2] * img shape
+
+    Returns
+    -------
+    RWT: float
+        Relative Wall Thickness
+
+    LVmass: float
+        Left Ventricular Mass
+    """
+    
+    ## compute the RWT
+    LVPWd = np.sqrt((label[2] - label[0])**2 + (label[3] - label[1])**2)
+    LVIDd = np.sqrt((label[6] - label[4])**2 + (label[7] - label[5])**2)
+    IVSd = np.sqrt((label[10] - label[8])**2 + (label[11] - label[9])**2)
+    
+    rwt = 2 * LVPWd / LVIDd
+    rst = 2 * IVSd / LVIDd
+    return rwt, rst, LVPWd, LVIDd, IVSd
+
+def augumenting_heatmap(heatmap, delta, m, q):
     """
     Given a heatmap retern several augumented images chenges the RWT and RST
     """
     ## augementation steps
     number_of_step = np.arange(-delta, delta + 1 , 1) 
     label_list = get_corrdinate_from_heatmap(heatmap[0])
-
+    rwt, rst, LVPWd, LVIDd, IVSd = echocardiografic_parameters(label_list)
+    
     ## get the line equation for the pw points
     m_pw, q_pw, dist_pw = line_give_points(label_list[0:2], label_list[2:4], heatmap.shape[3], heatmap.shape[2])
     m_ivs, q_ivs, dist_ivs = line_give_points(label_list[8:10], label_list[10:12], heatmap.shape[3], heatmap.shape[2])
 
     ## augumentation of the LVPWd 
-    heatmap_pw = []
+    heatmaps_label = []
     for step in number_of_step:
+        ## define new coordinate x and y for pw points
+        new_label = label_list.copy()
         new_x1 = label_list[0] + step
         new_y1 = heatmap.shape[2] - (m_pw * new_x1 + q_pw)
-        new_label = label_list.copy()
         new_label[0], new_label[1] = int(new_x1), int(new_y1)
-        new_heatmap = get_heatmap(new_label)
-        heatmap_pw.append(new_heatmap)
 
-    heatmap_ivs = []
-    for step in number_of_step:
-        new_x1 = label_list[10] + step
-        new_y1 = heatmap.shape[2] - (m_ivs * new_x1 + q_ivs)
-        new_label = label_list.copy()
-        new_label[10], new_label[11] = int(new_x1), int(new_y1)
+        ## compute new value of RWT and RST
+        rwt_new, rst_new, LVPWd_new, LVIDd_new, IVSd_new = echocardiografic_parameters(new_label)
+        k = ((m*rwt_new + q) * LVIDd / 2 )
+        a, b = new_label[8], new_label[9]
+
+        ## compute the new coordinate of the IVSd
+        new_x1_ivs = k * (new_label[10] - a) / IVSd_new + a
+        new_y1_ivs = heatmap.shape[2] - (m_ivs * new_x1_ivs + q_ivs)
+        new_label[10], new_label[11] = int(new_x1_ivs), int(new_y1_ivs)
+        rwt_new, rst_new, LVPWd_new, LVIDd_new, IVSd_new = echocardiografic_parameters(new_label)
+       
         new_heatmap = get_heatmap(new_label)
-        heatmap_ivs.append(new_heatmap)
-    heatmaps_pw = np.array(heatmap_pw)
-    heatmaps_ivs = np.array(heatmap_ivs)
-    heatmaps_label = np.concatenate((heatmaps_pw, heatmaps_ivs), axis=0)
-    heatmaps_label = np.array(heatmaps_label)
-    
+        heatmaps_label.append(new_heatmap)
+ 
     ## reshape the heatmaps_label in batch, channel, h, w
+    heatmaps_label = np.array(heatmaps_label)
     label = torch.tensor(heatmaps_label).permute(0, 3, 1, 2)
     return label
 
@@ -207,8 +227,8 @@ def sample(model, scheduler, train_config, diffusion_model_config, condition_con
 
 
         ## convert the cond and uncond with augumented heatmaps
-        new_heatmap = augumenting_heatmap(cond_input[key].cpu().numpy(), delta = 5).to(device)
-        xt = torch.randn((1, autoencoder_model_config['z_channels'], im_size_h, im_size_w)).repeat(new_heatmap.shape[0],1,1,1).to(device) 
+        new_heatmap = augumenting_heatmap(cond_input[key].cpu().numpy(), delta = 5, m = 1.114, q=-0.0189).to(device)
+        xt = torch.randn((1, autoencoder_model_config['z_channels'], im_size_h, im_size_w)).repeat(new_heatmap.shape[0],1,1,1).to(device)
         cond_input[key] = new_heatmap
         uncond_input[key] = torch.zeros_like(cond_input[key])
 
