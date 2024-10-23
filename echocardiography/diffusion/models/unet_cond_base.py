@@ -49,6 +49,7 @@ class Unet(nn.Module):
         self.text_cond = False
         self.image_cond = False
         self.keypoints_cond = False
+        self.eco_parameters = False
         self.text_embed_dim = None
         self.condition_config = get_config_value(model_config, 'condition_config', default_value=None) 
         if self.condition_config is not None:
@@ -64,6 +65,11 @@ class Unet(nn.Module):
                 # print('sto dentro: keypoints')
                 self.keypoints_cond = True
                 self.num_keypoints = self.condition_config['keypoints_condition_config']['num_keypoints']
+            if 'eco_parameters' in condition_types:
+                # validate_eco_parameters_config(self.condition_config)
+                # print('sto dentro: eco_parameters')
+                self.eco_parameters = True
+                self.num_eco_parameters = self.condition_config['eco_parameters_condition_config']['num_eco_parameters']
             if 'text' in condition_types:
                 # validate_text_config(self.condition_config)
                 # print('sto dentro: text')
@@ -85,6 +91,11 @@ class Unet(nn.Module):
             # Rather than using a special null class we dont add
             # the keypoints embedding information for unconditional generation
             self.keypoints_emb = nn.Embedding(self.num_keypoints, self.t_emb_dim)
+
+        if self.eco_parameters:
+            # Rather than using a special null class we dont add
+            # the eco_parameters embedding information for unconditional generation
+            self.eco_parameters_emb = nn.Embedding(self.num_eco_parameters, self.t_emb_dim)
         
         if self.image_cond:
             # Map the mask image to a N channel image and
@@ -97,7 +108,7 @@ class Unet(nn.Module):
                                             self.down_channels[0], kernel_size=3, padding=1)
         else:
             self.conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=1)
-        self.cond = self.text_cond or self.image_cond or self.class_cond or self.keypoints_cond ## check if at least one condition is activate
+        self.cond = self.text_cond or self.image_cond or self.class_cond or self.keypoints_cond or self.eco_parameters ## check if at least one condition is activate
         ###################################
         
         # Initial projection from sinusoidal time embedding
@@ -187,6 +198,16 @@ class Unet(nn.Module):
             t_emb += class_embed
         ####################################
 
+        ######## Eco Parameters Conditioning ########
+        if self.eco_parameters:
+            # validate_eco_parameters_conditional_input(cond_input, x, self.num_eco_parameters)
+            # print(self.eco_parameters_emb.weight.shape)
+            # print(cond_input['eco_parameters'].shape)
+            eco_parameters_embed = einsum(cond_input['eco_parameters'].float(), self.eco_parameters_emb.weight, 'b n, n d -> b d')
+            # print(eco_parameters_embed.shape)
+            # print(t_emb.shape)
+            t_emb += eco_parameters_embed
+
         ######## Keypoints Conditioning ########
         if self.keypoints_cond:
             # validate_keypoints_conditional_input(cond_input, x, self.num_keypoints)
@@ -248,7 +269,7 @@ if __name__ == '__main__':
         'num_mid_layers': 2,
         'num_up_layers': 2,
         'condition_config': {
-            'condition_types': ['keypoints'],
+            'condition_types': ['eco_parameters'],
             'class_condition_config': {
                 'num_classes': 4
             },
@@ -264,6 +285,9 @@ if __name__ == '__main__':
             },
             'keypoints_condition_config': {
                 'num_keypoints': 12
+            },
+            'eco_parameters_condition_config': {
+                'num_eco_parameters': 2
             }
         }
     }
@@ -275,5 +299,6 @@ if __name__ == '__main__':
     mask_cond = torch.randn(5, 6, 30, 40)
     class_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
     keypoints_cond = torch.randn(5, 12)
-    out = model(x, t, {'keypoints': keypoints_cond})
+    eco_parameters_cond = torch.randn(5, 2)
+    out = model(x, t, {'eco_parameters': eco_parameters_cond})
     print(out.shape)

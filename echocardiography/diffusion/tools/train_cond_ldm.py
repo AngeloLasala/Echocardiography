@@ -48,6 +48,13 @@ def drop_keypoints_condition(keypoints_condition, keypoints_drop_prob, im):
     else:
         return keypoints_condition
 
+def drop_eco_parameters_condition(eco_condition, eco_drop_prob, im):
+    if eco_drop_prob > 0:
+        eco_drop_mask = torch.zeros((im.shape[0], 1), device=im.device).float().uniform_(0,1) > eco_drop_prob
+        return eco_condition * eco_drop_mask
+    else:
+        return eco_condition
+
 def drop_text_condition(text_condition, text_drop_prob):
     if text_drop_prob > 0:
         text_drop_mask = torch.zeros((text_condition.shape[0], 1, 1, 1), device=text_condition.device).float().uniform_(0,1) > text_drop_prob
@@ -244,6 +251,14 @@ def train(par_dir, conf, trial, activate_cond_ldm=False):
                 keypoints_drop_prob = get_config_value(condition_config['keypoints_condition_config'], 'cond_drop_prob', 0.)
                 keypoints_condition = drop_keypoints_condition(keypoints_condition, keypoints_drop_prob, im)
                 cond_input['keypoints'] = keypoints_condition
+
+            if 'eco_parameters' in condition_types and (type_model == 'vae' or activate_cond_ldm):
+                assert 'eco_parameters' in cond_input, 'Conditioning Type Eco Parameters but no eco parameters conditioning input present'
+                eco_condition = cond_input['eco_parameters'].to(device)
+                eco_drop_prob = get_config_value(condition_config['eco_parameters_condition_config'], 'cond_drop_prob', 0.)
+                eco_condition = drop_eco_parameters_condition(eco_condition, eco_drop_prob, im)
+                cond_input['eco_parameters'] = eco_condition
+                print(cond_input['eco_parameters'])
 
             if 'text' in condition_types and (type_model == 'vae' or activate_cond_ldm):
                 assert 'text' in cond_input, 'Conditioning Type Text but no text conditioning input present'

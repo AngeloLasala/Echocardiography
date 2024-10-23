@@ -5,7 +5,7 @@ dataset_params:
   #            2) '/media/angelo/OS/Users/lasal/Desktop' with 'DATA_h' from settember 2024
   # one drive: '...'
   # cineca: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'
-  parent_dir: '/media/angelo/OS/Users/lasal/Desktop'   
+  parent_dir: '/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression'   
   im_path: 'DATA_h'        # 'DATA_h' from settember 2024, compatible with cineca
   split: 'train'
   split_val: 'val'
@@ -41,7 +41,7 @@ ldm_params:
   num_mid_layers : 2
   num_up_layers : 2
   condition_config:
-    condition_types: [ 'keypoints' ]      # could be also ['class', 'text', 'image' ]: PUT THE DEFAULT VALUE AS 'image'
+    condition_types: [ 'eco_parameters' ]      # could be also ['class', 'text', 'image' ]: PUT THE DEFAULT VALUE AS 'image'
     text_condition_config:
       text_embed_model: 'clip'
       train_text_embed_model: False
@@ -58,6 +58,9 @@ ldm_params:
       cond_drop_prob : 0.1       # probability of dropping class labels
     keypoints_condition_config:
       num_keypoints : 12
+      cond_drop_prob : 0.1
+    eco_parameters_condition_config:
+      num_eco_parameters : 2
       cond_drop_prob : 0.1
 
 autoencoder_params:

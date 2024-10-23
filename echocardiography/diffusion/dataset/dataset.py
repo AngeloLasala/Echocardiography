@@ -174,6 +174,16 @@ class EcoDataset():
                 
             #####################################################################
 
+            ########## ECO PARAMETERS CONDITION ################################
+            if 'eco_parameters' in self.condition_types:
+                # process the image
+                resize = transforms.Resize(size=self.size)
+                image = resize(im)
+                im_tensor = (2 * image) - 1
+
+                eco_parameters = self.get_eco_parameters(keypoints_label)
+                cond_inputs['eco_parameters'] = eco_parameters
+
             ###### CLASS CONDITION ##############################################
             if 'class' in self.condition_types:
                 # process the image
@@ -291,6 +301,15 @@ class EcoDataset():
         keypoints_label = torch.tensor(keypoints_label)
 
         return im_tensor, keypoints_label
+
+    def get_eco_parameters(self, keypoints_label):
+        """
+        get the ecoparameters for each patient
+        """
+        rwt, rst = echocardiografic_parameters(keypoints_label)
+        eco_parameters = torch.tensor([rwt, rst])
+        
+        return eco_parameters
 
 
     def get_heatmap(self, idx):
@@ -631,7 +650,7 @@ class CelebDataset(Dataset):
 if __name__ == '__main__':
     import yaml
     
-    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_keypoints_cond.yaml'
+    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_ecopar_cond.yaml'
     with open(conf, 'r') as file:
         try:
             config = yaml.safe_load(file)
