@@ -166,6 +166,14 @@ class EcoDataset():
                 cond_inputs['image'] = heatmaps_label
             #####################################################################
 
+            ################ KEYPOINTS CONDICTION ###############################
+            if 'keypoints' in self.condition_types:
+                # process the image
+                im_tensor, keypoints_tensor = self.get_keypoints(im, keypoints_label)
+                cond_inputs['keypoints'] = keypoints_tensor
+                
+            #####################################################################
+
             ###### CLASS CONDITION ##############################################
             if 'class' in self.condition_types:
                 # process the image
@@ -266,6 +274,23 @@ class EcoDataset():
         # convert the class label to one hot encoding with torch
         class_label = torch.nn.functional.one_hot(torch.tensor(class_label), num_classes=4)
         return class_label
+
+    def get_keypoints(self, im, keypoints_label):
+        """
+        get the keypoints from the label and the image
+        """
+        resize = transforms.Resize(size=self.size)
+        image = resize(im)
+        im_tensor = (2 * image) - 1
+
+        ## mulptiple the labels by the image size
+        converter = np.tile([image.shape[2], image.shape[1]], 6)
+        keypoints_label = keypoints_label * converter
+        ## convert the keypomt in np.int64
+        keypoints_label = keypoints_label.astype(np.int32)
+        keypoints_label = torch.tensor(keypoints_label)
+
+        return im_tensor, keypoints_label
 
 
     def get_heatmap(self, idx):
@@ -606,7 +631,7 @@ class CelebDataset(Dataset):
 if __name__ == '__main__':
     import yaml
     
-    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_image_class_cond.yaml'
+    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_keypoints_cond.yaml'
     with open(conf, 'r') as file:
         try:
             config = yaml.safe_load(file)
@@ -614,22 +639,25 @@ if __name__ == '__main__':
             print(exc)
     print(config['ldm_params']['condition_config'])
 
-    data = EcoDataset(split='train', size=(240,320), im_path='DATA', dataset_batch='Batch3', phase='diastole', 
-                      dataset_batch_regression='Batch2', trial='trial_2', condition_config=config['ldm_params']['condition_config']) #, condition_config=False)
-    # data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=4, timeout=10)
-    # print(data.condition_types)
+    data = EcoDataset(split='train', size=(240,320), im_path='DATA_h', dataset_batch='Batch3', phase='diastole', 
+                      parent_dir=config['dataset_params']['parent_dir'] ,dataset_batch_regression='Batch2', trial='trial_2', condition_config=config['ldm_params']['condition_config']) #, condition_config=False)
+    data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=4, timeout=10)
+    print(data.condition_types)
+    for i in data_loader:
+        print(i)
+        break
     # print(data[1][0].shape, data[1][1]['image'].shape)
     # print(data.patient_files[1])
     # print(data.data_dir, data.data_dir_label)
-    print()
-    print(data[13][0].shape, data[13][0].max(), data[13][0].min())
-    print(data[13][1]['image'].shape)
-    print(data[13][1]['class'])
+    # print()
+    # print(data[13][0].shape, data[13][0].max(), data[13][0].min())
+    # print(data[13][1]['image'].shape)
+    # print(data[13][1]['class'])
     
 
     
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.imshow(data[13][0].squeeze(0).detach().numpy(), cmap='gray')
-    plt.imshow(data[13][1]['image'][0].detach().numpy(), cmap='jet', alpha=0.5)
-    plt.show()
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.imshow(data[13][0].squeeze(0).detach().numpy(), cmap='gray')
+    # plt.imshow(data[13][1]['image'][0].detach().numpy(), cmap='jet', alpha=0.5)
+    # plt.show()

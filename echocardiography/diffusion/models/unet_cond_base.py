@@ -48,6 +48,7 @@ class Unet(nn.Module):
         self.class_cond = False
         self.text_cond = False
         self.image_cond = False
+        self.keypoints_cond = False
         self.text_embed_dim = None
         self.condition_config = get_config_value(model_config, 'condition_config', default_value=None) 
         if self.condition_config is not None:
@@ -58,6 +59,11 @@ class Unet(nn.Module):
                 # print('sto dentro: class')
                 self.class_cond = True
                 self.num_classes = self.condition_config['class_condition_config']['num_classes']
+            if 'keypoints' in condition_types:
+                # validate_keypoints_config(self.condition_config)
+                # print('sto dentro: keypoints')
+                self.keypoints_cond = True
+                self.num_keypoints = self.condition_config['keypoints_condition_config']['num_keypoints']
             if 'text' in condition_types:
                 # validate_text_config(self.condition_config)
                 # print('sto dentro: text')
@@ -73,6 +79,12 @@ class Unet(nn.Module):
             # class embedding information for unconditional generation
             self.class_emb = nn.Embedding(self.num_classes,
                                           self.t_emb_dim)
+                            
+
+        if self.keypoints_cond:
+            # Rather than using a special null class we dont add
+            # the keypoints embedding information for unconditional generation
+            self.keypoints_emb = nn.Embedding(self.num_keypoints, self.t_emb_dim)
         
         if self.image_cond:
             # Map the mask image to a N channel image and
@@ -85,7 +97,7 @@ class Unet(nn.Module):
                                             self.down_channels[0], kernel_size=3, padding=1)
         else:
             self.conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=1)
-        self.cond = self.text_cond or self.image_cond or self.class_cond ## check if at least one condition is activate
+        self.cond = self.text_cond or self.image_cond or self.class_cond or self.keypoints_cond ## check if at least one condition is activate
         ###################################
         
         # Initial projection from sinusoidal time embedding
@@ -174,6 +186,17 @@ class Unet(nn.Module):
             # print(t_emb.shape)
             t_emb += class_embed
         ####################################
+
+        ######## Keypoints Conditioning ########
+        if self.keypoints_cond:
+            # validate_keypoints_conditional_input(cond_input, x, self.num_keypoints)
+            # print(self.keypoints_emb.weight.shape)
+            # print(cond_input['keypoints'].shape)
+            keypoints_embed = einsum(cond_input['keypoints'].float(), self.keypoints_emb.weight, 'b n, n d -> b d')
+            # print(keypoints_embed.shape)
+            # print(t_emb.shape)
+            t_emb += keypoints_embed
+        ####################################
             
         context_hidden_states = None
         if self.text_cond:
@@ -225,7 +248,7 @@ if __name__ == '__main__':
         'num_mid_layers': 2,
         'num_up_layers': 2,
         'condition_config': {
-            'condition_types': [ 'text'],
+            'condition_types': ['keypoints'],
             'class_condition_config': {
                 'num_classes': 4
             },
@@ -238,6 +261,9 @@ if __name__ == '__main__':
             'image_condition_config': {
                 'image_condition_input_channels': 6,
                 'image_condition_output_channels': 3,
+            },
+            'keypoints_condition_config': {
+                'num_keypoints': 12
             }
         }
     }
@@ -248,5 +274,6 @@ if __name__ == '__main__':
     text_cond = torch.randn(5, 8, 8, 768)
     mask_cond = torch.randn(5, 6, 30, 40)
     class_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
-    out = model(x, t, {'text': text_cond})
+    keypoints_cond = torch.randn(5, 12)
+    out = model(x, t, {'keypoints': keypoints_cond})
     print(out.shape)

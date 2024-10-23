@@ -40,6 +40,13 @@ def drop_class_condition(class_condition, class_drop_prob, im):
         return class_condition * class_drop_mask
     else:
         return class_condition
+def drop_keypoints_condition(keypoints_condition, keypoints_drop_prob, im):
+
+    if keypoints_drop_prob > 0:
+        keypoints_drop_mask = torch.zeros((im.shape[0], 1), device=im.device).float().uniform_(0,1) > keypoints_drop_prob
+        return keypoints_condition * keypoints_drop_mask
+    else:
+        return keypoints_condition
 
 def drop_text_condition(text_condition, text_drop_prob):
     if text_drop_prob > 0:
@@ -230,6 +237,13 @@ def train(par_dir, conf, trial, activate_cond_ldm=False):
                 class_drop_prob = get_config_value(condition_config['class_condition_config'],'cond_drop_prob', 0.)
                 # Drop condition
                 cond_input['class'] = drop_class_condition(class_condition, class_drop_prob, im)
+
+            if 'keypoints' in condition_types and (type_model == 'vae' or activate_cond_ldm):
+                assert 'keypoints' in cond_input, 'Conditioning Type Keypoints but no keypoints conditioning input present'
+                keypoints_condition = cond_input['keypoints'].to(device)
+                keypoints_drop_prob = get_config_value(condition_config['keypoints_condition_config'], 'cond_drop_prob', 0.)
+                keypoints_condition = drop_keypoints_condition(keypoints_condition, keypoints_drop_prob, im)
+                cond_input['keypoints'] = keypoints_condition
 
             if 'text' in condition_types and (type_model == 'vae' or activate_cond_ldm):
                 assert 'text' in cond_input, 'Conditioning Type Text but no text conditioning input present'

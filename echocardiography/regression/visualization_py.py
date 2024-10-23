@@ -9,6 +9,7 @@ import cv2
 import pandas as pd
 import matplotlib.pyplot as plt
 import tqdm
+import json
 from scipy.stats import shapiro
 
 def get_metrics(patients_list, resize):
@@ -29,7 +30,7 @@ def get_metrics(patients_list, resize):
     rst_error_list = []              ## RST error 
     hypertrofy_list = []     
     cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list = [], [], [], []
-    
+    hypertrophy_dict = {}
     for patient in tqdm.tqdm(patients_list):
         patient_label = label[label['HashedFileName'] == patient]        
         ivsd = patient_label[patient_label['Calc'] == 'IVSd']['CalcValue'].values
@@ -120,28 +121,31 @@ def get_metrics(patients_list, resize):
             hypertrofy_list.append([lv_mass, rwt, lv_mass_d, rst_ar])
             rwt_error_list.append([rwt - relative_distance, rwt - rwt_256, rwt - rwt_ar])
             rst_error_list.append([rst - rst_distance, rst - rst_256, rst - rst_ar])
+            hypertrophy_dict[patient] = [lv_mass, rwt]
+
         # print('==============================================') 
     
-    return rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list
+    return rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list, hypertrophy_dict
 
 if __name__ == '__main__':   
     parser = argparse.ArgumentParser(description='Visualize the hypertrophy dataset')
     parser.add_argument('--compute_metrics', action='store_true', help="compute the metrics accross all the data, otherwise load the precomputed one, default=False")
     args = parser.parse_args()
 
-dataset_dir = "/media/angelo/OS/Users/lasal/OneDrive - Scuola Superiore Sant'Anna/Desktop/Phd notes/Echocardiografy/EchoNet-LVH"
+dataset_dir = "/home/angelo/Documents/Echocardiography/echocardiography"
 print(os.listdir(dataset_dir))
 
 ## ECconet-LVH is composed by 5 folders: 4 'Batch' with video and 'MeasurementsList.csv' with the label
 # Read the label
 label_dir = os.path.join(dataset_dir, 'MeasurementsList.csv')
 label = pd.read_csv(label_dir, index_col=0)
+print(label.head())
 
 patients = label['HashedFileName'].unique()
 
 if args.compute_metrics:
 
-    rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list = get_metrics(patients, (240, 320))  
+    rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list, hypertrofy_dict = get_metrics(patients, (240, 320))  
 
     hypertrofy_list = np.array(hypertrofy_list)
     cm_px_list = np.array(cm_px_list)
@@ -164,6 +168,10 @@ if args.compute_metrics:
     np.save(os.path.join(save_folder,'rwt_error_list.npy'), rwt_error_list)
     np.save(os.path.join(save_folder,'rst_error_list.npy'), rst_error_list)
 
+    ## save hypertrophy_dict as json
+    with open(os.path.join(save_folder, 'hypertrophy_dict.json'), 'w') as f:
+        json.dump(hypertrofy_dict, f)
+
 else:
     save_folder = 'dataset_metrics'
     hypertrofy_list = np.load(os.path.join(save_folder,'hypertrofy_list.npy'))
@@ -173,6 +181,37 @@ else:
     aspect_ratio_list = np.load(os.path.join(save_folder,'aspect_ratio_list.npy'))
     rwt_error_list = np.load(os.path.join(save_folder,'rwt_error_list.npy'))
     rst_error_list = np.load(os.path.join(save_folder,'rst_error_list.npy'))
+    hypertrofy_dict = json.load(open(os.path.join(save_folder, 'hypertrophy_dict.json')))
+
+print('INFO')
+
+batch_list = ['Batch1', 'Batch2', 'Batch3', 'Batch4']
+data_dir = "/media/angelo/OS/Users/lasal/Desktop/DATA_h"
+print(f'Number of patients: {len(patients)} - {len(hypertrofy_dict.keys())}')
+for batch in batch_list:
+    print(f'{batch}')
+    for split in ['train', 'val', 'test']:
+        split_dir = os.path.join(data_dir, batch, split, 'diastole', 'label', 'label.json' )
+        with open(split_dir) as json_file:
+            split_label = json.load(json_file)
+        
+        patients = split_label.keys()
+        NG, EH, CR, CH = 0, 0, 0, 0
+        for patient in patients:
+            if patient in hypertrofy_dict.keys():
+                lvm, rwt = hypertrofy_dict[patient][0], hypertrofy_dict[patient][1]
+                if lvm < 200 and rwt < 0.42:
+                    NG += 1
+                elif lvm > 200 and rwt < 0.42:
+                    EH += 1
+                elif lvm < 200 and rwt > 0.42:
+                    CR += 1
+                else:
+                    CH += 1
+            else:
+                split_label[patient]['hypertrophy'] = [0, 0]
+        print(f'{split}: {len(patients)}) NG: {NG} - EH: {EH} - CR: {CR} - CH: {CH}')
+    print('==============================================')
     
 
 ## 2D scatter plots #####################################################################################################
