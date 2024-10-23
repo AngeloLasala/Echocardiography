@@ -258,7 +258,6 @@ def train(par_dir, conf, trial, activate_cond_ldm=False):
                 eco_drop_prob = get_config_value(condition_config['eco_parameters_condition_config'], 'cond_drop_prob', 0.)
                 eco_condition = drop_eco_parameters_condition(eco_condition, eco_drop_prob, im)
                 cond_input['eco_parameters'] = eco_condition
-                print(cond_input['eco_parameters'])
 
             if 'text' in condition_types and (type_model == 'vae' or activate_cond_ldm):
                 assert 'text' in cond_input, 'Conditioning Type Text but no text conditioning input present'
