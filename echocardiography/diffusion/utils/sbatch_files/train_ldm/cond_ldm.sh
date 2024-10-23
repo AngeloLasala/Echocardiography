@@ -5,11 +5,11 @@
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
 #SBATCH --time=18:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
-#SBATCH --error=double_cond_ldm.err       # standard error file
-#SBATCH --output=double_cond_ldm.out      # standard output file
+#SBATCH --error=key_cond_ldm.err       # standard error file
+#SBATCH --output=key_cond_ldm.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-python -m echocardiography.diffusion.tools.train_cond_ldm --data eco_class_cond\
+python -m echocardiography.diffusion.tools.train_cond_ldm --data eco_keypoints_cond\
           --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco'\
           --trial trial_2
  
