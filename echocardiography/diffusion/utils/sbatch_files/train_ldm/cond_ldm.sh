@@ -11,6 +11,5 @@
 
 python -m echocardiography.diffusion.tools.train_cond_ldm --data eco_class_cond\
           --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco'\
-          --trial trial_3\
-          --cond_ldm
+          --trial trial_2
  
