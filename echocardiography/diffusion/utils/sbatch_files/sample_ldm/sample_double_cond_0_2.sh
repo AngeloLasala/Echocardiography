@@ -18,7 +18,6 @@ for trial in trial_2; do
                         --experiment cond_ldm_5\
                         --epoch $epoch\
                         --guide_w $w\
-                        --cond_ldm
 
          done
     done
