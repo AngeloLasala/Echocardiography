@@ -15,8 +15,8 @@ for w in 0.0 0.2 0.4 0.6 0.8 1.0; do
                 --par_dir '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/eco'\
                 --par_dir_regression '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression'\
                 --trial_regression trial_3\
-                --trial trial_5\
-                --experiment cond_ldm_1\
+                --trial trial_2\
+                --experiment cond_ldm_4\
                 --guide_w $w\
                 --epoch $epoch
     done
