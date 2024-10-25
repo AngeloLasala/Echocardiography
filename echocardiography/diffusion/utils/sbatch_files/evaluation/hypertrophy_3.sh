@@ -5,8 +5,8 @@
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
 #SBATCH --time=2:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
-#SBATCH --error=eval_2.err       # standard error file
-#SBATCH --output=eval_2.out      # standard output file
+#SBATCH --error=eval_3.err       # standard error file
+#SBATCH --output=eval_3.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 for w in 0.0 0.2 0.4 0.6 0.8 1.0; do
