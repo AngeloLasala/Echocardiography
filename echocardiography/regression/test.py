@@ -463,9 +463,9 @@ if __name__ == '__main__':
     mae_cm = np.abs(distances_label_cm_list - distances_output_cm_list)
     positional_error = np.mean(keypoints_error_list, axis=0)
 
-    slope_lvpw, intercept_lvpw, r_squared_lvpw, chi_squared_lvpw = linear_fit(distances_label_list[:,0], distances_output_list[:,0])
-    slope_lvid, intercept_lvid, r_squared_lvid, chi_squared_lvid = linear_fit(distances_label_list[:,1], distances_output_list[:,1])
-    slope_ivs, intercept_ivs, r_squared_ivs, chi_squared_ivs = linear_fit(distances_label_list[:,2], distances_output_list[:,2])
+    slope_lvpw, intercept_lvpw, r_squared_lvpw, chi_squared_lvpw = linear_fit(distances_label_cm_list[:,0], distances_output_cm_list[:,0])
+    slope_lvid, intercept_lvid, r_squared_lvid, chi_squared_lvid = linear_fit(distances_label_cm_list[:,1], distances_output_cm_list[:,1])
+    slope_ivs, intercept_ivs, r_squared_ivs, chi_squared_ivs = linear_fit(distances_label_cm_list[:,2], distances_output_cm_list[:,2])
     print(f'Mean Percantace Error:  LVPW={mpe[0]:.4f}, LVID={mpe[1]:.4f}, IVS={mpe[2]:.4f}')
     print(f'Mean Absolute Error in cm:  LVPW={mae_cm[:,0].mean():.4f}, LVID={mae_cm[:,1].mean():.4f}, IVS={mae_cm[:,2].mean():.4f}')
     print(f'LVPW: slope={slope_lvpw:.4f}, intercept={intercept_lvpw:.4f}, R-squared={r_squared_lvpw:.4f}, Chi-squared={chi_squared_lvpw:.4f}')
@@ -480,31 +480,31 @@ if __name__ == '__main__':
     
     # Scatter plot for LVPW
     
-    ax[0].scatter(distances_label_list[:,0], distances_output_list[:,0], s=100, c='C3', label='LVPW', alpha=0.5)
-    ax[0].plot(distances_label_list[:,0], slope_lvpw * distances_label_list[:,0] + intercept_lvpw, c='C3', label=f'fit LVPW',)
-    ax[0].plot(distances_label_list[:,0],distances_label_list[:,0], c='black', linewidth=2)
+    ax[0].scatter(distances_label_cm_list[:,0], distances_output_cm_list[:,0], s=100, c='C3', label='LVPW', alpha=0.5)
+    ax[0].plot(distances_label_cm_list[:,0], slope_lvpw * distances_label_cm_list[:,0] + intercept_lvpw, c='C3', label=f'fit LVPW',)
+    ax[0].plot(distances_label_cm_list[:,0],distances_label_cm_list[:,0], c='black', linewidth=2)
     ax[0].grid('dotted')
-    ax[0].set_xlabel('Real measure (px)', fontsize=20)
-    ax[0].set_ylabel('Predicted measure (px)', fontsize=20)
+    ax[0].set_xlabel('Real measure (cm)', fontsize=20)
+    ax[0].set_ylabel('Predicted measure (cm)', fontsize=20)
     ax[0].legend(fontsize=20)
     
     
     # Scatter plot for LVID
-    ax[1].scatter(distances_label_list[:,1], distances_output_list[:,1], s=100, c='C4',label='LVID', alpha=0.5)
-    ax[1].plot(distances_label_list[:,1], slope_lvid * distances_label_list[:,1] + intercept_lvid, c='C4', label=f'fit LVID',)
-    ax[1].plot(distances_label_list[:,1],distances_label_list[:,1], c='black', linewidth=2)
+    ax[1].scatter(distances_label_cm_list[:,1], distances_output_cm_list[:,1], s=100, c='C4',label='LVID', alpha=0.5)
+    ax[1].plot(distances_label_cm_list[:,1], slope_lvid * distances_label_cm_list[:,1] + intercept_lvid, c='C4', label=f'fit LVID',)
+    ax[1].plot(distances_label_cm_list[:,1],distances_label_cm_list[:,1], c='black', linewidth=2)
     ax[1].grid('dotted')
-    ax[1].set_xlabel('Real measure (px)', fontsize=20)
-    ax[1].set_ylabel('Predicted measure (px)', fontsize=20)
+    ax[1].set_xlabel('Real measure (cm)', fontsize=20)
+    ax[1].set_ylabel('Predicted measure (cm)', fontsize=20)
     ax[1].legend(fontsize=20)
     
     # Scatter plot for IVS
-    ax[2].scatter(distances_label_list[:,2], distances_output_list[:,2], s=100, c='C5',label='IVS', alpha=0.5)
-    ax[2].plot(distances_label_list[:,2], slope_ivs * distances_label_list[:,2] + intercept_ivs, c='C5', label=f'fit IVS',)
-    ax[2].plot(distances_label_list[:,2],distances_label_list[:,2], c='black', linewidth=2)
+    ax[2].scatter(distances_label_cm_list[:,2], distances_output_cm_list[:,2], s=100, c='C5',label='IVS', alpha=0.5)
+    ax[2].plot(distances_label_cm_list[:,2], slope_ivs * distances_label_cm_list[:,2] + intercept_ivs, c='C5', label=f'fit IVS',)
+    ax[2].plot(distances_label_cm_list[:,2],distances_label_cm_list[:,2], c='black', linewidth=2)
     ax[2].grid('dotted')
-    ax[2].set_xlabel('Real measure (px)', fontsize=20)
-    ax[2].set_ylabel('Predicted measure (px)', fontsize=20)
+    ax[2].set_xlabel('Real measure (cm)', fontsize=20)
+    ax[2].set_ylabel('Predicted measure (cm)', fontsize=20)
     ax[2].legend(fontsize=20)
     for a in ax:
         a.tick_params(axis='both', which='major', labelsize=18)
@@ -547,12 +547,16 @@ if __name__ == '__main__':
         f.write(f'MACS: {macs}, Parameters: {params}\n')
         f.write('==================================================================================\n')
         f.write(f'Mean Percantace Error:  LVPW={mpe[0]:.4f}, LVID={mpe[1]:.4f}, IVS={mpe[2]:.4f}\n')
+        f.write(f'Mean Absolute Error in cm:  LVPW={mae_cm[:,0].mean():.4f} +- {np.std(mae_cm[:,0], ddof=1):.4f}, LVID={mae_cm[:,1].mean():.4f} +- {np.std(mae_cm[:,1], ddof=1):.4f}, IVS={mae_cm[:,2].mean():.4f} +- {np.std(mae_cm[:,2], ddof=1):.4f}\n')
+        f.write('\n')
         f.write(f'LVPW: slope={slope_lvpw:.4f}, intercept={intercept_lvpw:.4f}, R-squared={r_squared_lvpw:.4f}, Chi-squared={chi_squared_lvpw:.4f}\n')
         f.write(f'LVID: slope={slope_lvid:.4f}, intercept={intercept_lvid:.4f}, R-squared={r_squared_lvid:.4f}, Chi-squared={chi_squared_lvid:.4f}\n')
         f.write(f'IVS: slope={slope_ivs:.4f}, intercept={intercept_ivs:.4f}, R-squared={r_squared_ivs:.4f}, Chi-squared={chi_squared_ivs:.4f}\n')
+        f.write('\n')
         f.write(f'RWT error: mean={np.mean(rwt_error):.4f},  median={np.median(rwt_error):.4f} - 1 quintile {np.quantile(rwt_error, 0.25):.4f} - 3 quintile {np.quantile(rwt_error, 0.75):.4f}\n')
         f.write(f'RST error: mean={np.mean(rst_error):.4f},  median={np.median(rst_error):.4f} - 1 quintile {np.quantile(rst_error, 0.25):.4f} - 3 quintile {np.quantile(rst_error, 0.75):.4f}\n')
-        
+        f.write(f'RWT: slope={slope_RWT:.4f}, intercept={intercept_RWT:.4f}, R-squared={r_squared_RWT:.4f}, Chi-squared={chi_squared_RWT:.4f}\n')
+        f.write(f'RST: slope={slope_RST:.4f}, intercept={intercept_RST:.4f}, R-squared={r_squared_RST:.4f}, Chi-squared={chi_squared_RST:.4f}\n')
     
 
 
