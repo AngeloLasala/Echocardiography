@@ -49,7 +49,9 @@ class EchoNetDataset(Dataset):
 
     where 'DATA' is fix in the code while batch split and phase are given as input
     """
-    def __init__(self, batch, split, phase, target, input_channels, size, data_path=None, label_directory=None, transform=None, augmentation=False):
+    def __init__(self, batch, split, phase, target, input_channels, size, 
+                data_path=None, label_directory=None, transform=None, augmentation=False, 
+                original_shape=False):
         """
         Args:
             batch (string): Batch number of video folder, e.g. 'Batch1', 'Batch2', 'Batch3', 'Batch4'.
@@ -71,6 +73,7 @@ class EchoNetDataset(Dataset):
         self.size = size
         self.input_channels = input_channels
         self.data_path = data_path
+        self.original_shape = original_shape
 
         if self.data_path is not None: ## take the data in local storage, here i have collect the data in the same repository
             self.data_dir = os.path.join(self.data_path, self.batch, self.split, self.phase)
@@ -109,7 +112,7 @@ class EchoNetDataset(Dataset):
         ## trasform the label based on target: keypoints, heatmaps, segmentations
         if self.target == 'keypoints': 
             # image_label_start = time.time()
-            image, label, calc_value = self.get_image_label(idx)
+            image, label, calc_value, original_shape = self.get_image_label(idx)
             # image_label_stop = time.time()
             # print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
 
@@ -128,7 +131,7 @@ class EchoNetDataset(Dataset):
 
         elif self.target == 'heatmaps_sigma':
             # image_label_start = time.time()
-            image, label, calc_value = self.get_image_label(idx)
+            image, label, calc_value, original_shape = self.get_image_label(idx)
             # image_label_stop = time.time()
             # print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
             if self.augmentation:
@@ -146,7 +149,7 @@ class EchoNetDataset(Dataset):
 
         elif self.target == 'heatmaps': 
             # image_label_start = time.time()
-            image, label, calc_value, heatmap = self.get_image_label(idx)
+            image, label, calc_value, original_shape, heatmap = self.get_image_label(idx)
             # image_label_stop = time.time()
             # print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
 
@@ -165,7 +168,7 @@ class EchoNetDataset(Dataset):
                 
         elif self.target == 'segmentation':
             # image_label_start = time.time()
-            image, label, calc_value, heatmap = self.get_image_label(idx)
+            image, label, calc_value, original_shape, heatmap = self.get_image_label(idx)
             # image_label_stop = time.time()
             # print(f'Time to get image and label: {image_label_stop - image_label_start:.5f}')
 
@@ -181,7 +184,11 @@ class EchoNetDataset(Dataset):
             raise ValueError(f'target {self.target} is not valid. Available targets are keypoints, heatmaps, segmentation, heatmpas_sigma')
         # stop_get_item = time.time()
         # print(f'Time to get item: {stop_get_item - start_get_item:.5f}')
-        return image, label
+
+        ## for the evaluation in real dimention, the calc_value and original shape are needed
+        if self.original_shape: return image, label, calc_value, original_shape
+        else: return image, label
+
 
     def trasform(self, image, label):
         """
@@ -322,8 +329,8 @@ class EchoNetDataset(Dataset):
         """
         given a index of the patient return the 6D heatmap of the keypoints
         """
-        if self.target == 'heatmaps': image, labels, calc_value, _ = self.get_image_label(idx)
-        else: image, labels, calc_value = self.get_image_label(idx)
+        if self.target == 'heatmaps': image, labels, calc_value, original_shape, _ = self.get_image_label(idx)
+        else: image, labels, calc_value, original_shape = self.get_image_label(idx)
 
         ## mulptiple the labels by the image size
         converter = np.tile([image.size[0], image.size[1]], 6)
@@ -365,7 +372,7 @@ class EchoNetDataset(Dataset):
         patient_label = self.keypoints_dict[patient]
 
         # read the image wiht PIL
-        image = Image.open(os.path.join(self.data_dir, 'image', patient+'.png')) 
+        image = Image.open(os.path.join(self.data_dir, 'image', patient+'.png'))
         
         # read the label  
         keypoints_label, calc_value_list = [], []
@@ -381,14 +388,15 @@ class EchoNetDataset(Dataset):
 
         keypoints_label = (np.array(keypoints_label)).flatten()
         calc_value_list = np.array(calc_value_list).flatten()
+        original_shape = np.array([patient_label[heart_part]['height'], patient_label[heart_part]['width']])
 
         if self.target == 'heatmaps' or self.target == 'segmentation':
             # read the npy file of the heatmpa
             heatmap = np.load(os.path.join(self.data_dir, 'heatmap', patient+'.npy'))
             heatmap = heatmap.astype(np.float32)
-            return image, keypoints_label, calc_value_list, heatmap
+            return image, keypoints_label, calc_value_list, original_shape, heatmap
         else:
-            return image, keypoints_label, calc_value_list
+            return image, keypoints_label, calc_value_list, original_shape
 
         
     def get_keypoint(self, patient_hash):

@@ -126,7 +126,7 @@ def show_prediction(image, label, output, target, size):
 
 
 
-def percentage_error(label, output, target, size, method='max_value'):
+def percentage_error(label, output, target, size, calc_value, original_shape, method='max_value'):
     """
     Compute the percentage error between the distance of 'LVPW', 'LVID', 'IVS'
     """
@@ -151,12 +151,29 @@ def percentage_error(label, output, target, size, method='max_value'):
             distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             distances_output.append(distance)
 
+        ## compute the distance in cm
+        cm_px_value = calc_value / np.array(distances_label) 
+        distances_label_cm = cm_px_value * np.array(distances_label)
+        distances_output_cm = cm_px_value * np.array(distances_output)
+
     if target == 'heatmaps':
         ## compute the coordinate of the max value in the heatmaps
+        # #resize the label and output to the original shape noting that the shape is (chann, h,w) and the original shape is (h,w)
+        resize = transforms.Resize(size=(int(original_shape[0]), int(original_shape[1])))
+        label_res = [Image.fromarray(label[ch,:,:] * 255) for ch in range(label.shape[0])]
+        label_res = [np.array(resize(ch)) / 255 for ch in label_res]
+
+        output_res = [Image.fromarray(output[ch,:,:] * 255) for ch in range(output.shape[0])]
+        output_res = [np.array(resize(ch)) / 255 for ch in output_res]
+
+        label = np.array(label_res)
+        output = np.array(output_res)
+
         label = get_corrdinate_from_heatmap(label)
+        
         if method == 'max_value': output = get_corrdinate_from_heatmap(output)
         if method == 'ellipses': output = get_corrdinate_from_heatmap_ellipses(output)
-  
+
 
         distances_label, distances_output = [], []
         for i in range(3):
@@ -169,6 +186,11 @@ def percentage_error(label, output, target, size, method='max_value'):
             x2, y2 = output[(i*4)+2], output[(i*4)+3]
             distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             distances_output.append(distance)
+
+        ## compute the distance in cm
+        cm_px_value = calc_value / np.array(distances_label) 
+        distances_label_cm = cm_px_value * np.array(distances_label)
+        distances_output_cm = cm_px_value * np.array(distances_output)
 
     if target == 'segmentation':
         ## compute the coordinate of the max value in the heatmaps
@@ -187,7 +209,12 @@ def percentage_error(label, output, target, size, method='max_value'):
             distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             distances_output.append(distance)
 
-    return distances_label, distances_output
+        ## compute the distance in cm
+        cm_px_value = calc_value / np.array(distances_label) 
+        distances_label_cm = cm_px_value * np.array(distances_label)
+        distances_output_cm = cm_px_value * np.array(distances_output)
+
+    return distances_label, distances_output, distances_label_cm, distances_output_cm
 
 def keypoints_error(label, output, target, size, method='max_value'):
     """
@@ -343,7 +370,8 @@ if __name__ == '__main__':
 
 
     test_set = EchoNetDataset(batch=args.batch, split=args.split, phase=args.phase, label_directory=None, data_path=args.data_path,
-                              target=trained_args['target'], input_channels=cfg['input_channels'], size=size ,augmentation=False)
+                              target=trained_args['target'], input_channels=cfg['input_channels'], size=size , augmentation=False,
+                              original_shape=True)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=8, shuffle=False, num_workers=4, pin_memory=True)
 
     # for idx, i in enumerate(test_set):
@@ -363,13 +391,17 @@ if __name__ == '__main__':
     ## test the model
     model.eval()
     distances_label_list , distances_output_list = [], []
+    distances_label_cm_list, distances_output_cm_list = [], []
     keypoints_error_list = []
     parameters_label_list, parameters_output_list = [], []
     with torch.no_grad():
         for i, data in enumerate(test_loader):
-            images, labels = data
+            images, labels, calc_values, original_shapes = data
+    
             images = images.to(device)
             labels = labels.to(device)
+            calc_values = calc_values.to(device)
+            original_shapes = original_shapes.to(device)
             outputs = model(images)
             if len(outputs) == 2: outputs = outputs[-1]
             outputs = outputs.to(device)
@@ -378,12 +410,18 @@ if __name__ == '__main__':
             images = images.cpu().numpy().transpose((0, 2, 3, 1))
             outputs = outputs.cpu().numpy()
             labels = labels.cpu().numpy()
+            original_shapes = original_shapes.cpu().numpy()
+            calc_values = calc_values.cpu().numpy()
 
             for i in range(images.shape[0]):
                 image = images[i]
                 label = labels[i]
                 output = outputs[i]
-                dist_label, dist_output = percentage_error(label=label, output=output, target=trained_args['target'], size=size, method=args.method_center)
+                calc_value = calc_values[i]
+                original_shape = original_shapes[i]
+
+                dist_label, dist_output, dist_label_cm, dist_output_cm = percentage_error(label=label, output=output, target=trained_args['target'], size=size, 
+                                                            calc_value=calc_value, original_shape=original_shape, method=args.method_center)
                 err = keypoints_error(label, output, target=trained_args['target'], size=size, method=args.method_center)
                 parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'], size=size, method=args.method_center)
                 if args.show_plot:
@@ -392,15 +430,22 @@ if __name__ == '__main__':
                 
                 distances_label_list.append(dist_label)
                 distances_output_list.append(dist_output)
+                distances_label_cm_list.append(dist_label_cm)
+                distances_output_cm_list.append(dist_output_cm)
                 keypoints_error_list.append(err)
                 parameters_label_list.append(parameter_label)
                 parameters_output_list.append(parameter_out)
 
     distances_label_list = np.array(distances_label_list)     ## LVWP, LVID, IVS annotation
     distances_output_list = np.array(distances_output_list)   ## LVWP, LVID, IVS prediction
+    distances_label_cm_list = np.array(distances_label_cm_list) ## LVWP, LVID, IVS annotation in cm
+    distances_output_cm_list = np.array(distances_output_cm_list) ## LVWP, LVID, IVS prediction in cm
     keypoints_error_list = np.array(keypoints_error_list)
     parameters_label_list = np.array(parameters_label_list)   ## RWT, RST annotation
     parameters_output_list = np.array(parameters_output_list) ## RWT, RST prediction
+
+    plt.figure()
+    plt.hist(distances_label_cm_list[:,1] - distances_output_cm_list[:,1], alpha=0.5, label='LVID')
 
     
   
@@ -415,12 +460,14 @@ if __name__ == '__main__':
     ## Mean Percentage error and Positional error
     mpe = np.abs(distances_label_list - distances_output_list) / distances_label_list
     mpe = np.mean(mpe, axis=0)
+    mae_cm = np.abs(distances_label_cm_list - distances_output_cm_list)
     positional_error = np.mean(keypoints_error_list, axis=0)
 
     slope_lvpw, intercept_lvpw, r_squared_lvpw, chi_squared_lvpw = linear_fit(distances_label_list[:,0], distances_output_list[:,0])
     slope_lvid, intercept_lvid, r_squared_lvid, chi_squared_lvid = linear_fit(distances_label_list[:,1], distances_output_list[:,1])
     slope_ivs, intercept_ivs, r_squared_ivs, chi_squared_ivs = linear_fit(distances_label_list[:,2], distances_output_list[:,2])
     print(f'Mean Percantace Error:  LVPW={mpe[0]:.4f}, LVID={mpe[1]:.4f}, IVS={mpe[2]:.4f}')
+    print(f'Mean Absolute Error in cm:  LVPW={mae_cm[:,0].mean():.4f}, LVID={mae_cm[:,1].mean():.4f}, IVS={mae_cm[:,2].mean():.4f}')
     print(f'LVPW: slope={slope_lvpw:.4f}, intercept={intercept_lvpw:.4f}, R-squared={r_squared_lvpw:.4f}, Chi-squared={chi_squared_lvpw:.4f}')
     print(f'LVID: slope={slope_lvid:.4f}, intercept={intercept_lvid:.4f}, R-squared={r_squared_lvid:.4f}, Chi-squared={chi_squared_lvid:.4f}')
     print(f'IVS: slope={slope_ivs:.4f}, intercept={intercept_ivs:.4f}, R-squared={r_squared_ivs:.4f}, Chi-squared={chi_squared_ivs:.4f}')
