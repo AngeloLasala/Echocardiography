@@ -319,7 +319,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str, default="/media/angelo/OS/Users/lasal/Desktop/DATA_h", help='Directory of the dataset, in general usinf DATA_h')
     parser.add_argument('--model_path', type=str, default='TRAINED_MODEL', help='Directory of models, i.e. trained_model')
     parser.add_argument('--batch', type=str, default='Batch2', help='Batch number of video folder, e.g. Batch1, Batch2, Batch3, Batch4')
-    parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole')
+    parser.add_argument('--phase', type=str, default='diastole', help='select the phase of the heart, diastole or systole. Default=diastole')
     parser.add_argument('--trial', type=str, default='trial_1', help='trial number to analyse')
     parser.add_argument('--method_center', type=str, default='max_value', help='how the keypoits are computed: max_value or ellipses')
     parser.add_argument('--split', type=str, default='test', help='select split: val or test, default = test')
