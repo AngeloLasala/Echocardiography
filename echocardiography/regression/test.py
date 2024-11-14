@@ -90,6 +90,22 @@ def show_prediction(image, label, output, target, size):
 
         fig, axes = plt.subplots(nrows=2, ncols=4, num='example', figsize=(26,14), tight_layout=True)
         num_classes = [0,1,3,5] # for the visualizazion i aviod the superimpose classes
+        
+        ## plot only the heatmap
+        for ch in range(label.shape[2]):
+            fig3, ax3 = plt.subplots(nrows=1, ncols=2, num=f'Label and Prediction {ch}', figsize=(10,8), tight_layout=True)
+            ax3[0].imshow(label[:,:,ch], cmap='jet', alpha=1.0)
+            ax3[1].imshow(output[:,:,ch], cmap='jet', alpha=1.0)
+            ax3[0].axis('off')
+            ax3[1].axis('off')
+        
+        ## plot only the image
+        fig2, ax2 = plt.subplots(nrows=1, ncols=1, num='Real Images', figsize=(10,8), tight_layout=True)
+        ax2.imshow(image, cmap='gray', alpha=1.0)
+        ax2.imshow(image, cmap='gray', alpha=1.0)
+        ax2.axis('off')
+
+
 
         ## sum the channels to have a single label and prediction
         label_single = np.zeros(size)
