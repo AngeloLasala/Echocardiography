@@ -81,28 +81,27 @@ def main(args):
             
             image = cv2.imread(image_shape_guide)
             keypoints = get_corrdinate_from_heatmap(heat[i])
+            rwt, rst = echocardiografic_parameters(keypoints)
 
-            for j, heart_part in enumerate(['LVPWd', 'LVIDd', 'IVSd']):
-                x1 = keypoints[j*4]
-                y1 = keypoints[(j*4) + 1]
-                x2 = keypoints[(j*4) + 2]
-                y2 = keypoints[(j*4) + 3]
-                w, h = image.shape[1], image.shape[0]
-                label_heart[heart_part] = {'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2), 'calc_value': int(0), 'width':int(w), 'height':int(h)}
-            label_heart['split'] = 'generated_train'
-            if args.show_plot: plot_genereted_and_label(image_shape_guide, heat, i)
+            if rwt > 0.20 and rwt < 1.4:
+
+                for j, heart_part in enumerate(['LVPWd', 'LVIDd', 'IVSd']):
+                    x1 = keypoints[j*4]
+                    y1 = keypoints[(j*4) + 1]
+                    x2 = keypoints[(j*4) + 2]
+                    y2 = keypoints[(j*4) + 3]
+                    w, h = image.shape[1], image.shape[0]
+                    label_heart[heart_part] = {'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2), 'calc_value': int(0), 'width':int(w), 'height':int(h)}
+                label_heart['split'] = 'generated_train'
+                if args.show_plot: plot_genereted_and_label(image_shape_guide, heat, i)
 
 
-        label_dict[f'x0_{n}_{i}'] = label_heart
+                label_dict[f'x0_{n}_{i}'] = label_heart
 
 
     #save the label dict as json
     with open(os.path.join(test_path, 'label.json'), 'w') as f:
         json.dump(label_dict, f, indent=4)
-
-    
-    
-
 
 
 if __name__ == '__main__':
