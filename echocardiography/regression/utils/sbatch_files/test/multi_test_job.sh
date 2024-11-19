@@ -9,7 +9,7 @@
 #SBATCH --output=file_print.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-for i in 10
+for i in 11
 do
    python -m echocardiography.regression.test --data_path "/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA_h" --model_path "/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression/" \
         --trial trial_$i \
@@ -20,5 +20,15 @@ do
             --trial trial_$i \
             --split test \
             --method_center ellipses
+
+    python -m echocardiography.regression.test --data_path "/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA_h" --model_path "/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression/" \
+            --trial trial_$i \
+            --split val \
+            --method_center ellipses
+        
+    python -m echocardiography.regression.test --data_path "/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA_h" --model_path "/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression/" \
+        --trial trial_$i \
+        --split val \
+        --method_center max_value
 done
 

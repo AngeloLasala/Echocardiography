@@ -468,6 +468,11 @@ if __name__ == '__main__':
     ## echo parameters error
     rwt_error = np.abs(parameters_label_list[:,0] - parameters_output_list[:,0])
     rst_error = np.abs(parameters_label_list[:,1] - parameters_output_list[:,1])
+
+    ## save the parameters_output_list and parameters_label_list in np.array
+    np.save(os.path.join(train_dir, f'{trained_args["target"]}_{args.method_center}_parameters_output_list_{args.split}.npy'), parameters_output_list)
+    np.save(os.path.join(train_dir, f'{trained_args["target"]}_{args.method_center}_parameters_label_list_{args.split}.npy'), parameters_label_list)
+
     print('ECHOCARDIOGRAPHY PARAMETERS: RWT, RST')
     print(f'RWT error: mean={np.mean(rwt_error):.4f},  median={np.median(rwt_error):.4f} - 1 quintile {np.quantile(rwt_error, 0.25):.4f} - 3 quintile {np.quantile(rwt_error, 0.75):.4f}')
     print(f'RST error: mean={np.mean(rst_error):.4f},  median={np.median(rst_error):.4f} - 1 quintile {np.quantile(rst_error, 0.25):.4f} - 3 quintile {np.quantile(rst_error, 0.75):.4f}')
@@ -557,7 +562,7 @@ if __name__ == '__main__':
     
 
     ## create a file txt with all the printed string
-    with open(os.path.join(train_dir, f'{trained_args["target"]}_results_{args.method_center}.txt'), 'w') as f:
+    with open(os.path.join(train_dir, f'{trained_args["target"]}_results_{args.method_center}_{args.split}.txt'), 'w') as f:
         f.write(f'Batch: {args.batch}, Phase: {args.phase}, Trial: {args.trial}, Split: {args.split}\n')
         f.write(f'Model: {trained_args["model"]}, Best model: {best_model}\n')
         f.write(f'MACS: {macs}, Parameters: {params}\n')
