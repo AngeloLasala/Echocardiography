@@ -9,7 +9,7 @@
 #SBATCH --output=data_aug.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
-for p in 0.2 0.4 0.6 0.8 1.0; do
+for p in 0.2 0.4 0.6 0.8; do
 
     python -m echocardiography.regression.data_augmentation --data_path "/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA_h" --save_dir "/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression" \
             --target heatmaps \
