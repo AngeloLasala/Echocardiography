@@ -13,12 +13,12 @@ for i in 10
 do
    python -m echocardiography.regression.test --data_path "/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA_h" --model_path "/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression/" \
         --trial trial_$i \
-        --split val \
+        --split test \
         --method_center max_value
 
     python -m echocardiography.regression.test --data_path "/leonardo_work/IscrC_Med-LMGM/Angelo/echo_data/regression/DATA_h" --model_path "/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/regression/" \
             --trial trial_$i \
-            --split val \
+            --split test \
             --method_center ellipses
 done
 
