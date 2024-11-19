@@ -476,30 +476,11 @@ class EchoNetGeneretedDataset(Dataset):
         self.patient_files_subsample = self.get_random_subsample()
 
 
-
-        # if self.data_path is not None: ## take the data in local storage, here i have collect the data in the same repository
-        #     self.data_dir = os.path.join(self.data_path, self.batch, self.split, self.phase)
-        # else:                 ## take the data from a given path
-        #     self.data_dir = os.path.join('DATA', self.batch, self.split, self.phase)
-
-        # self.patient_files = [patient_hash.split('.')[0] for patient_hash in os.listdir(os.path.join(self.data_dir, 'image'))]
-
-    
-        # if label_directory is not None:
-        #     label = pd.read_csv(os.path.join(label_directory, 'MeasurementsList.csv'), index_col=0)
-        #     self.label = label
-        #     self.keypoints_dict = {patient_hash: self.get_keypoint(patient_hash) for patient_hash in tqdm.tqdm(self.patient_files)}
-        # else:
-        #     #load a directory from a json file
-        #     with open(os.path.join(self.data_dir, 'label', 'label.json'), 'r') as f:
-        #         # print(f.read())
-        #         self.keypoints_dict = json.load(f)
-
     def __len__(self):
         """
         Return the total number of patiel in selected batch
         """ 
-        return len(self.patient_files)
+        return len(self.patient_files_subsample)
 
     def __getitem__(self, idx):
         """
