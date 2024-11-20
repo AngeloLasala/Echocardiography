@@ -434,4 +434,4 @@ if __name__ == '__main__':
        ## TEST
         print(f'Fold {i+1}) Start testing...')
         
-        testing_cross_validation(train_dir="/home/angelo/Documenti/Echocardiography/echocardiography/regression/TRAINED_MODEL/Batch2/diastole/data_augumentation/trial_19/fold_1", test_loader=test_loader, device=device)
+        testing_cross_validation(train_dir=save_dir, test_loader=test_loader, device=device)
