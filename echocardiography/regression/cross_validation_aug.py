@@ -20,7 +20,7 @@ from echocardiography.regression.models import ResNet50Regression, PlaxModel, UN
 from echocardiography.regression.losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss
 from echocardiography.regression.cfg import train_config
 from echocardiography.regression.utils import get_corrdinate_from_heatmap, get_corrdinate_from_heatmap_ellipses, echocardiografic_parameters
-from echocardiography.regression.test import linear_fit, percentage_error, keypoints_error, echo_parameter_error, show_prediction, get_best_model, get_macs_parms
+from echocardiography.regression.test import linear_fit, percentage_error, keypoints_error, echo_parameter_error, show_prediction, get_best_model, show_prediction
 
 ## deactivate the warning of the torch
 import warnings
@@ -216,6 +216,9 @@ def testing_cross_validation(train_dir, test_loader, device):
                                                             calc_value=calc_value, original_shape=original_shape, method='ellipses')
                 err = keypoints_error(label, output, target=trained_args['target'], size=size, method='ellipses')
                 parameter_label, parameter_out = echo_parameter_error(label, output, target=trained_args['target'], size=size, method='ellipses')
+                # if True:
+                #     show_prediction(image, label, output, target=trained_args['target'], size=size)
+                #     plt.show()
                 
                 distances_label_list.append(dist_label)
                 distances_output_list.append(dist_output)
@@ -279,7 +282,6 @@ def testing_cross_validation(train_dir, test_loader, device):
     
     ## create a file txt with all the printed string
     with open(os.path.join(train_dir, f'{trained_args["target"]}_results_ellipses.txt'), 'w') as f:
-        f.write(f'Batch: {args.batch}, Phase: {args.phase}, Trial: {args.trial}, Split: {args.split}\n')
         f.write(f'Model: {trained_args["model"]}, Best model: {best_model}\n')
         f.write('==================================================================================\n')
         f.write(f'Mean Percantace Error:  LVPW={mpe[0]:.4f}, LVID={mpe[1]:.4f}, IVS={mpe[2]:.4f}\n')
@@ -408,27 +410,28 @@ if __name__ == '__main__':
         test_loader = torch.utils.data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True, prefetch_factor=args.prefetch_factor)
         print(f'Train: {len(train_set)}, Validation: {len(validation_set)}, Test: {len(test_set)}')
 
-        ## create folder for the i+1 cross validation folder
-        save_dir = os.path.join(save_dir_main, f'fold_{i+1}')
-        os.makedirs(os.path.join(save_dir))
+        # ## create folder for the i+1 cross validation folder
+        # save_dir = os.path.join(save_dir_main, f'fold_{i+1}')
+        # os.makedirs(os.path.join(save_dir))
         
-        ## TRAIN
-        print(f'Fold {i+1}) Start training...')
-        loss_fn = cfg['loss']
-        model = cfg['model'].to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        # ## TRAIN
+        # print(f'Fold {i+1}) Start training...')
+        # loss_fn = cfg['loss']
+        # model = cfg['model'].to(device)
+        # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-        losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
-                    save_dir=save_dir)
+        # losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
+        #             save_dir=save_dir)
 
-        ## save the args dictionary in a file
-        with open(os.path.join(save_dir,'losses.json'), 'w') as f:
-            json.dump(losses, f, default=convert_to_serializable, indent=4)
+        # ## save the args dictionary in a file
+        # with open(os.path.join(save_dir,'losses.json'), 'w') as f:
+        #     json.dump(losses, f, default=convert_to_serializable, indent=4)
 
-        args_dict = vars(args)
-        with open(os.path.join(save_dir,'args.json'), 'w') as f:
-            json.dump(args_dict, f, indent=4)
+        # args_dict = vars(args)
+        # with open(os.path.join(save_dir,'args.json'), 'w') as f:
+        #     json.dump(args_dict, f, indent=4)
 
-    #    ## TEST
-    #     print(f'Fold {i+1}) Start testing...')
-    #     testing_cross_validation(train_dir=save_dir, test_loader=test_loader, device=device)
+       ## TEST
+        print(f'Fold {i+1}) Start testing...')
+        
+        testing_cross_validation(train_dir="/home/angelo/Documenti/Echocardiography/echocardiography/regression/TRAINED_MODEL/Batch2/diastole/data_augumentation/trial_19/fold_1", test_loader=test_loader, device=device)
