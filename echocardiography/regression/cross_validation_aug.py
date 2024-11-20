@@ -296,6 +296,18 @@ def testing_cross_validation(train_dir, test_loader, device):
         f.write(f'RWT: slope={slope_RWT:.4f}, intercept={intercept_RWT:.4f}, R-squared={r_squared_RWT:.4f}, Chi-squared={chi_squared_RWT:.4f}\n')
         f.write(f'RST: slope={slope_RST:.4f}, intercept={intercept_RST:.4f}, R-squared={r_squared_RST:.4f}, Chi-squared={chi_squared_RST:.4f}\n')
     
+def reset_model_weights(model):
+    """
+    Reset the model weights to the initial state before the training of new fold
+    """
+    for m in model.children():
+        if hasattr(m, 'reset_parameters'):
+            m.reset_parameters()
+        else:
+            reset_model_weights(m)
+    
+        
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
@@ -418,6 +430,9 @@ if __name__ == '__main__':
         print(f'Fold {i+1}) Start training...')
         loss_fn = cfg['loss']
         model = cfg['model'].to(device)
+        print('start reinitialization')
+        reset_model_weights(model)
+        print('end reinitialization')
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
         losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 

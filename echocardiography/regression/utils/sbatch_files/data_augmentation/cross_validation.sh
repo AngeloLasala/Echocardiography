@@ -16,7 +16,7 @@ for p in 0.0; do
             --model unet_res_skip \
             --input_channels 1 \
             --size 240 320 \
-            --epochs 100 \
+            --epochs 20 \
             --batch_size 8 \
             --lr 0.001 \
             --weight_decay 0.0 \
