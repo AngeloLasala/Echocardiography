@@ -463,8 +463,7 @@ if __name__ == '__main__':
     plt.figure()
     plt.hist(distances_label_cm_list[:,1] - distances_output_cm_list[:,1], alpha=0.5, label='LVID')
 
-    
-  
+
     ## echo parameters error
     rwt_error = np.abs(parameters_label_list[:,0] - parameters_output_list[:,0])
     rst_error = np.abs(parameters_label_list[:,1] - parameters_output_list[:,1])

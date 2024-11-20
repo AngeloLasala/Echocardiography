@@ -523,7 +523,8 @@ class EchoNetGeneretedDataset(Dataset):
             else:
                 image, label = self.trasform(image, label)
 
-        return image, label
+        if self.original_shape: return image, label, calc_value, original_shape
+        else: return image, label
         
     
     def get_image_label(self, idx):
