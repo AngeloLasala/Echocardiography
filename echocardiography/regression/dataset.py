@@ -716,6 +716,299 @@ class EchoNetGeneretedDataset(Dataset):
         len_subsample = int(len(self.patient_files) * self.percentace) 
         random_subsample = np.random.choice(self.patient_files, len_subsample, replace=False)
         return random_subsample
+
+class EchoNetConcatenate(Dataset):
+    """
+    Create the entire dataset synthetic data augmentation experiment
+    """
+    def __init__(self, batch, split, phase, target, input_channels, size, 
+                data_path=None, label_directory=None, transform=None, augmentation=False, 
+                original_shape=False,
+                range_cv=None):
+        """
+        Args:
+            batch (string): Batch number of video folder, e.g. 'Batch1', 'Batch2', 'Batch3', 'Batch4'.
+            split (list): list of original splitting [train, validation, test]
+            phase (string): diastole or systole
+            target (string): keypoint, heatmap, segmentation
+            input_channels (int): Number of input channels, must be 3 for RGB or 1 for grayscale
+            size (tuple): Size of the image 
+            label_directory (string): Directory of the label dataset, default None that means read the file from the json file
+            transform (callable, optional): Optional transform to be applied on a sample.    
+            transform_target (callable, optional): Optional transform to be applied on a sample.
+            augmentation (bool): Apply data augmentation to the image and the label
+        """
+        self.split = split
+        self.batch = batch
+        self.phase = phase
+        self.target = target
+        self.augmentation = augmentation
+        self.size = size
+        self.input_channels = input_channels
+        self.data_path = data_path
+        self.original_shape = original_shape
+        self.range_cv = range_cv
+
+        ## dictionary of the data directory
+        self.data_dir_dict = {}
+        for original_split in self.split:
+            self.data_dir_dict[original_split] = os.path.join(self.data_path, self.batch, original_split, self.phase)
+
+        ## dictionary of the keypoints list
+        self.keypoints_list_dict = {}
+        for original_split in self.split:
+            with open(os.path.join(self.data_dir_dict[original_split], 'label', 'label.json'), 'r') as f:
+                keypoints_dict = json.load(f)
+            self.keypoints_list_dict[original_split] = keypoints_dict
+
+        ## list of [patient_hash, original_split]
+        self.patient_files = self.get_all_patients()
+        self.sub_patient_files = self.get_sub_sample()
+       
+    def __len__(self):
+        """
+        Return the total number of patiel in selected batch
+        """ 
+        return len(self.sub_patient_files)
+    
+    def __getitem__(self, idx):
+        """
+        get the image and the label of the patient
+        """
+
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        ## trasform the label based on target: keypoints, heatmaps, segmentations
+        if self.target == 'keypoints': 
+            # image_label_start = time.time()
+            image, label, calc_value, original_shape = self.get_image_label(idx)
+           
+            if self.augmentation:
+                image, label = self.data_augmentation_kp(image, label)
+            else:
+                resize = transforms.Resize(size=self.size)
+                image = resize(image)
+                if self.input_channels == 1: image = image.convert('L')
+                label = torch.tensor(label)
+                image = transforms.functional.to_tensor(image)
+                # image = transforms.functional.normalize(image, (0.5), (0.5))  
+                # im_tensor = torchvision.transforms.ToTensor()(im)
+                image = (2 * image) - 1  
+
+        elif self.target == 'heatmaps': 
+            # image_label_start = time.time()
+            image, label, calc_value, original_shape, heatmap = self.get_image_label(idx)
+            label = heatmap #self.get_heatmap(idx)
+            # data augmentation only on training set, else simply resize the image and the label
+            if self.augmentation:
+                image, label = self.data_augmentation(image, label)
+            else:
+                image, label = self.trasform(image, label)
+
+        if self.original_shape: return image, label, calc_value, original_shape
+        else: return image, label
+
+        
+    def get_image_label(self, idx):
+        """
+        from index return the image and the label 
+        the labels are the normalized coordinates of the keypoints
+        """
+        data_dir = self.data_dir_dict[self.sub_patient_files[idx][1]]
+        keypoints_dict = self.keypoints_list_dict[self.sub_patient_files[idx][1]]
+
+        patient = self.sub_patient_files[idx][0]
+        patient_label = keypoints_dict[patient]
+        #read the image wiht PIL
+        image = Image.open(os.path.join(data_dir, 'image', patient+'.png'))
+        
+        # read the label  
+        keypoints_label, calc_value_list = [], []
+        for heart_part in ['LVPWd', 'LVIDd', 'IVSd']:
+            if patient_label[heart_part] is not None:
+                x1_heart_part = patient_label[heart_part]['x1'] / patient_label[heart_part]['width']
+                y1_heart_part = patient_label[heart_part]['y1'] / patient_label[heart_part]['height']
+                x2_heart_part = patient_label[heart_part]['x2'] / patient_label[heart_part]['width']
+                y2_heart_part = patient_label[heart_part]['y2'] / patient_label[heart_part]['height']
+                heart_part_value = patient_label[heart_part]['calc_value']
+                keypoints_label.append([x1_heart_part, y1_heart_part, x2_heart_part, y2_heart_part])
+                calc_value_list.append(heart_part_value)
+
+        keypoints_label = (np.array(keypoints_label)).flatten()
+        calc_value_list = np.array(calc_value_list).flatten()
+        original_shape = np.array([patient_label[heart_part]['height'], patient_label[heart_part]['width']])
+
+        if self.target == 'heatmaps' or self.target == 'segmentation':
+            # read the npy file of the heatmpa
+            heatmap = np.load(os.path.join(data_dir, 'heatmap', patient+'.npy'))
+            heatmap = heatmap.astype(np.float32)
+            return image, keypoints_label, calc_value_list, original_shape, heatmap
+        else:
+            return image, keypoints_label, calc_value_list, original_shape
+
+    
+    def get_all_patients(self):
+        """
+        Get all the patients in the selected batch
+        """
+        patient_files = []
+        for original_split in self.split:
+            self.data_dir = os.path.join(self.data_path, self.batch, original_split, self.phase)
+            patient_files += [[patient_hash.split('.')[0], original_split] for patient_hash in os.listdir(os.path.join(self.data_dir, 'image'))]
+        ## random shaffle the patient files
+        np.random.seed(42)
+        np.random.shuffle(patient_files)
+        return patient_files
+    
+    def get_sub_sample(self):
+        """
+        Get a subsumple given a range of indecs
+        """
+        if self.range_cv is not None:
+            start, stop = self.range_cv
+            sub_patient_files = self.patient_files[start:stop]
+        else:
+            sub_patient_files = self.patient_files
+        return sub_patient_files
+    
+    def trasform(self, image, label):
+        """
+        Simple trasformaztion of the label and image. Resize and normalize the image and resize the label
+        """
+        # convert each channel in PIL image
+        label = [Image.fromarray(label[:,:,ch]) for ch in range(label.shape[2])]
+
+        ## Resize
+        resize = transforms.Resize(size=self.size)
+        image = resize(image)
+        label = [resize(ch) for ch in label]
+
+        ## convert to tensor and normalize
+        label = np.array([np.array(ch) for ch in label])
+        label = torch.tensor(label)
+
+        if self.input_channels == 1: image = image.convert('L')
+        image = transforms.functional.to_tensor(image)
+        # image = transforms.functional.normalize(image, (0.5), (0.5))
+        # im_tensor = torchvision.transforms.ToTensor()(im)
+        image = (2 * image) - 1    
+        return image, label
+
+    def data_augmentation(self, image, label):
+        """
+        Set of trasformation to apply to image and label (heatmaps).
+        This function contain all the data augmentation trasformations and the normalization.
+        Note: torchvision.transforms often rely on PIL as the underlying library, 
+            so each channel of heatmap need to transform  separately (channels are in the first dimension)
+        """
+        # convert each channel in PIL image
+        label = [Image.fromarray(label[:,:,ch]) for ch in range(label.shape[2])]
+
+        ## Resize
+        resize = transforms.Resize(size=self.size)
+        image = resize(image)
+        label = [resize(ch) for ch in label]
+        
+        ## random rotation to image and label
+        if torch.rand(1) > 0.5:
+            angle = np.random.randint(-15, 15)
+            image = transforms.functional.rotate(image, angle)
+            label = [transforms.functional.rotate(ch, angle) for ch in label]
+
+        ## random translation to image and label in each direction
+        if torch.rand(1) > 0.5:
+            translate = transforms.RandomAffine.get_params(degrees=(0.,0.), 
+                                                        translate=(0.10, 0.10),
+                                                        scale_ranges=(1.0,1.0),
+                                                        shears=(0.,0.), 
+                                                        img_size=self.size)
+            image = transforms.functional.affine(image, *translate)
+            label = [transforms.functional.affine(ch, *translate) for ch in label]
+
+        ## random horizontal flip
+        if torch.rand(1) > 0.5:
+            image = transforms.functional.hflip(image)
+            label = [transforms.functional.hflip(ch) for ch in label]
+            
+        ## random brightness and contrast
+        if torch.rand(1) > 0.5:
+            image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
+        
+        ## random gamma correction
+        if torch.rand(1) > 0.5:
+            gamma = np.random.uniform(0.5, 1.5)
+            image = transforms.functional.adjust_gamma(image, gamma)
+
+        ## Convert to tensor and normalize
+        label = np.array([np.array(ch) for ch in label])
+        label = torch.tensor(label)
+
+        if self.input_channels == 1: image = image.convert('L')
+        image = transforms.functional.to_tensor(image)
+        # image = transforms.functional.normalize(image, (0.5), (0.5))
+        # im_tensor = torchvision.transforms.ToTensor()(im)
+        image = (2 * image) - 1  
+        return image, label
+
+    def data_augmentation_kp(self, image, label):
+        ## Resize
+        resize = transforms.Resize(size=self.size)
+        image = resize(image)
+
+        ## random orizontal flip
+        if torch.rand(1) > 0.5:
+            image = transforms.functional.hflip(image)
+            label[0::2] =  1 - label[0::2]
+
+        # random rotation
+        if torch.rand(1) > 0.5:
+            angle = np.random.randint(-15, 15)
+            image = transforms.functional.rotate(image, angle)
+            angle = angle * np.pi/180
+            center = (0.5, 0.5)
+            rot_matrix = np.zeros((2, 3))
+            rot_matrix[0, 0] = np.cos(angle)
+            rot_matrix[0, 1] = np.sin(angle)
+            rot_matrix[1, 0] = -np.sin(angle)
+            rot_matrix[1, 1] = np.cos(angle)
+            rot_matrix[0, 2] = (1 - np.cos(angle)) * center[0] - np.sin(angle) * center[1]
+            rot_matrix[1, 2] = np.sin(angle) * center[0] + (1 - np.cos(angle)) * center[1]
+
+            # Apply rotation to each label coordinate
+            for i in range(len(label) // 2):
+                # Extract x and y coordinates
+                x_coord = label[i * 2]
+                y_coord = label[i * 2 + 1]
+                # Translate to origin
+                x_coord -= center[0]
+                y_coord -= center[1]
+                # Apply rotation
+                label[i * 2] = x_coord * rot_matrix[0, 0] + y_coord * rot_matrix[0, 1] + center[0]
+                label[i * 2 + 1] = x_coord * rot_matrix[1, 0] + y_coord * rot_matrix[1, 1] + center[1]
+
+        ## random brightness and contrast
+        if torch.rand(1) > 0.5:
+            image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
+        
+        ## random gamma correction
+        if torch.rand(1) > 0.5:
+            gamma = np.random.uniform(0.5, 1.5)
+            image = transforms.functional.adjust_gamma(image, gamma)
+
+        ## Convert to tensor and normalize
+        label = torch.tensor(label)
+
+        if self.input_channels == 1: image = image.convert('L')
+        image = transforms.functional.to_tensor(image)
+        # image = transforms.functional.normalize(image, (0.5), (0.5))
+        # im_tensor = torchvision.transforms.ToTensor()(im)
+        image = (2 * image) - 1  
+        return image, label
+
+
+
+    
         
 
 class EchoNetLVH(Dataset):
@@ -1016,8 +1309,23 @@ if __name__ == '__main__':
     percentace = 0.2
 
     dataset = EchoNetGeneretedDataset(par_dir=par_dir, trial=trial, experiment=experiment, guide_w=guide_w, epoch=epoch, phase='diastole',
-                                      target='heatmaps', input_channels=1, size=(320, 240), augmentation=True,
-                                      percentace=percentace)
+                                      target='heatmaps', input_channels=1, size=(240, 320), augmentation=True,
+                                      percentace=percentace, original_shape=True)
+                                
+    dataset_tot = EchoNetConcatenate(data_path="/media/angelo/OS/Users/lasal/Desktop/DATA_h", batch='Batch2', split=['train', 'val', 'test'], phase='diastole', 
+                                    target='heatmaps', input_channels=1, size=(240,320), augmentation=True,
+                                    range_cv=[0,30], original_shape=True)
+    
+    for j in range(len(dataset_tot)):
+        image, label, calc, original_shape = dataset[j]
+        print(image.size(), label.size(), calc, original_shape)
+        plt.figure()
+        plt.imshow(image[0], cmap='gray')
+
+        for i in [0,1,4,5]:
+            plt.imshow(label[i], alpha=0.3, cmap='jet')
+        plt.show()
+        
     
     # transform = transforms.Compose([transforms.Resize((256,256)),
     #                                 transforms.ToTensor(),

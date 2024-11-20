@@ -15,13 +15,12 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 
-from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable, EchoNetGeneretedDataset
+from echocardiography.regression.dataset import EchoNetDataset, convert_to_serializable, EchoNetGeneretedDataset, EchoNetConcatenate
 from echocardiography.regression.models import ResNet50Regression, PlaxModel, UNet, UNet_up
 from echocardiography.regression.losses import RMSELoss, WeightedRMSELoss, WeightedMSELoss
 from echocardiography.regression.cfg import train_config
 from echocardiography.regression.utils import get_corrdinate_from_heatmap, get_corrdinate_from_heatmap_ellipses, echocardiografic_parameters
 from echocardiography.regression.test import linear_fit, percentage_error, keypoints_error, echo_parameter_error, show_prediction, get_best_model, get_macs_parms
-from torch.utils.data import Dataset, DataLoader
 
 ## deactivate the warning of the torch
 import warnings
@@ -34,7 +33,7 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
     running_loss = 0. #torch.tensor(0.).to(device)
     loss = 0.           ## this have to be update with the last_loss
     time_load_start = time.time()
-    for i, (inputs, labels) in enumerate(training_loader):
+    for i, (inputs, labels, _, _) in enumerate(training_loader):
         # print(f' START BATCH {i}')
         ## load data
         # time_load_end = time.time()
@@ -134,7 +133,7 @@ def fit(training_loader, validation_loader,
         # Disable gradient computation and reduce memory consumption.
         with torch.no_grad():
             for i, vdata in enumerate(validation_loader):
-                vinputs, vlabels = vdata
+                vinputs, vlabels, _, _ = vdata
                 vinputs = vinputs.to(device)
                 vlabels = vlabels.to(device)
 
@@ -296,182 +295,6 @@ def testing_cross_validation(train_dir, test_loader, device):
         f.write(f'RST: slope={slope_RST:.4f}, intercept={intercept_RST:.4f}, R-squared={r_squared_RST:.4f}, Chi-squared={chi_squared_RST:.4f}\n')
     
 
-class EchoNetConcatenate(Dataset):
-    """
-    Concatenate the real dataset with the generated dataset
-    """
-    def __init__(self, total_dataset, range_split, augmentation, target, size, input_channels, get_original_shape=False):
-    
-        self.range = range_split
-        self.augmentation = augmentation
-        self.get_original_shape = get_original_shape
-        self.target = target
-        self.size = size
-        self.input_channels = input_channels
-
-        self.total_dataset = total_dataset
-        self.dataset = self.get_subdataset()
-
-    
-    def __len__(self):
-        return len(self.dataset)
-    
-    def __getitem__(self, idx):
-        if self.target == 'keypoints': 
-            # image_label_start = time.time()
-            image, label, calc_value, original_shape = self.dataset[idx]
-           
-            if self.augmentation:
-                image, label = self.data_augmentation_kp(image, label)
-            else:
-                resize = transforms.Resize(size=self.size)
-                image = resize(image)
-                if self.input_channels == 1: image = image.convert('L')
-                label = torch.tensor(label)
-                image = transforms.functional.to_tensor(image)
-                # image = transforms.functional.normalize(image, (0.5), (0.5))  
-                # im_tensor = torchvision.transforms.ToTensor()(im)
-
-                image = (2 * image) - 1  
-
-        elif self.target == 'heatmaps': 
-            # image_label_start = time.time()
-            image, label, calc_value, original_shape = self.dataset[idx]
-            
-            if self.augmentation:
-                image, label = self.data_augmentation(image, label.numpy())
-                # print(f'Time to apply data augmentation: {aug_stop - aug_start:.5f}')
-            else:
-                image, label = self.trasform(image, label.numpy())
-
-        if self.get_original_shape:
-            return image, label, calc_value, original_shape
-        else:
-            return image, label
-    
-    def data_augmentation(self, image, label):
-        """
-        Set of trasformation to apply to image and label (heatmaps).
-        This function contain all the data augmentation trasformations and the normalization.
-        Note: torchvision.transforms often rely on PIL as the underlying library, 
-            so each channel of heatmap need to transform  separately (channels are in the first dimension)
-        """
-        # convert each channel in PIL image
-        label = [Image.fromarray(label[ch,:,:]) for ch in range(label.shape[0])]
-
-        
-        ## random rotation to image and label
-        if torch.rand(1) > 0.5:
-            angle = np.random.randint(-15, 15)
-            image = transforms.functional.rotate(image, angle)
-            label = [transforms.functional.rotate(ch, angle) for ch in label]
-
-        ## random translation to image and label in each direction
-        if torch.rand(1) > 0.5:
-            translate = transforms.RandomAffine.get_params(degrees=(0.,0.), 
-                                                        translate=(0.10, 0.10),
-                                                        scale_ranges=(1.0,1.0),
-                                                        shears=(0.,0.), 
-                                                        img_size=self.size)
-            image = transforms.functional.affine(image, *translate)
-            label = [transforms.functional.affine(ch, *translate) for ch in label]
-
-        ## random horizontal flip
-        if torch.rand(1) > 0.5:
-            image = transforms.functional.hflip(image)
-            label = [transforms.functional.hflip(ch) for ch in label]
-            
-        ## random brightness and contrast
-        if torch.rand(1) > 0.5:
-            image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
-        
-
-        ## Convert to tensor and normalize
-        label = np.array([np.array(ch) for ch in label])
-        label = torch.tensor(label)
-        
-        return image, label
-    
-    def data_augmentation_kp(self, image, label):
-        ## Resize
-        resize = transforms.Resize(size=self.size)
-        image = resize(image)
-
-        ## random orizontal flip
-        if torch.rand(1) > 0.5:
-            image = transforms.functional.hflip(image)
-            label[0::2] =  1 - label[0::2]
-
-        # random rotation
-        if torch.rand(1) > 0.5:
-            angle = np.random.randint(-15, 15)
-            image = transforms.functional.rotate(image, angle)
-            angle = angle * np.pi/180
-            center = (0.5, 0.5)
-            rot_matrix = np.zeros((2, 3))
-            rot_matrix[0, 0] = np.cos(angle)
-            rot_matrix[0, 1] = np.sin(angle)
-            rot_matrix[1, 0] = -np.sin(angle)
-            rot_matrix[1, 1] = np.cos(angle)
-            rot_matrix[0, 2] = (1 - np.cos(angle)) * center[0] - np.sin(angle) * center[1]
-            rot_matrix[1, 2] = np.sin(angle) * center[0] + (1 - np.cos(angle)) * center[1]
-
-            # Apply rotation to each label coordinate
-            for i in range(len(label) // 2):
-                # Extract x and y coordinates
-                x_coord = label[i * 2]
-                y_coord = label[i * 2 + 1]
-                # Translate to origin
-                x_coord -= center[0]
-                y_coord -= center[1]
-                # Apply rotation
-                label[i * 2] = x_coord * rot_matrix[0, 0] + y_coord * rot_matrix[0, 1] + center[0]
-                label[i * 2 + 1] = x_coord * rot_matrix[1, 0] + y_coord * rot_matrix[1, 1] + center[1]
-
-        ## random brightness and contrast
-        if torch.rand(1) > 0.5:
-            image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
-        
-        ## random gamma correction
-        if torch.rand(1) > 0.5:
-            gamma = np.random.uniform(0.5, 1.5)
-            image = transforms.functional.adjust_gamma(image, gamma)
-
-        ## Convert to tensor and normalize
-        label = torch.tensor(label)
-
-        if self.input_channels == 1: image = image.convert('L')
-        image = transforms.functional.to_tensor(image)
-        # image = transforms.functional.normalize(image, (0.5), (0.5))
-        # im_tensor = torchvision.transforms.ToTensor()(im)
-        image = (2 * image) - 1  
-        return image, label
-    
-    def trasform(self, image, label):
-        """
-        Simple trasformaztion of the label and image. Resize and normalize the image and resize the label
-        """
-        # convert each channel in PIL image
-        label = [Image.fromarray(label[ch,:,:]) for ch in range(label.shape[0])]
-
-
-        ## convert to tensor and normalize
-        label = np.array([np.array(ch) for ch in label])
-        label = torch.tensor(label)
-
-        return image, label
-
-    def get_subdataset(self):
-        """
-        Get the subset of the dataset
-        """
-        return torch.utils.data.Subset(self.total_dataset, self.range)
-    
-
-
-
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read the dataset')
     parser.add_argument('--data_path', type=str, default="/media/angelo/OS/Users/lasal/OneDrive - Scuola Superiore Sant'Anna/PhD_notes/Echocardiografy/DATA/regression/DATA", help='Directory of the dataset')
@@ -515,24 +338,15 @@ if __name__ == '__main__':
     print(f'Using device: {device}')
     
     print('start creating the dataset...')
-    train_real_set = EchoNetDataset(batch=args.batch_dir, split='train', phase=args.phase, label_directory=None, data_path=args.data_path,
-                              target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
-                              original_shape=True)
-
-    validation_real_set = EchoNetDataset(batch=args.batch_dir, split='val', phase=args.phase, label_directory=None, data_path=args.data_path,
-                              target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
-                              original_shape=True)
-
-    test_real_set = EchoNetDataset(batch=args.batch_dir, split='test', phase=args.phase, label_directory=None, data_path=args.data_path,
-                              target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
-                              original_shape=True)
+    real_dataset = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                        target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False, 
+                                        range_cv=None, original_shape=True)
+    
 
     train_gen_set = EchoNetGeneretedDataset(par_dir=args.par_dir_generate, trial=args.trial_generate, experiment=args.experiment_generate, guide_w=args.guide_w_generate, epoch=args.epoch_generate,
                                      phase=args.phase, target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True,
                                      percentace=args.percentace)
 
-    real_dataset = torch.utils.data.ConcatDataset([train_real_set, validation_real_set, test_real_set])
-    print(len(real_dataset), len(train_gen_set))
 
     #check if the save directory exist, if not create it - then create the subfolder for fold i
     save_dir_main = os.path.join(args.save_dir, args.batch_dir, args.phase, 'data_augumentation')
@@ -546,31 +360,43 @@ if __name__ == '__main__':
 
     ## 5 fold cross validation
     k = 5
-    fold_size = len(real_dataset) // k
     len_real_dataset = len(real_dataset)
-    print(f'Fold size: {fold_size}')
+    fold_size = len_real_dataset // k
     for i in range(k):
         ## use 1 fold for validation, 1 fold for test and the rest for training
         print(f'Fold_{i+1}')
-        validation_set = EchoNetConcatenate(real_dataset, range(i*fold_size, (i+1)*fold_size), target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False, get_original_shape=False)
+        validation_set = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase, 
+                                    target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
+                                    range_cv=[i*fold_size, (i+1)*fold_size], original_shape=True)
         # validation_set = torch.utils.data.Subset(real_dataset, range(i*fold_size, (i+1)*fold_size))
         # print(range(i*fold_size, (i+1)*fold_size))
-
-
         if (i+2)*fold_size <= len_real_dataset: 
+            test_set = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                    target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
+                                    range_cv=[(i+1)*fold_size, (i+2)*fold_size], original_shape=True)
+            train_set = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                    target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True,
+                                    range_cv=[0, i*fold_size], original_shape=True) + EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                    target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True,
+                                    range_cv=[(i+2)*fold_size, len_real_dataset], original_shape=True)
+
             # train_set = torch.utils.data.Subset(real_dataset, range(0, i*fold_size)) + torch.utils.data.Subset(real_dataset, range((i+2)*fold_size, len_real_dataset))
             # test_set = torch.utils.data.Subset(real_dataset, range((i+1)*fold_size, (i+2)*fold_size))
             # print(range(0, i*fold_size), range((i+2)*fold_size, len_real_dataset))
             # print(range((i+1)*fold_size, (i+2)*fold_size))
-            train_set = EchoNetConcatenate(real_dataset, range(0, i*fold_size), target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True, get_original_shape=False) + EchoNetConcatenate(real_dataset, range((i+2)*fold_size, len_real_dataset), target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True, get_original_shape=False)
-            test_set = EchoNetConcatenate(real_dataset, range((i+1)*fold_size, (i+2)*fold_size), target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False, get_original_shape=True)
         else:
+            test_set = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                    target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
+                                    range_cv=[0, fold_size], original_shape=True)
+            train_set = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                    target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
+                                    range_cv=[fold_size, i*fold_size], original_shape=True) + EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                    target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
+                                    range_cv=[(i+1)*fold_size, len_real_dataset], original_shape=True)
             # train_set = torch.utils.data.Subset(real_dataset, range(fold_size, i*fold_size)) + torch.utils.data.Subset(real_dataset, range((i+1)*fold_size, len_real_dataset))
             # test_set = torch.utils.data.Subset(real_dataset, range(0, fold_size))
             # print(range(fold_size, i*fold_size), range((i+1)*fold_size, len_real_dataset))
             # print(range(0, fold_size))
-            train_set = EchoNetConcatenate(real_dataset, range(fold_size, i*fold_size), target=args.target, augmentation=True, input_channels=args.input_channels, size=args.size, get_original_shape=False) + EchoNetConcatenate(real_dataset, range((i+1)*fold_size, len_real_dataset), target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True, get_original_shape=False)
-            test_set = EchoNetConcatenate(real_dataset, range(0, fold_size), target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False, get_original_shape=True)
         
         ## add generated data on the training set
         if args.percentace > 0.0: train_set = torch.utils.data.ConcatDataset([train_set, train_gen_set])
@@ -581,7 +407,6 @@ if __name__ == '__main__':
         validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True, prefetch_factor=args.prefetch_factor)
         test_loader = torch.utils.data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True, prefetch_factor=args.prefetch_factor)
         print(f'Train: {len(train_set)}, Validation: {len(validation_set)}, Test: {len(test_set)}')
-        print()
 
         ## create folder for the i+1 cross validation folder
         save_dir = os.path.join(save_dir_main, f'fold_{i+1}')
@@ -604,13 +429,6 @@ if __name__ == '__main__':
         with open(os.path.join(save_dir,'args.json'), 'w') as f:
             json.dump(args_dict, f, indent=4)
 
-       ## TEST
-        print(f'Fold {i+1}) Start testing...')
-        testing_cross_validation(train_dir=save_dir, test_loader=test_loader, device=device)
-
-
-    
-   
-
-     
-   
+    #    ## TEST
+    #     print(f'Fold {i+1}) Start testing...')
+    #     testing_cross_validation(train_dir=save_dir, test_loader=test_loader, device=device)
