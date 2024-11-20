@@ -410,26 +410,26 @@ if __name__ == '__main__':
         test_loader = torch.utils.data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True, prefetch_factor=args.prefetch_factor)
         print(f'Train: {len(train_set)}, Validation: {len(validation_set)}, Test: {len(test_set)}')
 
-        # ## create folder for the i+1 cross validation folder
-        # save_dir = os.path.join(save_dir_main, f'fold_{i+1}')
-        # os.makedirs(os.path.join(save_dir))
+        ## create folder for the i+1 cross validation folder
+        save_dir = os.path.join(save_dir_main, f'fold_{i+1}')
+        os.makedirs(os.path.join(save_dir))
         
-        # ## TRAIN
-        # print(f'Fold {i+1}) Start training...')
-        # loss_fn = cfg['loss']
-        # model = cfg['model'].to(device)
-        # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        ## TRAIN
+        print(f'Fold {i+1}) Start training...')
+        loss_fn = cfg['loss']
+        model = cfg['model'].to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-        # losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
-        #             save_dir=save_dir)
+        losses = fit(training_loader, validation_loader, model, loss_fn, optimizer, epochs=args.epochs, device=device, 
+                    save_dir=save_dir)
 
-        # ## save the args dictionary in a file
-        # with open(os.path.join(save_dir,'losses.json'), 'w') as f:
-        #     json.dump(losses, f, default=convert_to_serializable, indent=4)
+        ## save the args dictionary in a file
+        with open(os.path.join(save_dir,'losses.json'), 'w') as f:
+            json.dump(losses, f, default=convert_to_serializable, indent=4)
 
-        # args_dict = vars(args)
-        # with open(os.path.join(save_dir,'args.json'), 'w') as f:
-        #     json.dump(args_dict, f, indent=4)
+        args_dict = vars(args)
+        with open(os.path.join(save_dir,'args.json'), 'w') as f:
+            json.dump(args_dict, f, indent=4)
 
        ## TEST
         print(f'Fold {i+1}) Start testing...')
