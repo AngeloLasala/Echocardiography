@@ -51,7 +51,6 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
         optimizer.zero_grad()                           # Zero your gradients for every batch!
         outputs = model(inputs)                         # Make predictions for this batch
         # if len(outputs) == 2: outputs = outputs[-1]
-        print(f'output shape: {outputs.shape} - label shape: {labels.shape}')
         loss = loss_fn(outputs.float(), labels.float()) # Compute the loss and its gradientsù
         loss.backward()
         
