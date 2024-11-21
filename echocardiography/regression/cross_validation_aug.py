@@ -33,7 +33,7 @@ def train_one_epoch(training_loader, model, loss, optimizer, device, tb_writer =
     running_loss = 0. #torch.tensor(0.).to(device)
     loss = 0.           ## this have to be update with the last_loss
     time_load_start = time.time()
-    for i, (inputs, labels, _, _) in enumerate(training_loader):
+    for i, (inputs, labels) in enumerate(training_loader):
         # print(f' START BATCH {i}')
         ## load data
         # time_load_end = time.time()
@@ -133,7 +133,7 @@ def fit(training_loader, validation_loader,
         # Disable gradient computation and reduce memory consumption.
         with torch.no_grad():
             for i, vdata in enumerate(validation_loader):
-                vinputs, vlabels, _, _ = vdata
+                vinputs, vlabels= vdata
                 vinputs = vinputs.to(device)
                 vlabels = vlabels.to(device)
 
@@ -354,12 +354,12 @@ if __name__ == '__main__':
     print('start creating the dataset...')
     real_dataset = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
                                         target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False, 
-                                        range_cv=None, original_shape=True)
+                                        range_cv=None, original_shape=False)
     
 
     train_gen_set = EchoNetGeneretedDataset(par_dir=args.par_dir_generate, trial=args.trial_generate, experiment=args.experiment_generate, guide_w=args.guide_w_generate, epoch=args.epoch_generate,
                                      phase=args.phase, target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True,
-                                     percentace=args.percentace)
+                                     percentace=args.percentace, original_shape=False)
 
 
     #check if the save directory exist, if not create it - then create the subfolder for fold i
@@ -381,7 +381,7 @@ if __name__ == '__main__':
         print(f'Fold_{i+1}')
         validation_set = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase, 
                                     target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
-                                    range_cv=[i*fold_size, (i+1)*fold_size], original_shape=True)
+                                    range_cv=[i*fold_size, (i+1)*fold_size], original_shape=False)
         # validation_set = torch.utils.data.Subset(real_dataset, range(i*fold_size, (i+1)*fold_size))
         # print(range(i*fold_size, (i+1)*fold_size))
         if (i+2)*fold_size <= len_real_dataset: 
@@ -390,9 +390,9 @@ if __name__ == '__main__':
                                     range_cv=[(i+1)*fold_size, (i+2)*fold_size], original_shape=True)
             train_set = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
                                     target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True,
-                                    range_cv=[0, i*fold_size], original_shape=True) + EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                    range_cv=[0, i*fold_size], original_shape=False) + EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
                                     target=args.target, input_channels=args.input_channels, size=args.size, augmentation=True,
-                                    range_cv=[(i+2)*fold_size, len_real_dataset], original_shape=True)
+                                    range_cv=[(i+2)*fold_size, len_real_dataset], original_shape=False)
 
             # train_set = torch.utils.data.Subset(real_dataset, range(0, i*fold_size)) + torch.utils.data.Subset(real_dataset, range((i+2)*fold_size, len_real_dataset))
             # test_set = torch.utils.data.Subset(real_dataset, range((i+1)*fold_size, (i+2)*fold_size))
@@ -404,16 +404,20 @@ if __name__ == '__main__':
                                     range_cv=[0, fold_size], original_shape=True)
             train_set = EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
                                     target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
-                                    range_cv=[fold_size, i*fold_size], original_shape=True) + EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
+                                    range_cv=[fold_size, i*fold_size], original_shape=False) + EchoNetConcatenate(data_path=args.data_path, batch=args.batch_dir, split=['train', 'val', 'test'], phase=args.phase,
                                     target=args.target, input_channels=args.input_channels, size=args.size, augmentation=False,
-                                    range_cv=[(i+1)*fold_size, len_real_dataset], original_shape=True)
+                                    range_cv=[(i+1)*fold_size, len_real_dataset], original_shape=False)
             # train_set = torch.utils.data.Subset(real_dataset, range(fold_size, i*fold_size)) + torch.utils.data.Subset(real_dataset, range((i+1)*fold_size, len_real_dataset))
             # test_set = torch.utils.data.Subset(real_dataset, range(0, fold_size))
             # print(range(fold_size, i*fold_size), range((i+1)*fold_size, len_real_dataset))
             # print(range(0, fold_size))
         
         ## add generated data on the training set
-        if args.percentace > 0.0: train_set = torch.utils.data.ConcatDataset([train_set, train_gen_set])
+        if args.percentace > 0.0: 
+            print(f"Real dataset sample shape: {train_set[0][0].shape}, {train_set[0][1].shape}")
+            print(f"Generated dataset sample shape: {train_gen_set[0][0].shape}, {train_gen_set[0][1].shape}")
+
+            train_set = torch.utils.data.ConcatDataset([train_set, train_gen_set])
         else : train_set = train_set
         
 
@@ -422,6 +426,7 @@ if __name__ == '__main__':
         test_loader = torch.utils.data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True, prefetch_factor=args.prefetch_factor)
         print(f'Train: {len(train_set)}, Validation: {len(validation_set)}, Test: {len(test_set)}')
 
+    
         ## create folder for the i+1 cross validation folder
         save_dir = os.path.join(save_dir_main, f'fold_{i+1}')
         os.makedirs(os.path.join(save_dir))

@@ -552,7 +552,9 @@ class EchoNetGeneretedDataset(Dataset):
         keypoints_label = (np.array(keypoints_label)).flatten()
         calc_value_list = np.array(calc_value_list).flatten()
         original_shape = np.array([patient_label[heart_part]['height'], patient_label[heart_part]['width']])
-
+        #convert in np.float32
+        keypoints_label = keypoints_label.astype(np.float32)
+        calc_value_list = calc_value_list.astype(np.float32)
 
         if self.target == 'heatmaps' or self.target == 'segmentation':
             heat_idx = patient.split('_')[1]
