@@ -117,6 +117,8 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 8), tight_layout=True)
     fig1, ax1 = plt.subplots(nrows=2, ncols=1, figsize=(15, 11), num='Fidelity_eco_parameters_cond',  tight_layout=True)
     fig2, ax2 = plt.subplots(nrows=2, ncols=1, figsize=(15, 11), num='Fidelity_class_cond', tight_layout=True)
+    fig3, ax3 = plt.subplots(nrows=1, ncols=2, figsize=(15, 8), num='Fidelity_class_cond_f1', tight_layout=True)
+
     label_dict = {'-1.0': 'uncond LDM', '0.0': 'vanilla cond LDM ', '0.2': 'cond LDM - w=0.2',
                  '0.4': 'cond LDM - w=0.4', '0.6': 'cond LDM - w=0.6', '0.8': 'cond LDM - w=0.8',  '1.0': 'cond LDM - w=1.0', '2.0': 'cond LDM - w=2.0'}
     for guide_w in eval_dict.keys():
@@ -296,6 +298,24 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
         ax2[1].set_ylabel('accuracy', fontsize=20)
         ax2[1].tick_params(axis='both', which='major', labelsize=18)
         ax2[1].grid('dashed')
+        # plt.savefig(os.path.join(experiment_dir, 'results', 'Fidelity_class_cond.png'))
+
+
+        ax3[0].set_title('RWT - f1_score', fontsize=20)
+        ax3[0].plot(epoch_class, f1_score_rwt_list, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        # ax2[0].legend(fontsize=20)
+        ax3[0].set_xlabel('Epoch', fontsize=20)
+        ax3[0].set_ylabel('accuracy', fontsize=20)
+        ax3[0].tick_params(axis='both', which='major', labelsize=18)
+        ax3[0].grid('dashed')
+
+        ax3[1].set_title('RST - f1', fontsize=20)
+        ax3[1].plot(epoch_class, f1_score_rst_list, label=label_dict[guide_w], lw=2, marker='o', markersize=10)
+        # ax2[1].legend(fontsize=20)
+        ax3[1].set_xlabel('Epoch', fontsize=20)
+        ax3[1].set_ylabel('accuracy', fontsize=20)
+        ax3[1].tick_params(axis='both', which='major', labelsize=18)
+        ax3[1].grid('dashed')
         # plt.savefig(os.path.join(experiment_dir, 'results', 'Fidelity_class_cond.png'))
 
         print('----------------------------------------------------')
