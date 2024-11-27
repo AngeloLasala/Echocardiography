@@ -5,8 +5,8 @@
 #SBATCH --ntasks-per-node=1          # 1 tasks per node
 #SBATCH --time=24:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
-#SBATCH --error=keys_4_6.err       # standard error file
-#SBATCH --output=keys_4_6.out      # standard output file
+#SBATCH --error=relative_4_6.err       # standard error file
+#SBATCH --output=relative_4_6.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 for trial in trial_2; do
@@ -15,7 +15,7 @@ for trial in trial_2; do
                 python -m echocardiography.diffusion.tools.sample_cond_ldm\
                         --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/'\
                         --trial $trial\
-                        --experiment cond_ldm_4\
+                        --experiment cond_ldm_6\
                         --epoch $epoch\
                         --guide_w $w\
 
