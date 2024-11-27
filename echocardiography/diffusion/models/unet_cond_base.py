@@ -46,6 +46,7 @@ class Unet(nn.Module):
         
         ######## Class, Mask and Text Conditioning Config #####
         self.class_cond = False
+        self.class_relative = False
         self.text_cond = False
         self.image_cond = False
         self.keypoints_cond = False
@@ -59,6 +60,11 @@ class Unet(nn.Module):
                 # validate_class_config(self.condition_config)
                 # print('sto dentro: class')
                 self.class_cond = True
+                self.num_classes = self.condition_config['class_condition_config']['num_classes']
+            if 'class_relative' in condition_types:
+                # validate_class_config(self.condition_config)
+                # print('sto dentro: class')
+                self.class_relative = True
                 self.num_classes = self.condition_config['class_condition_config']['num_classes']
             if 'keypoints' in condition_types:
                 # validate_keypoints_config(self.condition_config)
@@ -85,8 +91,13 @@ class Unet(nn.Module):
             # class embedding information for unconditional generation
             self.class_emb = nn.Embedding(self.num_classes,
                                           self.t_emb_dim)
-                            
 
+        if self.class_relative:
+            # Rather than using a special null class we dont add
+            # the class embedding information for unconditional generation
+            self.class_emb = nn.Embedding(self.num_classes,
+                                          self.t_emb_dim)
+                            
         if self.keypoints_cond:
             # Rather than using a special null class we dont add
             # the keypoints embedding information for unconditional generation
@@ -108,7 +119,9 @@ class Unet(nn.Module):
                                             self.down_channels[0], kernel_size=3, padding=1)
         else:
             self.conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=1)
-        self.cond = self.text_cond or self.image_cond or self.class_cond or self.keypoints_cond or self.eco_parameters ## check if at least one condition is activate
+
+        ## check if at least one condition is activate
+        self.cond = self.text_cond or self.image_cond or self.class_cond or self.keypoints_cond or self.eco_parameters or self.class_relative
         ###################################
         
         # Initial projection from sinusoidal time embedding
@@ -196,6 +209,16 @@ class Unet(nn.Module):
             # print(class_embed.shape)
             # print(t_emb.shape)
             t_emb += class_embed
+
+        ######## Class Relative Conditioning ########
+        if self.class_relative:
+            # validate_class_conditional_input(cond_input, x, self.num_classes)
+            # print(self.class_emb.weight.shape)
+            # print(cond_input['class'].shape)
+            class_embed = einsum(cond_input['class_relative'].float(), self.class_emb.weight, 'b n, n d -> b d')
+            # print(class_embed.shape)
+            # print(t_emb.shape)
+            t_emb += class_embed
         ####################################
 
         ######## Eco Parameters Conditioning ########
@@ -269,7 +292,7 @@ if __name__ == '__main__':
         'num_mid_layers': 2,
         'num_up_layers': 2,
         'condition_config': {
-            'condition_types': ['eco_parameters'],
+            'condition_types': ['class_relative'],
             'class_condition_config': {
                 'num_classes': 4
             },
@@ -298,7 +321,8 @@ if __name__ == '__main__':
     text_cond = torch.randn(5, 8, 8, 768)
     mask_cond = torch.randn(5, 6, 30, 40)
     class_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
+    class_relative_cond = torch.tensor([[0,0,0,1],[0,0,1,0],[0,1,0,0],[1,0,0,0], [0,0,0,1]])
     keypoints_cond = torch.randn(5, 12)
     eco_parameters_cond = torch.randn(5, 2)
-    out = model(x, t, {'eco_parameters': eco_parameters_cond})
+    out = model(x, t, {'class_relative': class_relative_cond})
     print(out.shape)

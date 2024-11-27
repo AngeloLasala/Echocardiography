@@ -245,6 +245,13 @@ def train(par_dir, conf, trial, activate_cond_ldm=False):
                 # Drop condition
                 cond_input['class'] = drop_class_condition(class_condition, class_drop_prob, im)
 
+            if 'class_relative' in condition_types and (type_model == 'vae' or activate_cond_ldm):
+                assert 'class_relative' in cond_input, 'Conditioning Type Class but no class conditioning input present'
+                class_condition = cond_input['class_relative'].to(device)
+                class_drop_prob = get_config_value(condition_config['class_condition_config'],'cond_drop_prob', 0.)
+                # Drop condition
+                cond_input['class_relative'] = drop_class_condition(class_condition, class_drop_prob, im)
+
             if 'keypoints' in condition_types and (type_model == 'vae' or activate_cond_ldm):
                 assert 'keypoints' in cond_input, 'Conditioning Type Keypoints but no keypoints conditioning input present'
                 keypoints_condition = cond_input['keypoints'].to(device)

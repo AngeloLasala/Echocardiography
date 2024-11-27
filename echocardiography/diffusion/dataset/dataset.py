@@ -195,6 +195,16 @@ class EcoDataset():
                 cond_inputs['class'] = class_label
             #####################################################################
 
+            ####### CLASS CONDITION RELATIVE DISTANCES #########################
+            if 'class_relative' in self.condition_types:
+                # process the image
+                resize = transforms.Resize(size=self.size)
+                image = resize(im)
+                im_tensor = (2 * image) - 1
+
+                class_label = self.get_class_parameters(keypoints_label)
+                cond_inputs['class_relative'] = class_label
+
             ###### TEXT CONDITION ###############################################
             # here the part of cross attention with the image, similar to the 'text' condition
             # up to date, the embedding comes from the regression model to predict the keypoints
@@ -310,6 +320,27 @@ class EcoDataset():
         eco_parameters = torch.tensor([rwt, rst])
         
         return eco_parameters
+
+    def get_class_parameters(self, keypoints_label):
+        """
+        get the ecoparameters for each patient
+        """
+        rwt, rst = echocardiografic_parameters(keypoints_label)
+        eco_parameters = torch.tensor([rwt, rst])
+
+        if rwt > 0.42 and rst > 0.42:
+            class_label = 0
+        if rwt > 0.42 and rst < 0.42:
+            class_label = 1
+        if rwt < 0.42 and rst > 0.42:
+            class_label = 2
+        if rwt < 0.42 and rst < 0.42:
+            class_label = 3
+
+        ## convert the class label to one hot encoding with torch
+        class_label = torch.nn.functional.one_hot(torch.tensor(class_label), num_classes=4)
+        
+        return class_label
 
 
     def get_heatmap(self, idx):
@@ -650,7 +681,7 @@ class CelebDataset(Dataset):
 if __name__ == '__main__':
     import yaml
     
-    conf = '/home/angelo/Documents/Echocardiography/echocardiography/diffusion/conf/eco_ecopar_cond.yaml'
+    conf = '/home/angelo/Documenti/Echocardiography/echocardiography/diffusion/conf/eco_class_relative_cond.yaml'
     with open(conf, 'r') as file:
         try:
             config = yaml.safe_load(file)
