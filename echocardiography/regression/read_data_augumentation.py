@@ -385,7 +385,7 @@ def main(args):
     boxplot_fold(args, experiments)
 
     ## plot the convergence curve
-    # convergence_curve(args, experiments)
+    convergence_curve(args, experiments)
 
 
 

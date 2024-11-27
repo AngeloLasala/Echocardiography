@@ -68,12 +68,14 @@ def main(args):
     if args.show_plot: plot_real_labels(rwt_list, rst_list)
 
     label_dict = {}
+    pw_list = []
     for n in number_of_heatmaps:
         print(f'Numeber of image: {n}')
         ## read heatmap
         heat = np.load(os.path.join(test_path, f'heatmap_{n}.npy'))
         
         label_heart = {'LVIDd': None, 'IVSd': None, 'LVPWd': None}
+        pw_image = []
         for i in np.arange(5-3, 5+4, 1): # select the heatmap atounf the real keyponts, position 5th
             ## get image
             image_shape_guide = os.path.join(test_path, f'x0_{n}_{i}.png')
@@ -81,6 +83,9 @@ def main(args):
             
             image = cv2.imread(image_shape_guide)
             keypoints = get_corrdinate_from_heatmap(heat[i])
+            xx = np.sqrt((keypoints[0] - keypoints[2])**2 +  (keypoints[1] - keypoints[3])**2)
+            pw_image.append(xx)
+            print(xx)
             rwt, rst = echocardiografic_parameters(keypoints)
 
             if rwt > 0.20 and rwt < 1.4:
@@ -97,6 +102,44 @@ def main(args):
 
 
                 label_dict[f'x0_{n}_{i}'] = label_heart
+        pw_list.append(pw_image)
+
+        print()
+    
+    increse_list, decrese_list = [], []
+    for i in pw_list:
+        baseline = i[3]
+        plus_list, minus_list = [], []
+        for inc in [0, 1, 2]:
+            plus = (i[inc] - baseline) / baseline
+            plus_list.append(plus)
+        for dec in [4, 5, 6]:
+            minus =  (baseline - i[dec]) / baseline
+            minus_list.append(minus)
+        increse_list.append(plus_list)
+        decrese_list.append(minus_list)
+
+    increase_list = np.array(increse_list)
+    decrease_list = np.array(decrese_list)
+
+    print(increase_list.shape, decrease_list.shape)
+
+    increse_list = np.array(increse_list)
+    decrese_list = np.array(decrese_list)
+    print(np.median(increase_list[:,0]), np.median(increase_list[:,1]), np.median(increase_list[:,2]))
+    print(np.median(decrese_list[:,0]), np.median(decrese_list[:,1]), np.median(decrese_list[:,2]))
+
+    fig, ax = plt.subplots(nrows=1, ncols=2, num='Increase and Decrease', figsize=(12,8), tight_layout=True)
+    ax[0].hist(increse_list[:,0])
+    ax[0].hist(increse_list[:,1])
+    ax[0].hist(increse_list[:,2])
+
+    ax[1].hist(decrese_list[:,0])
+    ax[1].hist(decrese_list[:,1])
+    ax[1].hist(decrese_list[:,2])
+
+    plt.show()
+        
 
 
     #save the label dict as json
