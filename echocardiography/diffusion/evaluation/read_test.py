@@ -9,6 +9,7 @@ import cv2
 import matplotlib.pyplot as plt
 from echocardiography.regression.utils import get_corrdinate_from_heatmap, echocardiografic_parameters
 import json
+from sklearn.linear_model import LinearRegression
 
 def original_keypoints(test_path, number_of_heatmaps):
     """
@@ -27,6 +28,20 @@ def original_keypoints(test_path, number_of_heatmaps):
     return keypoints_list, rwt_list, rst_list
 
 def plot_real_labels(rwt_list, rst_list):
+    ## perform the linear regression bertween the rwt and rst
+    rwt_array = np.array(rwt_list).reshape(-1, 1)
+    rst_array = np.array(rst_list).reshape(-1, 1)
+
+    model = LinearRegression()
+    model.fit(rwt_array, rst_array)
+
+    slope = model.coef_[0][0]
+    intercept = model.intercept_[0]
+    r_sq = model.score(rwt_array, rst_array)
+
+    print(f"Slope: {slope}, Intercept: {intercept} R^2: {r_sq}")
+
+
     fig1, ax1 = plt.subplots(nrows=1, ncols=1, num='Real keypoints', figsize=(8,8), tight_layout=True)
     ax1.scatter(rwt_list, rst_list, s=100, color='grey', alpha=0.7)
     ax1.set_xlabel('RWT', fontsize=20)
@@ -37,6 +52,11 @@ def plot_real_labels(rwt_list, rst_list):
     # set the lim of x and y axis
     ax1.set_xlim(0.0, 1.8)
     ax1.set_ylim(0.0, 1.8)
+    # plot the linear regression curve
+    x_vals = np.array(ax1.get_xlim())
+    y_vals = intercept + slope * x_vals
+    ax1.plot(x_vals, y_vals, '--', color='black', linewidth=2)
+
     plt.show()
 
 def plot_genereted_and_label(image_shape_guide, heat, i):
@@ -69,6 +89,7 @@ def main(args):
 
     label_dict = {}
     pw_list = []
+    rwt_aug_list, rst_aug_list = [], []
     for n in number_of_heatmaps:
         print(f'Numeber of image: {n}')
         ## read heatmap
@@ -89,7 +110,8 @@ def main(args):
             rwt, rst = echocardiografic_parameters(keypoints)
 
             if rwt > 0.20 and rwt < 1.4:
-
+                rwt_aug_list.append(rwt)
+                rst_aug_list.append(rst)
                 for j, heart_part in enumerate(['LVPWd', 'LVIDd', 'IVSd']):
                     x1 = keypoints[j*4]
                     y1 = keypoints[(j*4) + 1]
@@ -104,48 +126,49 @@ def main(args):
                 label_dict[f'x0_{n}_{i}'] = label_heart
         pw_list.append(pw_image)
 
-        print()
-    
-    increse_list, decrese_list = [], []
-    for i in pw_list:
-        baseline = i[3]
-        plus_list, minus_list = [], []
-        for inc in [0, 1, 2]:
-            plus = (i[inc] - baseline) / baseline
-            plus_list.append(plus)
-        for dec in [4, 5, 6]:
-            minus =  (baseline - i[dec]) / baseline
-            minus_list.append(minus)
-        increse_list.append(plus_list)
-        decrese_list.append(minus_list)
 
-    increase_list = np.array(increse_list)
-    decrease_list = np.array(decrese_list)
+    #save the label dict as json
+    # with open(os.path.join(test_path, 'label.json'), 'w') as f:
+    #     json.dump(label_dict, f, indent=4)
 
-    print(increase_list.shape, decrease_list.shape)
+    if args.show_plot: plot_real_labels(rwt_aug_list, rst_aug_list)    
+    # increse_list, decrese_list = [], []
+    # for i in pw_list:
+    #     baseline = i[3]
+    #     plus_list, minus_list = [], []
+    #     for inc in [0, 1, 2]:
+    #         plus = (i[inc] - baseline) / baseline
+    #         plus_list.append(plus)
+    #     for dec in [4, 5, 6]:
+    #         minus =  (baseline - i[dec]) / baseline
+    #         minus_list.append(minus)
+    #     increse_list.append(plus_list)
+    #     decrese_list.append(minus_list)
 
-    increse_list = np.array(increse_list)
-    decrese_list = np.array(decrese_list)
-    print(np.median(increase_list[:,0]), np.median(increase_list[:,1]), np.median(increase_list[:,2]))
-    print(np.median(decrese_list[:,0]), np.median(decrese_list[:,1]), np.median(decrese_list[:,2]))
+    # increase_list = np.array(increse_list)
+    # decrease_list = np.array(decrese_list)
 
-    fig, ax = plt.subplots(nrows=1, ncols=2, num='Increase and Decrease', figsize=(12,8), tight_layout=True)
-    ax[0].hist(increse_list[:,0])
-    ax[0].hist(increse_list[:,1])
-    ax[0].hist(increse_list[:,2])
+    # print(increase_list.shape, decrease_list.shape)
 
-    ax[1].hist(decrese_list[:,0])
-    ax[1].hist(decrese_list[:,1])
-    ax[1].hist(decrese_list[:,2])
+    # increse_list = np.array(increse_list)
+    # decrese_list = np.array(decrese_list)
+    # print(np.median(increase_list[:,0]), np.median(increase_list[:,1]), np.median(increase_list[:,2]))
+    # print(np.median(decrese_list[:,0]), np.median(decrese_list[:,1]), np.median(decrese_list[:,2]))
 
-    plt.show()
+    # fig, ax = plt.subplots(nrows=1, ncols=2, num='Increase and Decrease', figsize=(12,8), tight_layout=True)
+    # ax[0].hist(increse_list[:,0])
+    # ax[0].hist(increse_list[:,1])
+    # ax[0].hist(increse_list[:,2])
+
+    # ax[1].hist(decrese_list[:,0])
+    # ax[1].hist(decrese_list[:,1])
+    # ax[1].hist(decrese_list[:,2])
+
+    # plt.show()
         
 
 
-    #save the label dict as json
-    with open(os.path.join(test_path, 'label.json'), 'w') as f:
-        json.dump(label_dict, f, indent=4)
-
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Read shape-guided experiments ')
