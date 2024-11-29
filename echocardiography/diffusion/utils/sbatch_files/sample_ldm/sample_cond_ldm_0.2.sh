@@ -10,8 +10,8 @@
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 for trial in trial_2; do
-    for w in 0.0 0.2 ; do
-        for epoch in 20 40 60 80 100 120 150; do
+    for w in 0.2 0.6 1.0; do
+        for epoch in 120 150; do
                 python -m echocardiography.diffusion.tools.sample_cond_ldm\
                         --save_folder '/leonardo_work/IscrC_Med-LMGM/Angelo/trained_model/diffusion/'\
                         --trial $trial\
