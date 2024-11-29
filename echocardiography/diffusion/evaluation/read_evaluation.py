@@ -92,7 +92,8 @@ def read_fid_value(experiment):
                     fid_list.append(fid)
                     epoch_list.append(epoch)
 
-                fid_dict[guide_w] = {'epoch': np.array(epoch_list), 'fid': np.array(fid_list)}     
+                fid_dict[guide_w] = {'epoch': np.array(epoch_list), 'fid': np.array(fid_list)} 
+    print(fid_dict)    
     return fid_dict
 
 def wilcoxon_analysisi(p_value):

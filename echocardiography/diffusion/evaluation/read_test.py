@@ -43,20 +43,70 @@ def plot_real_labels(rwt_list, rst_list):
 
 
     fig1, ax1 = plt.subplots(nrows=1, ncols=1, num='Real keypoints', figsize=(8,8), tight_layout=True)
-    ax1.scatter(rwt_list, rst_list, s=100, color='grey', alpha=0.7)
+    ax1.scatter(rwt_list, rst_list, s=100, color='grey', alpha=0.7, label='Real keypoints')
     ax1.set_xlabel('RWT', fontsize=20)
     ax1.set_ylabel('RST', fontsize=20)
     ax1.grid(linestyle='--')
     ## set the font of ticks
     ax1.tick_params(axis='both', which='major', labelsize=18)
     # set the lim of x and y axis
-    ax1.set_xlim(0.0, 1.8)
-    ax1.set_ylim(0.0, 1.8)
+    ax1.set_xlim(0.0, 1.6)
+    ax1.set_ylim(0.0, 1.6)
     # plot the linear regression curve
     x_vals = np.array(ax1.get_xlim())
     y_vals = intercept + slope * x_vals
     ax1.plot(x_vals, y_vals, '--', color='black', linewidth=2)
+    #legend
+    ax1.legend(fontsize=20)
 
+    plt.show()
+
+def plot_aug_labels(rwt_aug_list, rst_aug_list):
+    
+    rwt_aug_value = [i[0] for i in rwt_aug_list]
+    rst_aug_value = [i[0] for i in rst_aug_list]
+
+    rwt_array = np.array(rwt_aug_value).reshape(-1, 1)
+    rst_array = np.array(rst_aug_value).reshape(-1, 1)
+
+    model = LinearRegression()
+    model.fit(rwt_array, rst_array)
+
+    slope = model.coef_[0][0]
+    intercept = model.intercept_[0]
+    r_sq = model.score(rwt_array, rst_array)
+
+    print(f"Slope: {slope}, Intercept: {intercept} R^2: {r_sq}")
+
+    fig2, ax2 = plt.subplots(nrows=1, ncols=1, num='Augmented keypoints', figsize=(8,8), tight_layout=True)
+    # scatter plot of the twt_tot and rst_tot if the second axis is equal to 5
+    rwt_real_list = [i[0] for i in rwt_aug_list if i[1] == 5]
+    rst_real_list = [i[0] for i in rst_aug_list if i[1] == 5]
+    ax2.scatter(rwt_real_list, rst_real_list, s=100, color='grey', alpha=0.3, label='Real labels')
+
+    # scatter plot of the twt_tot and rst_tot if the second axis is lower than 5
+    rwt_aug_list_plus = [i[0] for i in rwt_aug_list if i[1] < 5]
+    rst_aug_list_plus = [i[0] for i in rst_aug_list if i[1] < 5]
+    ax2.scatter(rwt_aug_list_plus, rst_aug_list_plus, s=100, color='red', alpha=0.3, label='Thickening labels')    
+
+    # scatter plot of the twt_tot and rst_tot if the second axis is greater than 5  
+    rwt_aug_list_minus = [i[0] for i in rwt_aug_list if i[1] > 5]
+    rst_aug_list_minus = [i[0] for i in rst_aug_list if i[1] > 5]
+    ax2.scatter(rwt_aug_list_minus, rst_aug_list_minus, s=100, color='orange', alpha=0.3, label='Thinning labels')
+    ax2.set_xlabel('RWT', fontsize=20)
+    ax2.set_ylabel('RST', fontsize=20)
+    ax2.grid(linestyle='--')
+    ## set the font of ticks
+    ax2.tick_params(axis='both', which='major', labelsize=18)
+    # set the lim of x and y axis
+    ax2.set_xlim(0.0, 1.6)
+    ax2.set_ylim(0.0, 1.6)
+    # plot the linear regression curve
+    x_vals = np.array(ax2.get_xlim())
+    y_vals = intercept + slope * x_vals
+    ax2.plot(x_vals, y_vals, '--', color='black', linewidth=2)
+    #legend
+    ax2.legend(fontsize=20)
     plt.show()
 
 def plot_genereted_and_label(image_shape_guide, heat, i):
@@ -106,12 +156,11 @@ def main(args):
             keypoints = get_corrdinate_from_heatmap(heat[i])
             xx = np.sqrt((keypoints[0] - keypoints[2])**2 +  (keypoints[1] - keypoints[3])**2)
             pw_image.append(xx)
-            print(xx)
             rwt, rst = echocardiografic_parameters(keypoints)
 
             if rwt > 0.20 and rwt < 1.4:
-                rwt_aug_list.append(rwt)
-                rst_aug_list.append(rst)
+                rwt_aug_list.append([rwt,i])
+                rst_aug_list.append([rst,i])
                 for j, heart_part in enumerate(['LVPWd', 'LVIDd', 'IVSd']):
                     x1 = keypoints[j*4]
                     y1 = keypoints[(j*4) + 1]
@@ -120,7 +169,7 @@ def main(args):
                     w, h = image.shape[1], image.shape[0]
                     label_heart[heart_part] = {'x1': int(x1), 'x2': int(x2), 'y1': int(y1), 'y2': int(y2), 'calc_value': int(0), 'width':int(w), 'height':int(h)}
                 label_heart['split'] = 'generated_train'
-                if args.show_plot: plot_genereted_and_label(image_shape_guide, heat, i)
+                if args.show_plot_img: plot_genereted_and_label(image_shape_guide, heat, i)
 
 
                 label_dict[f'x0_{n}_{i}'] = label_heart
@@ -131,7 +180,7 @@ def main(args):
     # with open(os.path.join(test_path, 'label.json'), 'w') as f:
     #     json.dump(label_dict, f, indent=4)
 
-    if args.show_plot: plot_real_labels(rwt_aug_list, rst_aug_list)    
+    if args.show_plot: plot_aug_labels(rwt_aug_list, rst_aug_list)    
     # increse_list, decrese_list = [], []
     # for i in pw_list:
     #     baseline = i[3]
@@ -182,6 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('--guide_w', type=float, default=0.0, help='guide_w for the conditional model, w=-1 [unconditional], w=0 [vanilla conditioning], w>0 [guided conditional]')
     parser.add_argument('--epoch', type=int, default=99, help='epoch to sample, this is the epoch of cond ldm model') 
     parser.add_argument('--show_plot', action='store_true', help="show the prediction, default=False")
+    parser.add_argument('--show_plot_img', action='store_true', help="show the prediction, default=False")
     args = parser.parse_args()
 
     
