@@ -24,8 +24,6 @@ from echocardiography.diffusion.models.unet_cond_base import Unet, get_config_va
 from echocardiography.diffusion.models.vqvae import VQVAE
 from echocardiography.diffusion.models.vae import VAE
 from echocardiography.diffusion.models.cond_vae import condVAE
-from echocardiography.diffusion.models.lpips import LPIPS
-
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -228,7 +226,6 @@ def infer(par_dir, conf, trial, show_plot=False):
 
     ## evalaute the recon loss on test set
     recon_criterion = torch.nn.MSELoss()            # L1/L2 loss for Reconstruction
-    lpips_model = LPIPS().eval().to(device)
     encoded_output_list = []
     hypertrophy_list = []
     ## type of condition
@@ -274,11 +271,36 @@ def infer(par_dir, conf, trial, show_plot=False):
             if show_plot:
                 # plot_image_latent(im, encoded_output)
                 plot_im_cond_rec(im, output, cond['class'])
-                plot_im_cond_rec(im, output_1, cond_1)
-                plot_im_cond_rec(im, output_2, cond_2)
-                plot_im_cond_rec(im, output_3, cond_3)
-                plot_im_cond_rec(im, output_4, cond_4)
-                plot_difference_matrix(output, output_1, output_2, output_3, output_4)
+
+                noise = torch.randn_like(encoded_output)
+                encoded_noise = encoded_output + 0.5*noise
+                encoded_noise = encoded_noise.clamp(0., 1.)
+                noise = noise * 2 - 1
+
+                ## plot the real encoded_output
+                plt.figure(figsize=(8,8), num='Real encoded_output')
+                plt.imshow(encoded_output[0,:,:,:].cpu().permute(1,2,0).numpy())
+                plt.title('Real encoded_output', fontsize=20)
+                plt.axis('off')
+
+                ## plot the noise encoded_output
+                plt.figure(figsize=(8,8), num='Noise encoded_output')
+                plt.imshow(encoded_noise[0,:,:,:].cpu().permute(1,2,0).numpy())
+                plt.title('Noise encoded_output', fontsize=20)
+                plt.axis('off')
+
+                ## plot the noise
+                plt.figure(figsize=(8,8), num='Noise')
+                plt.imshow(noise[0,:,:,:].cpu().permute(1,2,0).numpy()[:,:,0], cmap='gray')
+                plt.title('Noise', fontsize=20)
+                plt.axis('off')
+
+    
+                # plot_im_cond_rec(im, output_1, cond_1)
+                # plot_im_cond_rec(im, output_2, cond_2)
+                # plot_im_cond_rec(im, output_3, cond_3)
+                # plot_im_cond_rec(im, output_4, cond_4)
+                # plot_difference_matrix(output, output_1, output_2, output_3, output_4)
                 plt.show()
 
             ## calculate the perceptual loss
