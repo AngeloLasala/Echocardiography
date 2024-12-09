@@ -42,13 +42,13 @@ def plot_real_labels(rwt_list, rst_list):
     print(f"Slope: {slope}, Intercept: {intercept} R^2: {r_sq}")
 
 
-    fig1, ax1 = plt.subplots(nrows=1, ncols=1, num='Real keypoints', figsize=(8,8), tight_layout=True)
-    ax1.scatter(rwt_list, rst_list, s=100, color='grey', alpha=0.7, label='Real keypoints')
-    ax1.set_xlabel('RWT', fontsize=20)
-    ax1.set_ylabel('RST', fontsize=20)
+    fig1, ax1 = plt.subplots(nrows=1, ncols=1, num='Real keypoints', figsize=(10,8), tight_layout=True)
+    ax1.scatter(rwt_list, rst_list, s=100, color='grey', alpha=0.7, label='Real labels')
+    ax1.set_xlabel('RWT', fontsize=25)
+    ax1.set_ylabel('RST', fontsize=25)
     ax1.grid(linestyle='--')
     ## set the font of ticks
-    ax1.tick_params(axis='both', which='major', labelsize=18)
+    ax1.tick_params(axis='both', which='major', labelsize=22)
     # set the lim of x and y axis
     ax1.set_xlim(0.0, 1.6)
     ax1.set_ylim(0.0, 1.6)
@@ -57,7 +57,7 @@ def plot_real_labels(rwt_list, rst_list):
     y_vals = intercept + slope * x_vals
     ax1.plot(x_vals, y_vals, '--', color='black', linewidth=2)
     #legend
-    ax1.legend(fontsize=20)
+    ax1.legend(fontsize=25)
 
     plt.show()
 
@@ -78,7 +78,7 @@ def plot_aug_labels(rwt_aug_list, rst_aug_list):
 
     print(f"Slope: {slope}, Intercept: {intercept} R^2: {r_sq}")
 
-    fig2, ax2 = plt.subplots(nrows=1, ncols=1, num='Augmented keypoints', figsize=(8,8), tight_layout=True)
+    fig2, ax2 = plt.subplots(nrows=1, ncols=1, num='Augmented keypoints', figsize=(10,8), tight_layout=True)
     # scatter plot of the twt_tot and rst_tot if the second axis is equal to 5
     rwt_real_list = [i[0] for i in rwt_aug_list if i[1] == 5]
     rst_real_list = [i[0] for i in rst_aug_list if i[1] == 5]
@@ -93,11 +93,11 @@ def plot_aug_labels(rwt_aug_list, rst_aug_list):
     rwt_aug_list_minus = [i[0] for i in rwt_aug_list if i[1] > 5]
     rst_aug_list_minus = [i[0] for i in rst_aug_list if i[1] > 5]
     ax2.scatter(rwt_aug_list_minus, rst_aug_list_minus, s=100, color='orange', alpha=0.3, label='Thinning labels')
-    ax2.set_xlabel('RWT', fontsize=20)
-    ax2.set_ylabel('RST', fontsize=20)
+    ax2.set_xlabel('RWT', fontsize=25)
+    ax2.set_ylabel('RST', fontsize=25)
     ax2.grid(linestyle='--')
     ## set the font of ticks
-    ax2.tick_params(axis='both', which='major', labelsize=18)
+    ax2.tick_params(axis='both', which='major', labelsize=22)
     # set the lim of x and y axis
     ax2.set_xlim(0.0, 1.6)
     ax2.set_ylim(0.0, 1.6)
@@ -106,7 +106,7 @@ def plot_aug_labels(rwt_aug_list, rst_aug_list):
     y_vals = intercept + slope * x_vals
     ax2.plot(x_vals, y_vals, '--', color='black', linewidth=2)
     #legend
-    ax2.legend(fontsize=20)
+    ax2.legend(fontsize=25)
     plt.show()
 
 def plot_genereted_and_label(image_shape_guide, heat, i):
