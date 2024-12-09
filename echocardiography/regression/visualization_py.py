@@ -31,12 +31,16 @@ def get_metrics(patients_list, resize):
     hypertrofy_list = []     
     cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list = [], [], [], []
     hypertrophy_dict = {}
+    split_list = []
     for patient in tqdm.tqdm(patients_list):
         patient_label = label[label['HashedFileName'] == patient]        
         ivsd = patient_label[patient_label['Calc'] == 'IVSd']['CalcValue'].values
         pwd = patient_label[patient_label['Calc'] == 'LVPWd']['CalcValue'].values
         lvidd = patient_label[patient_label['Calc'] == 'LVIDd']['CalcValue'].values
         resolution = patient_label[patient_label['Calc'] == 'Resolution']['CalcValue'].values
+        # retorn the patient split
+        split = np.array(patient_label['split'].values[0])
+        split_list.append(split)
         
         if len(ivsd) == 0 or len(pwd) == 0 or len(lvidd) == 0:
             pass
@@ -125,14 +129,14 @@ def get_metrics(patients_list, resize):
 
         # print('==============================================') 
     
-    return rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list, hypertrophy_dict
+    return rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list, hypertrophy_dict, split_list
 
 if __name__ == '__main__':   
     parser = argparse.ArgumentParser(description='Visualize the hypertrophy dataset')
     parser.add_argument('--compute_metrics', action='store_true', help="compute the metrics accross all the data, otherwise load the precomputed one, default=False")
     args = parser.parse_args()
 
-dataset_dir = "/home/angelo/Documents/Echocardiography/echocardiography"
+dataset_dir = "/home/angelo/Documenti/Echocardiography/echocardiography"
 print(os.listdir(dataset_dir))
 
 ## ECconet-LVH is composed by 5 folders: 4 'Batch' with video and 'MeasurementsList.csv' with the label
@@ -145,7 +149,7 @@ patients = label['HashedFileName'].unique()
 
 if args.compute_metrics:
 
-    rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list, hypertrofy_dict = get_metrics(patients, (240, 320))  
+    rwt_list, hypertrofy_list, cm_px_list, cm_px_256_list, cm_px_ar_list, aspect_ratio_list, rwt_error_list, rst_error_list, hypertrofy_dict, split_list = get_metrics(patients, (240, 320))  
 
     hypertrofy_list = np.array(hypertrofy_list)
     cm_px_list = np.array(cm_px_list)
@@ -154,6 +158,7 @@ if args.compute_metrics:
     aspect_ratio_list = np.array(aspect_ratio_list)
     rwt_error_list = np.array(rwt_error_list)
     rst_error_list = np.array(rst_error_list)
+    split_list = np.array(split_list)
 
     save_folder = 'dataset_metrics'
     if not os.path.exists(save_folder):
@@ -167,6 +172,7 @@ if args.compute_metrics:
     np.save(os.path.join(save_folder,'aspect_ratio_list.npy'), aspect_ratio_list)
     np.save(os.path.join(save_folder,'rwt_error_list.npy'), rwt_error_list)
     np.save(os.path.join(save_folder,'rst_error_list.npy'), rst_error_list)
+    np.save(os.path.join(save_folder,'split_list.npy'), split_list)
 
     ## save hypertrophy_dict as json
     with open(os.path.join(save_folder, 'hypertrophy_dict.json'), 'w') as f:
@@ -182,6 +188,7 @@ else:
     rwt_error_list = np.load(os.path.join(save_folder,'rwt_error_list.npy'))
     rst_error_list = np.load(os.path.join(save_folder,'rst_error_list.npy'))
     hypertrofy_dict = json.load(open(os.path.join(save_folder, 'hypertrophy_dict.json')))
+    split_list = np.load(os.path.join(save_folder,'split_list.npy'))
 
 print('INFO')
 
@@ -212,7 +219,12 @@ for batch in batch_list:
                 split_label[patient]['hypertrophy'] = [0, 0]
         print(f'{split}: {len(patients)}) NG: {NG} - EH: {EH} - CR: {CR} - CH: {CH}')
     print('==============================================')
-    
+
+## return the histogram of the split list 
+for split in ['train', 'val', 'test']:
+    print(f'{split}')
+    print(np.unique(split_list[split_list == split], return_counts=True))
+    print('==============================================')
 
 ## 2D scatter plots #####################################################################################################
 
