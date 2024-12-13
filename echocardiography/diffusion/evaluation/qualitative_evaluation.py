@@ -22,8 +22,14 @@ from echocardiography.diffusion.models.cond_vae import condVAE
 
 from sklearn.metrics import silhouette_score
 
-
 from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+from sklearn.metrics import davies_bouldin_score
+from scipy.spatial.distance import cdist
+import tqdm
+
+
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -164,52 +170,62 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w, compute_real, comput
         gen_encoded_output_list = np.load(os.path.join(tsne_folder, 'gen_encoded_output_list.npy'))
 
  
-    print('TSNE embedding...')
     real_gen_stack = np.vstack((encoded_output_list, gen_encoded_output_list))
     real_gen_label_stack = np.concatenate((np.ones(encoded_output_list.shape[0]), np.zeros(gen_encoded_output_list.shape[0])))
    
-    tsne = TSNE(n_components=2, random_state=42)
-    encoded_output_tsne = tsne.fit_transform(real_gen_stack)
-    real_gen_stack_tsne = encoded_output_tsne.copy()
-    print('encoded_output_tsne', encoded_output_tsne.shape)
+    pca = PCA(n_components=50)
+    real_gen_stack = pca.fit_transform(real_gen_stack)
 
-    # real is where real_gen_label_stack == 1
-    real_gen_stack_tsne = (real_gen_stack_tsne - np.min(real_gen_stack_tsne, axis=0)) / (np.max(real_gen_stack_tsne, axis=0) - np.min(real_gen_stack_tsne, axis=0))
-    real_tsne = real_gen_stack_tsne[real_gen_label_stack==1]
-    gen_tsne = real_gen_stack_tsne[real_gen_label_stack==0]
-    print('real_tsne', real_tsne.shape)
-    print('gen_tsne', gen_tsne.shape)
+    np.random.seed(42)
+    seeds = np.random.choice(np.arange(1000), 30, replace=False)
+    print('seeds', seeds)
+    print('TSNE embedding...')
 
-   
-  
-    ## compute the silouhette score between the real and generated data
-    real_gen_stack_tsne = (real_gen_stack_tsne - np.min(real_gen_stack_tsne, axis=0)) / (np.max(real_gen_stack_tsne, axis=0) - np.min(real_gen_stack_tsne, axis=0))
-    silhouette_score_all = silhouette_score(real_gen_stack_tsne, real_gen_label_stack)
-    print(f"Silhouette score all data: {silhouette_score_all}")
-    print()
+    metrics = {'silhouette_score':[], 'davies_bouldin_score':[], 'centroid_distance':[]}
+    for s in tqdm.tqdm(seeds):
+        tsne = TSNE(n_components=2, random_state=s)
+        encoded_output_tsne = tsne.fit_transform(real_gen_stack)
+        real_gen_stack_tsne = encoded_output_tsne.copy()
+
+        # real is where real_gen_label_stack == 1
+        real_gen_stack_tsne = (real_gen_stack_tsne - np.min(real_gen_stack_tsne, axis=0)) / (np.max(real_gen_stack_tsne, axis=0) - np.min(real_gen_stack_tsne, axis=0))
+        real_tsne = real_gen_stack_tsne[real_gen_label_stack==1]
+        gen_tsne = real_gen_stack_tsne[real_gen_label_stack==0]
+        
     
-    # compute the DB values for the real and generated data
-    from sklearn.metrics import davies_bouldin_score
-    davies_bouldin_score_all = davies_bouldin_score(real_gen_stack_tsne, real_gen_label_stack)
-    print(f"Davies Bouldin score all data: {davies_bouldin_score_all}")
-    print()
+        ## compute the silouhette score between the real and generated data
+        # real_gen_stack_tsne = (real_gen_stack_tsne - np.min(real_gen_stack_tsne, axis=0)) / (np.max(real_gen_stack_tsne, axis=0) - np.min(real_gen_stack_tsne, axis=0))
+        silhouette_score_all = silhouette_score(real_gen_stack_tsne, real_gen_label_stack)
+        print(f"Silhouette score all data: {silhouette_score_all}")
+        
+        # compute the DB values for the real and generated data
+        davies_bouldin_score_all = davies_bouldin_score(real_gen_stack_tsne, real_gen_label_stack)
+        print(f"Davies Bouldin score all data: {davies_bouldin_score_all}")
 
 
-    ## compute the centroids of the real and generated data
-    centroids = np.array([np.mean(real_tsne, axis=0), np.mean(gen_tsne, axis=0)])
-    centroid_distance = np.linalg.norm(centroids[0] - centroids[1])
-    print('centroid_distance', centroid_distance)
-    ()
-    
-    # Inter-cluster distances (minimum, maximum, average)
-    from scipy.spatial.distance import cdist
-    distances = cdist(real_tsne , gen_tsne, metric='euclidean')
-    min_distance = np.min(distances)
-    max_distance = np.max(distances)
-    avg_distance = np.mean(distances)
-    print("Minimum Distance:", min_distance)
-    print("Maximum Distance:", max_distance)
-    print("Average Distance:", avg_distance)
+        ## compute the centroids of the real and generated data
+        centroids = np.array([np.mean(real_tsne, axis=0), np.mean(gen_tsne, axis=0)])
+        centroid_distance = np.linalg.norm(centroids[0] - centroids[1])
+        print('centroid_distance', centroid_distance)
+        metrics['silhouette_score'].append(silhouette_score_all)
+        metrics['davies_bouldin_score'].append(davies_bouldin_score_all)
+        metrics['centroid_distance'].append(centroid_distance)
+        ()
+        
+        # # Inter-cluster distances (minimum, maximum, average)
+        # distances = cdist(real_tsne , gen_tsne, metric='euclidean')
+        # min_distance = np.min(distances)
+        # max_distance = np.max(distances)
+        # avg_distance = np.mean(distances)
+        # print("Minimum Distance:", min_distance)
+        # print("Maximum Distance:", max_distance)
+        # print("Average Distance:", avg_distance)
+    # print mean and std of the metrics
+    print('silhouette_score', np.mean(metrics['silhouette_score']), np.std(metrics['silhouette_score']))
+    print('davies_bouldin_score', np.mean(metrics['davies_bouldin_score']), np.std(metrics['davies_bouldin_score']))
+    print('centroid_distance', np.mean(metrics['centroid_distance']), np.std(metrics['centroid_distance']))
+
+    ## print where is the meadian in the array of davies_bouldin_score
 
 
 
@@ -220,8 +236,8 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w, compute_real, comput
     ## plt the 2d scatter plot of tsne
     plt.figure(figsize=(8,8), num=f'{type_model} - TSNE of latent space of PLAX')
 
-    plt.scatter(real_tsne[:,0], real_tsne[:,1], c='lightblue', label='Real data')
-    plt.scatter(gen_tsne[:,0], gen_tsne[:,1], c='lightgreen', label='Generated data')
+    plt.scatter(real_tsne[:,0], real_tsne[:,1], c='lightblue', label='Real data', alpha=0.7)
+    plt.scatter(gen_tsne[:,0], gen_tsne[:,1], c='seagreen', label='Generated data', alpha=0.7)
 
     # plt.scatter(real_gen_stack_tsne[real_gen_stack_lable==0,0], real_gen_stack_tsne[real_gen_stack_lable==0,1], c='lightgreen', label='Generated data')
     # scttaer of centroids
