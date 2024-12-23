@@ -47,7 +47,7 @@ def read_single_trial(model_path, trial):
             mae_list.append(mae)
             rwt_error_list.append(rwt_error)
             rst_error_list.append(rst_error)
-            
+
 
         mpe_list_c = np.concatenate(mpe_list)
         mae_list_c = np.concatenate(mae_list)
@@ -55,8 +55,8 @@ def read_single_trial(model_path, trial):
         rst_error_list_c = np.concatenate(rst_error_list)
 
 
-        single_exp_dict = {'mpe': mpe_list_c, 'mae': mae_list_c, 'rwt_error': rwt_error_list_c, 'rst_error': rst_error_list_c, 
-                           'mpe_fold':mpe_list, 'mae_fold':mae_list, 'rwt_error_fold':rwt_error_list, 'rst_error_fold':rst_error_list, 
+        single_exp_dict = {'mpe': mpe_list_c, 'mae': mae_list_c, 'rwt_error': rwt_error_list_c, 'rst_error': rst_error_list_c,
+                           'mpe_fold':mpe_list, 'mae_fold':mae_list, 'rwt_error_fold':rwt_error_list, 'rst_error_fold':rst_error_list,
                            'percentace': p}
 
         return single_exp_dict
@@ -142,17 +142,22 @@ def boxplot_fold(args, experiments):
 
         boxplot_dict[trial] = {'pw': pw_means, 'lvid': lvid_means, 'ivs': ivs_means, 'rwt': rwt_means, 'rst': rst_means}
 
-    fig, ax = plt.subplots(3, 1, figsize=(8,16), tight_layout=True, num='Aug_exp - MPE error')
+    fig, ax = plt.subplots(3, 1, figsize=(9,16), tight_layout=True, num='Aug_exp - MPE error')
     ## plot the orizontal value of the medial of trial_1
     ax[0].hlines(np.median(boxplot_dict['trial_1']['pw']), 1, 5, color='darkblue', label='Real')
     ax[1].hlines(np.median(boxplot_dict['trial_1']['lvid']), 1, 5, color='darkblue', label='Real')
     ax[2].hlines(np.median(boxplot_dict['trial_1']['ivs']), 1, 5, color='darkblue', label='Real')
-    
+
+    #set title
+    ax[0].set_title('PW', fontsize=22)
+    ax[1].set_title('LVID', fontsize=22)
+    ax[2].set_title('IVS', fontsize=22)
+
     ## fillbetween the 25% and 75% of the boxplot of trial_1
-    ax[0].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['pw'], 25), np.percentile(boxplot_dict['trial_1']['pw'], 75), color='lightblue', alpha=0.5)
-    ax[1].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['lvid'], 25), np.percentile(boxplot_dict['trial_1']['lvid'], 75), color='lightblue', alpha=0.5)
-    ax[2].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['ivs'], 25), np.percentile(boxplot_dict['trial_1']['ivs'], 75), color='lightblue', alpha=0.5)
-    
+    ax[0].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['pw'], 25), np.percentile(boxplot_dict['trial_1']['pw'], 75), color='lightblue', alpha=0.35)
+    ax[1].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['lvid'], 25), np.percentile(boxplot_dict['trial_1']['lvid'], 75), color='lightblue', alpha=0.35)
+    ax[2].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['ivs'], 25), np.percentile(boxplot_dict['trial_1']['ivs'], 75), color='lightblue', alpha=0.35)
+
     medians_pw, first_quantile_pw, third_quantile_pw = [], [], []
     medians_lvid, first_quantile_lvid, third_quantile_lvid = [], [], []
     medians_ivs, first_quantile_ivs, third_quantile_ivs = [], [], []
@@ -170,58 +175,68 @@ def boxplot_fold(args, experiments):
         medians_ivs.append(np.median(boxplot_dict[trial]['ivs']))
         first_quantile_ivs.append(np.percentile(boxplot_dict[trial]['ivs'], 25))
         third_quantile_ivs.append(np.percentile(boxplot_dict[trial]['ivs'], 75))
-        
-    
-    ax[0].plot(range(1, 6), medians_pw, color='green', marker='o', ms=7, label=r'Real + $p$% Genereted data') 
-    ax[0].fill_between(range(1, 6), first_quantile_pw, third_quantile_pw, color='lightgreen', alpha=0.5)
+
+
+    ax[0].plot(range(1, 6), medians_pw, color='green', marker='o', ms=7, label=r'Real + $p$% Genereted data')
+    ax[0].fill_between(range(1, 6), first_quantile_pw, third_quantile_pw, color='lightgreen', alpha=0.35)
     ax[1].plot(range(1, 6), medians_lvid, color='green', marker='o', ms=7)
-    ax[1].fill_between(range(1, 6), first_quantile_lvid, third_quantile_lvid, color='lightgreen', alpha=0.5)
+    ax[1].fill_between(range(1, 6), first_quantile_lvid, third_quantile_lvid, color='lightgreen', alpha=0.35)
     ax[2].plot(range(1, 6), medians_ivs, color='green',  marker='o', ms=7)
-    ax[2].fill_between(range(1, 6), first_quantile_ivs, third_quantile_ivs, color='lightgreen', alpha=0.5)
+    ax[2].fill_between(range(1, 6), first_quantile_ivs, third_quantile_ivs, color='lightgreen', alpha=0.35)
 
     name_ticks = ['20', '40', '60', '80', '100']
     name_ticks_empty = ['']*5
 
     ax[0].set_xticks(range(1, 6))
-    ax[0].set_xticklabels(name_ticks_empty,fontsize=20)
+    ax[0].set_xticklabels(name_ticks_empty,fontsize=22)
     ax[1].set_xticks(range(1, 6))
-    ax[1].set_xticklabels(name_ticks_empty, fontsize=20)
+    ax[1].set_xticklabels(name_ticks_empty, fontsize=22)
 
-   
+
     ax[2].set_xticks(range(1, 6))
-    ax[2].set_xticklabels(name_ticks, fontsize=20)
+    ax[2].set_xticklabels(name_ticks, fontsize=22)
 
     ## set the tick font size of y axis
     for ax_ in ax:
-        ax_.tick_params(axis='both', which='major', labelsize=18)
+        ax_.tick_params(axis='both', which='major', labelsize=20)
 
-    ax[0].set_ylabel('MPE (%)', fontsize=20)
-    ax[1].set_ylabel('MPE (%)', fontsize=20)
-    ax[2].set_ylabel('MPE (%)', fontsize=20)
-    ax[2].set_xlabel(r'$p$ (%)', fontsize=20)
+    ax[0].set_ylabel('MPE [%]', fontsize=22)
+    ax[1].set_ylabel('MPE [%]', fontsize=22)
+    ax[2].set_ylabel('MPE [%]', fontsize=22)
+    ax[2].set_xlabel(r'$p$', fontsize=22)
 
     # set the legend
-    ax[0].legend(fontsize=18)
-    
+    # ax[0].legend(fontsize=20)
+
     # ## set the lim of the y axis
-    # ax[0].set_ylim(12, 21.5)
-    # ax[1].set_ylim(5.0, 7)
-    # ax[2].set_ylim(10, 21.5)
+    ax[0].set_ylim(12, 22.5)
+    ax[1].set_ylim(5.4, 6.4)
+    ax[2].set_ylim(12.5, 17.0)
     # set the grid
     ax[0].grid(linestyle=':')
     ax[1].grid(linestyle=':')
     ax[2].grid(linestyle=':')
 
+    # set the y ticks with single decimal value
+    ax[0].yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.1f}'))
+    ax[1].yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+    ax[2].yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.1f}')) 
 
 
-    fig1, ax1 = plt.subplots(2, 1, figsize=(8,16), num='Aug_exp - Relative distances', tight_layout=True)
+
+
+    fig1, ax1 = plt.subplots(2, 1, figsize=(9,16), num='Aug_exp - Relative distances', tight_layout=True)
     ## plot the orizontal value of the medial of trial_1
-    ax1[0].hlines(np.median(boxplot_dict['trial_1']['rwt']), 1, 5, color='darkblue', label='Real')
-    ax1[1].hlines(np.median(boxplot_dict['trial_1']['rst']), 1, 5, color='darkblue', label='Real')
+    ax1[1].hlines(np.median(boxplot_dict['trial_1']['rwt']), 1, 5, color='darkblue', label='Real')
+    ax1[0].hlines(np.median(boxplot_dict['trial_1']['rst']), 1, 5, color='darkblue', label='Real')
+
+    #set title
+    ax1[0].set_title('RST', fontsize=22)
+    ax1[1].set_title('RWT', fontsize=22)
 
     ## fillbetween the 25% and 75% of the boxplot of trial_1
-    ax1[0].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['rwt'], 25), np.percentile(boxplot_dict['trial_1']['rwt'], 75), color='lightblue', alpha=0.5)
-    ax1[1].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['rst'], 25), np.percentile(boxplot_dict['trial_1']['rst'], 75), color='lightblue', alpha=0.5)
+    ax1[1].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['rwt'], 25), np.percentile(boxplot_dict['trial_1']['rwt'], 75), color='lightblue', alpha=0.35)
+    ax1[0].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['rst'], 25), np.percentile(boxplot_dict['trial_1']['rst'], 75), color='lightblue', alpha=0.35)
 
     medians_rwt, first_quantile_rwt, third_quantile_rwt = [], [], []
     medians_rst, first_quantile_rst, third_quantile_rst = [], [], []
@@ -235,52 +250,52 @@ def boxplot_fold(args, experiments):
         first_quantile_rst.append(np.percentile(boxplot_dict[trial]['rst'], 25))
         third_quantile_rst.append(np.percentile(boxplot_dict[trial]['rst'], 75))
 
-    ax1[0].plot(range(1, 6), medians_rwt, color='green',  marker='o', ms=7, label=r'Real + $p$% Genereted data')
-    ax1[0].fill_between(range(1, 6), first_quantile_rwt, third_quantile_rwt, color='lightgreen', alpha=0.5)
-    ax1[1].plot(range(1, 6), medians_rst, color='green',  marker='o', ms=7)
-    ax1[1].fill_between(range(1, 6), first_quantile_rst, third_quantile_rst, color='lightgreen', alpha=0.5)
+    ax1[1].plot(range(1, 6), medians_rwt, color='green',  marker='o', ms=7)
+    ax1[1].fill_between(range(1, 6), first_quantile_rwt, third_quantile_rwt, color='lightgreen', alpha=0.35)
+    ax1[0].plot(range(1, 6), medians_rst, color='green',  marker='o', ms=7,  label=r'Real + $p$% genereted data')
+    ax1[0].fill_between(range(1, 6), first_quantile_rst, third_quantile_rst, color='lightgreen', alpha=0.35)
 
     ax1[0].set_xticks(range(1, 6))
-    ax1[0].set_xticklabels(name_ticks, fontsize=20)
+    ax1[0].set_xticklabels(name_ticks, fontsize=22)
 
     ax1[1].set_xticks(range(1, 6))
-    ax1[1].set_xticklabels(name_ticks, fontsize=20)
+    ax1[1].set_xticklabels(name_ticks, fontsize=22)
 
     ## set the tick font size of y axis
     for ax_ in ax1:
-        ax_.tick_params(axis='both', which='major', labelsize=18)
+        ax_.tick_params(axis='both', which='major', labelsize=20)
 
 
-    ax1[0].set_ylabel('MAE (adm)', fontsize=20)
-    ax1[1].set_ylabel('MAE (adm)', fontsize=20)
+    ax1[0].set_ylabel('MAE [adm]', fontsize=22)
+    ax1[1].set_ylabel('MAE [adm]', fontsize=22)
 
     ## set the lim of the y axis
-    ax1[0].set_ylim(0.065, 0.105)
+    ax1[0].set_ylim(0.065, 0.0905)
     ax1[1].set_ylim(0.065, 0.105)
 
-    ax1[1].set_xlabel(r'$p$ (%)', fontsize=20)
+    ax1[1].set_xlabel(r'$p$', fontsize=22)
 
     # set the legend
-    ax1[0].legend(fontsize=18)
+    ax1[0].legend(fontsize=20)
 
     # set the grid
     ax1[0].grid(linestyle=':')
     ax1[1].grid(linestyle=':')
-    
-    
+
+
     plt.show()
 
 
-        
-
-    
 
 
 
 
-        
 
-        
+
+
+
+
+
 
 
 
@@ -319,22 +334,22 @@ def convergence_curve(args, experiments):
         ax[0].plot(error_span*10, convergens_curves[trial]['pw']/patients, label=name_experiment)
         ax[1].plot(error_span*10, convergens_curves[trial]['lvid']/patients, label=name_experiment)
         ax[2].plot(error_span*10, convergens_curves[trial]['ivs']/patients, label=name_experiment)
-    ax[0].set_title('PW', fontsize=20)
-    ax[1].set_title('LVID', fontsize=20)
-    ax[2].set_title('IVS', fontsize=20)
+    ax[0].set_title('PW', fontsize=22)
+    ax[1].set_title('LVID', fontsize=22)
+    ax[2].set_title('IVS', fontsize=22)
 
-    ax[0].set_xlabel('MAE (mm)', fontsize=20)
-    ax[1].set_xlabel('MAE (mm)', fontsize=20)
-    ax[2].set_xlabel('MAE (mm)', fontsize=20)
+    ax[0].set_xlabel('MAE [mm]', fontsize=22)
+    ax[1].set_xlabel('MAE [mm]', fontsize=22)
+    ax[2].set_xlabel('MAE [mm]', fontsize=22)
 
-    ax[0].set_ylabel('Fraction of patients', fontsize=20)
-    ax[0].legend(fontsize=20)
-    ax[1].legend(fontsize=20)
-    ax[2].legend(fontsize=20)
+    ax[0].set_ylabel('Fraction of patients', fontsize=22)
+    ax[0].legend(fontsize=22)
+    ax[1].legend(fontsize=22)
+    ax[2].legend(fontsize=22)
 
     ## set the ticks font size
     for ax_ in ax:
-        ax_.tick_params(axis='both', which='major', labelsize=18)
+        ax_.tick_params(axis='both', which='major', labelsize=20)
 
 
     fig1, ax1 = plt.subplots(1, 2, num='Relative distances', figsize=(10, 5), tight_layout=True)
@@ -344,19 +359,19 @@ def convergence_curve(args, experiments):
         ax1[0].plot(error_relative_span, convergens_curves[trial]['rwt']/patients, label=name_experiment)
         ax1[1].plot(error_relative_span, convergens_curves[trial]['rst']/patients, label=name_experiment)
 
-    ax1[0].set_title('RWT', fontsize=20)
-    ax1[1].set_title('RST', fontsize=20)
-    ax1[0].set_xlabel('MAE (adm)', fontsize=20)
-    ax1[1].set_xlabel('MAE (adm)', fontsize=20)
+    ax1[0].set_title('RWT', fontsize=22)
+    ax1[1].set_title('RST', fontsize=22)
+    ax1[0].set_xlabel('MAE [adm]', fontsize=22)
+    ax1[1].set_xlabel('MAE [adm]', fontsize=22)
 
-    ax1[0].set_ylabel('Fraction of patients', fontsize=20)
+    ax1[0].set_ylabel('Fraction of patients', fontsize=22)
 
-    ax1[0].legend(fontsize=20)
-    ax1[1].legend(fontsize=20)
+    ax1[0].legend(fontsize=22)
+    ax1[1].legend(fontsize=22)
 
     ## set the ticks font size
     for ax_ in ax1:
-        ax_.tick_params(axis='both', which='major', labelsize=18)
+        ax_.tick_params(axis='both', which='major', labelsize=20)
 
     plt.show()
 
@@ -376,7 +391,7 @@ def main(args):
         ## read the single trial
         single_exp_dict = read_single_trial(args.model_path, trial)
         experiments[trial] = single_exp_dict
-        
+
 
     ## compute the Friedman test
     # friedman_and_post_hoc(args, experiments)
@@ -385,7 +400,7 @@ def main(args):
     boxplot_fold(args, experiments)
 
     ## plot the convergence curve
-    convergence_curve(args, experiments)
+    # convergence_curve(args, experiments)
 
 
 
