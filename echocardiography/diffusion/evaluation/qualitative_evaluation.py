@@ -234,7 +234,7 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w, compute_real, comput
     
 
     ## plt the 2d scatter plot of tsne
-    plt.figure(figsize=(8,8), num=f'{type_model} - TSNE of latent space of PLAX')
+    plt.figure(figsize=(12,8), num=f'{type_model} - TSNE of latent space of PLAX', tight_layout=True)   
 
     plt.scatter(real_tsne[:,0], real_tsne[:,1], c='lightblue', label='Real data', alpha=0.7)
     plt.scatter(gen_tsne[:,0], gen_tsne[:,1], c='seagreen', label='Generated data', alpha=0.7)
@@ -247,7 +247,7 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w, compute_real, comput
     plt.ylabel('TSNE 2', fontsize=20)
     plt.xticks(fontsize=18)
     plt.yticks(fontsize=18)
-    plt.legend(fontsize=20)
+    plt.legend(fontsize=20, bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.show()
 
 
