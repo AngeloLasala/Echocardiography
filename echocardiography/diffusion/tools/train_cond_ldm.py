@@ -293,7 +293,6 @@ def train(par_dir, conf, trial, activate_cond_ldm=False):
                 noise_pred = model(noisy_im, t, cond_input=cond_input)
 
             loss = criterion(noise_pred, noise)
-            print('loss', loss.item())  
             losses.append(loss.item())
             loss.backward()
             optimizer.step()
