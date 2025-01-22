@@ -681,20 +681,20 @@ class CelebDataset(Dataset):
 if __name__ == '__main__':
     import yaml
     
-    conf = '/home/angelo/Documenti/Echocardiography/echocardiography/diffusion/conf/eco_class_relative_cond.yaml'
+    conf = '/home/angelo/Documenti/Echocardiography/echocardiography/diffusion/conf/eco_image_simple_cond.yaml'
     with open(conf, 'r') as file:
         try:
             config = yaml.safe_load(file)
         except yaml.YAMLError as exc:
             print(exc)
     print(config['ldm_params']['condition_config'])
-
-    data = EcoDataset(split='train', size=(240,320), im_path='DATA_h', dataset_batch='Batch3', phase='diastole', 
+   
+    data = EcoDataset(split='train', size=(240,320), im_path=config['dataset_params']['im_path'], dataset_batch='Batch3', phase='diastole', 
                       parent_dir=config['dataset_params']['parent_dir'] ,dataset_batch_regression='Batch2', trial='trial_2', condition_config=config['ldm_params']['condition_config']) #, condition_config=False)
     data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=4, timeout=10)
     print(data.condition_types)
     for i in data_loader:
-        print(i)
+        print(i[1]['image'].shape)
         break
     # print(data[1][0].shape, data[1][1]['image'].shape)
     # print(data.patient_files[1])
