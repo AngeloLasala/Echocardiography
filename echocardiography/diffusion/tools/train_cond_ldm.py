@@ -293,6 +293,7 @@ def train(par_dir, conf, trial, activate_cond_ldm=False):
                 noise_pred = model(noisy_im, t, cond_input=cond_input)
 
             loss = criterion(noise_pred, noise)
+            print('loss', loss.item())  
             losses.append(loss.item())
             loss.backward()
             optimizer.step()
@@ -325,6 +326,7 @@ if __name__ == '__main__':
                                                                      'cond_vae' -> cond VAE + unconditional LDM
                                                                      'vae' -> VAE + conditional LDM""")
     args = parser.parse_args()
+    print('Am i using GPU? ', torch.cuda.is_available())
 
     current_directory = os.path.dirname(__file__)
     par_dir = os.path.dirname(current_directory)

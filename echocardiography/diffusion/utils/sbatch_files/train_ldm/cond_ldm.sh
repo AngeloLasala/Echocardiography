@@ -6,7 +6,7 @@
 #SBATCH --time=18:00:00                 # time limits: 1 hour
 #SBATCH --partition=boost_usr_prod   # partition name
 #SBATCH --error=simple_heat_cond_ldm.err       # standard error file
-#SBATCH --output=simple_heat_cobd_ldm.out      # standard output file
+#SBATCH --output=simple_heat_cond_ldm.out      # standard output file
 #SBATCH --account=IscrC_Med-LMGM     # account name
 
 python -m echocardiography.diffusion.tools.train_cond_ldm --data eco_image_simple_cond\

@@ -161,11 +161,6 @@ class EcoDataset():
                 # this is equal to how i load the data for the regression without the data augumentation
                 # heatmaps_label = self.get_heatmap(index) ## old version for 'DATA'
                 heatmaps_label = np.load(os.path.join(self.data_dir_heatmap, patient_hash+'.npy')).astype(np.float32)
-                ## chech if heatmaps_label has got nan value
-                if np.isnan(heatmaps_label).any():
-                    mask = np.isnan(heatmaps_label)
-                    heatmaps_label[mask] = 0
-
                 im_tensor, heatmaps_label = self.trasform(im, heatmaps_label)
                 calc_value_list = torch.tensor(calc_value_list)
                 cond_inputs['image'] = heatmaps_label
@@ -693,19 +688,13 @@ if __name__ == '__main__':
         except yaml.YAMLError as exc:
             print(exc)
     print(config['ldm_params']['condition_config'])
-   
-    data = EcoDataset(split='train', size=(240,320), im_path=config['dataset_params']['im_path'], dataset_batch='Batch1', phase='diastole', 
+    
+    batch = 'Batch4'
+    data = EcoDataset(split='train', size=(240,320), im_path=config['dataset_params']['im_path'], dataset_batch=batch, phase='diastole', 
                       parent_dir=config['dataset_params']['parent_dir'] ,dataset_batch_regression='Batch2', trial='trial_2', condition_config=config['ldm_params']['condition_config']) #, condition_config=False)
     data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=4, timeout=10)
     print(data.condition_types)
-    print(len(data_loader))
-    count = 0
-    for i in data_loader:
-        # check if in the condition there are nan value
-        for key, value in i[1].items():
-            if torch.isnan(value).any():
-                count += 1
-                print(count, 'has got nan value')
+    print(len(data_loader))             
 
     # print(data[1][0].shape, data[1][1]['image'].shape)
     # print(data.patient_files[1])
