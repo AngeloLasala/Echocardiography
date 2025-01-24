@@ -26,7 +26,6 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score
 from scipy.spatial.distance import cdist
-import tqdm
 
 
 
@@ -182,7 +181,7 @@ def infer(par_dir, conf, trial, experiment, epoch, guide_w, compute_real, comput
     print('TSNE embedding...')
 
     metrics = {'silhouette_score':[], 'davies_bouldin_score':[], 'centroid_distance':[]}
-    for s in tqdm.tqdm(seeds):
+    for s in tqdm(seeds):
         tsne = TSNE(n_components=2, random_state=s)
         encoded_output_tsne = tsne.fit_transform(real_gen_stack)
         real_gen_stack_tsne = encoded_output_tsne.copy()

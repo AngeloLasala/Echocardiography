@@ -144,9 +144,10 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
             mpe_lvid[float(epoch)] = np.mean(eco_percentages_error[1]) #mean_absolute_diff[1]
             mpe_ivs[float(epoch)] = np.mean(eco_percentages_error[2]) #mean_absolute_diff[2]
 
-            ## median avarenge error rwt and rst
-            mae_rwt[float(epoch)] = np.median(np.abs(rwt_real - rwt_gen))
-            mae_rst[float(epoch)] = np.median(np.abs(rst_real - rst_gen))
+            ## mean avarenge error rwt and rst
+            mae_rwt[float(epoch)] = np.mean(np.abs(rwt_real - rwt_gen))
+            mae_rst[float(epoch)] = np.mean(np.abs(rst_real - rst_gen))
+
 
             ## classification error of rwt and rst
             rwt_real_class = np.where(rwt_real > 0.42, 1, 0) # 1 > 0.42, 0 < 0.42
@@ -366,6 +367,5 @@ if __name__ == '__main__':
     parser.add_argument('--experiment', type=str, default='cond_ldm', help="""name of expermient, it is refed to the type of condition and in general to the 
                                                                               hyperparameters (file .yaml) that is used for the training, it can be cond_ldm, cond_ldm_2, """)
     args = parser.parse_args()
-
 
     main(args_parser=args)
