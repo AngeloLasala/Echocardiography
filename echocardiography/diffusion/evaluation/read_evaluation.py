@@ -148,6 +148,10 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
             mae_rwt[float(epoch)] = np.mean(np.abs(rwt_real - rwt_gen))
             mae_rst[float(epoch)] = np.mean(np.abs(rst_real - rst_gen))
 
+            ## root mean square error rwt and rst
+            # mae_rwt[float(epoch)] = np.sqrt(np.mean((rwt_real - rwt_gen)**2))
+            # mae_rst[float(epoch)] = np.sqrt(np.mean((rst_real - rst_gen)**2))
+
 
             ## classification error of rwt and rst
             rwt_real_class = np.where(rwt_real > 0.42, 1, 0) # 1 > 0.42, 0 < 0.42
@@ -206,14 +210,14 @@ def read_eval_fid_dict(eval_dict, fid_dict, experiment_dir):
 
                 ## print median 1 and 3 quantile
                 f.write(f'Epoch: {epoch}\n')
-                f.write(f'RWT real- median: {np.median(eco_rwt_real):.4f}, 1 quantile: {np.quantile(eco_rwt_real, 0.25):.4f}, 3 quantile: {np.quantile(eco_rwt_real, 0.75):.4f}\n')
-                f.write(f'RWT gen- median: {np.median(eco_rwt_gen):.4f}, 1 quantile: {np.quantile(eco_rwt_gen, 0.25):.4f}, 3 quantile: {np.quantile(eco_rwt_gen, 0.75):.4f}\n')
-                f.write(f'RWT median error: {np.median(eco_rst_real) - np.median(eco_rwt_gen):.4f}, \n')
-                f.write(f'p-value RWT: {p_value_rwt:.4f} - {wilcoxon_analysisi(p_value_rwt)}\n')
-                f.write(f'RST real- median: {np.median(eco_rst_real):.4f}, 1 quantile: {np.quantile(eco_rst_real, 0.25):.4f}, 3 quantile: {np.quantile(eco_rst_real, 0.75):.4f}\n')
-                f.write(f'RST gen- median: {np.median(eco_rst_gen):.4f}, 1 quantile: {np.quantile(eco_rst_gen, 0.25):.4f}, 3 quantile: {np.quantile(eco_rst_gen, 0.75):.4f}\n')
-                f.write(f'RST median error: {np.median(eco_rst_real) - np.median(eco_rst_gen):.4f}, \n')
-                f.write(f'p-value RST: {p_value_rst:.4f} - {wilcoxon_analysisi(p_value_rst)}\n')
+                f.write(f'RWT real- median: {np.median(eco_rwt_real):.8f}, 1 quantile: {np.quantile(eco_rwt_real, 0.25):.8f}, 3 quantile: {np.quantile(eco_rwt_real, 0.75):.8f}\n')
+                f.write(f'RWT gen- median: {np.median(eco_rwt_gen):.8f}, 1 quantile: {np.quantile(eco_rwt_gen, 0.25):.8f}, 3 quantile: {np.quantile(eco_rwt_gen, 0.75):.8f}\n')
+                f.write(f'RWT median error: {np.median(eco_rst_real) - np.median(eco_rwt_gen):.8f}, \n')
+                f.write(f'p-value RWT: {p_value_rwt:.8f} - {wilcoxon_analysisi(p_value_rwt)}\n')
+                f.write(f'RST real- median: {np.median(eco_rst_real):.8f}, 1 quantile: {np.quantile(eco_rst_real, 0.25):.8f}, 3 quantile: {np.quantile(eco_rst_real, 0.75):.8f}\n')
+                f.write(f'RST gen- median: {np.median(eco_rst_gen):.8f}, 1 quantile: {np.quantile(eco_rst_gen, 0.25):.8f}, 3 quantile: {np.quantile(eco_rst_gen, 0.75):.8f}\n')
+                f.write(f'RST median error: {np.median(eco_rst_real) - np.median(eco_rst_gen):.8f}, \n')
+                f.write(f'p-value RST: {p_value_rst:.8f} - {wilcoxon_analysisi(p_value_rst)}\n')
             f.write('----------------------------------------------------\n\n')
             
 
