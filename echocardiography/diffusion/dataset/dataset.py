@@ -706,8 +706,13 @@ if __name__ == '__main__':
     
 
     
-    # import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
     # plt.figure()
     # plt.imshow(data[13][0].squeeze(0).detach().numpy(), cmap='gray')
     # plt.imshow(data[13][1]['image'][0].detach().numpy(), cmap='jet', alpha=0.5)
     # plt.show()
+
+    plt.figure()
+    plt.imshow(data[13][1]['image'][0].detach().numpy(), cmap='jet')
+    plt.axis('off')
+    plt.show()
