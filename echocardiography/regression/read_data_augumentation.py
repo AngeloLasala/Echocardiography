@@ -177,7 +177,7 @@ def boxplot_fold(args, experiments):
         third_quantile_ivs.append(np.percentile(boxplot_dict[trial]['ivs'], 75))
 
 
-    ax[0].plot(range(1, 6), medians_pw, color='green', marker='o', ms=7, label=r'Real + $p$% Genereted data')
+    ax[0].plot(range(1, 6), medians_pw, color='green', marker='o', ms=7, label=r'Real + % genereted data')
     ax[0].fill_between(range(1, 6), first_quantile_pw, third_quantile_pw, color='lightgreen', alpha=0.35)
     ax[1].plot(range(1, 6), medians_lvid, color='green', marker='o', ms=7)
     ax[1].fill_between(range(1, 6), first_quantile_lvid, third_quantile_lvid, color='lightgreen', alpha=0.35)
@@ -203,7 +203,7 @@ def boxplot_fold(args, experiments):
     ax[0].set_ylabel('MPE [%]', fontsize=22)
     ax[1].set_ylabel('MPE [%]', fontsize=22)
     ax[2].set_ylabel('MPE [%]', fontsize=22)
-    ax[2].set_xlabel(r'$p$', fontsize=22)
+    ax[2].set_xlabel('Percentage of generated dataset [%]', fontsize=22)
 
     # set the legend
     # ax[0].legend(fontsize=20)
@@ -252,7 +252,7 @@ def boxplot_fold(args, experiments):
 
     ax1[1].plot(range(1, 6), medians_rwt, color='green',  marker='o', ms=7)
     ax1[1].fill_between(range(1, 6), first_quantile_rwt, third_quantile_rwt, color='lightgreen', alpha=0.35)
-    ax1[0].plot(range(1, 6), medians_rst, color='green',  marker='o', ms=7,  label=r'Real + $p$% genereted data')
+    ax1[0].plot(range(1, 6), medians_rst, color='green',  marker='o', ms=7,  label=r'Real + % genereted data')
     ax1[0].fill_between(range(1, 6), first_quantile_rst, third_quantile_rst, color='lightgreen', alpha=0.35)
 
     ax1[0].set_xticks(range(1, 6))
@@ -273,7 +273,7 @@ def boxplot_fold(args, experiments):
     ax1[0].set_ylim(0.065, 0.0905)
     ax1[1].set_ylim(0.065, 0.105)
 
-    ax1[1].set_xlabel(r'$p$', fontsize=22)
+    ax1[1].set_xlabel('Percentage of generated dataset [%]', fontsize=22)
 
     # set the legend
     ax1[0].legend(fontsize=20)
