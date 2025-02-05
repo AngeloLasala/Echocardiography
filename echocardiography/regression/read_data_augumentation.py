@@ -188,9 +188,9 @@ def boxplot_fold(args, experiments):
     name_ticks_empty = ['']*5
 
     ax[0].set_xticks(range(1, 6))
-    ax[0].set_xticklabels(name_ticks_empty,fontsize=22)
+    ax[0].set_xticklabels(name_ticks,fontsize=22)
     ax[1].set_xticks(range(1, 6))
-    ax[1].set_xticklabels(name_ticks_empty, fontsize=22)
+    ax[1].set_xticklabels(name_ticks, fontsize=22)
 
 
     ax[2].set_xticks(range(1, 6))
