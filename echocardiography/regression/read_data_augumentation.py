@@ -142,16 +142,16 @@ def boxplot_fold(args, experiments):
 
         boxplot_dict[trial] = {'pw': pw_means, 'lvid': lvid_means, 'ivs': ivs_means, 'rwt': rwt_means, 'rst': rst_means}
 
-    fig, ax = plt.subplots(3, 1, figsize=(9,16), tight_layout=True, num='Aug_exp - MPE error')
+    fig, ax = plt.subplots(3, 1, figsize=(8,15), tight_layout=True, num='Aug_exp - MPE error')
     ## plot the orizontal value of the medial of trial_1
     ax[0].hlines(np.median(boxplot_dict['trial_1']['pw']), 1, 5, color='darkblue', label='Real')
     ax[1].hlines(np.median(boxplot_dict['trial_1']['lvid']), 1, 5, color='darkblue', label='Real')
     ax[2].hlines(np.median(boxplot_dict['trial_1']['ivs']), 1, 5, color='darkblue', label='Real')
 
     #set title
-    ax[0].set_title('PW', fontsize=22)
-    ax[1].set_title('LVID', fontsize=22)
-    ax[2].set_title('IVS', fontsize=22)
+    ax[0].set_title('PW', fontsize=26)
+    ax[1].set_title('LVID', fontsize=26)
+    ax[2].set_title('IVS', fontsize=26)
 
     ## fillbetween the 25% and 75% of the boxplot of trial_1
     ax[0].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['pw'], 25), np.percentile(boxplot_dict['trial_1']['pw'], 75), color='lightblue', alpha=0.35)
@@ -188,22 +188,22 @@ def boxplot_fold(args, experiments):
     name_ticks_empty = ['']*5
 
     ax[0].set_xticks(range(1, 6))
-    ax[0].set_xticklabels(name_ticks,fontsize=22)
+    ax[0].set_xticklabels(name_ticks,fontsize=24)
     ax[1].set_xticks(range(1, 6))
-    ax[1].set_xticklabels(name_ticks, fontsize=22)
+    ax[1].set_xticklabels(name_ticks, fontsize=24)
 
 
     ax[2].set_xticks(range(1, 6))
-    ax[2].set_xticklabels(name_ticks, fontsize=22)
+    ax[2].set_xticklabels(name_ticks, fontsize=24)
 
     ## set the tick font size of y axis
     for ax_ in ax:
-        ax_.tick_params(axis='both', which='major', labelsize=20)
+        ax_.tick_params(axis='both', which='major', labelsize=22)
 
-    ax[0].set_ylabel('MPE [%]', fontsize=22)
-    ax[1].set_ylabel('MPE [%]', fontsize=22)
-    ax[2].set_ylabel('MPE [%]', fontsize=22)
-    ax[2].set_xlabel('Percentage of generated dataset [%]', fontsize=22)
+    ax[0].set_ylabel('MPE [%]', fontsize=24)
+    ax[1].set_ylabel('MPE [%]', fontsize=24)
+    ax[2].set_ylabel('MPE [%]', fontsize=24)
+    ax[2].set_xlabel('Percentage of generated dataset [%]', fontsize=24)
 
     # set the legend
     # ax[0].legend(fontsize=20)
@@ -225,14 +225,14 @@ def boxplot_fold(args, experiments):
 
 
 
-    fig1, ax1 = plt.subplots(2, 1, figsize=(9,16), num='Aug_exp - Relative distances', tight_layout=True)
+    fig1, ax1 = plt.subplots(2, 1, figsize=(8,15), num='Aug_exp - Relative distances', tight_layout=True)
     ## plot the orizontal value of the medial of trial_1
     ax1[1].hlines(np.median(boxplot_dict['trial_1']['rwt']), 1, 5, color='darkblue', label='Real')
     ax1[0].hlines(np.median(boxplot_dict['trial_1']['rst']), 1, 5, color='darkblue', label='Real')
 
     #set title
-    ax1[0].set_title('RST', fontsize=22)
-    ax1[1].set_title('RWT', fontsize=22)
+    ax1[0].set_title('RST', fontsize=26)
+    ax1[1].set_title('RWT', fontsize=26)
 
     ## fillbetween the 25% and 75% of the boxplot of trial_1
     ax1[1].fill_between([1, 5], np.percentile(boxplot_dict['trial_1']['rwt'], 25), np.percentile(boxplot_dict['trial_1']['rwt'], 75), color='lightblue', alpha=0.35)
@@ -256,27 +256,27 @@ def boxplot_fold(args, experiments):
     ax1[0].fill_between(range(1, 6), first_quantile_rst, third_quantile_rst, color='lightgreen', alpha=0.35)
 
     ax1[0].set_xticks(range(1, 6))
-    ax1[0].set_xticklabels(name_ticks, fontsize=22)
+    ax1[0].set_xticklabels(name_ticks, fontsize=24)
 
     ax1[1].set_xticks(range(1, 6))
-    ax1[1].set_xticklabels(name_ticks, fontsize=22)
+    ax1[1].set_xticklabels(name_ticks, fontsize=24)
 
     ## set the tick font size of y axis
     for ax_ in ax1:
-        ax_.tick_params(axis='both', which='major', labelsize=20)
+        ax_.tick_params(axis='both', which='major', labelsize=22)
 
 
-    ax1[0].set_ylabel('MAE [adm]', fontsize=22)
-    ax1[1].set_ylabel('MAE [adm]', fontsize=22)
+    ax1[0].set_ylabel('MAE [adm]', fontsize=24)
+    ax1[1].set_ylabel('MAE [adm]', fontsize=24)
 
     ## set the lim of the y axis
     ax1[0].set_ylim(0.065, 0.0905)
     ax1[1].set_ylim(0.065, 0.105)
 
-    ax1[1].set_xlabel('Percentage of generated dataset [%]', fontsize=22)
+    ax1[1].set_xlabel('Percentage of generated dataset [%]', fontsize=24)
 
     # set the legend
-    ax1[0].legend(fontsize=20)
+    ax1[0].legend(fontsize=24)
 
     # set the grid
     ax1[0].grid(linestyle=':')
@@ -284,17 +284,6 @@ def boxplot_fold(args, experiments):
 
 
     plt.show()
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -401,13 +390,6 @@ def main(args):
 
     ## plot the convergence curve
     # convergence_curve(args, experiments)
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
