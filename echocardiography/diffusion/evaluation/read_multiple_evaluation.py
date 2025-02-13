@@ -127,8 +127,8 @@ def main(args_parser, conds_dict):
 
 	color_list = ['lightgreen', 'lightgreen', 'lightgreen', 'lightgreen', 'lightgreen', 'lightgreen', 'lightblue']
 	# create the violin plot
-	plt.figure(figsize=(20, 8),  num='Statistical analysis', tight_layout=True)
-	plt.subplot(1, 2, 1)
+	plt.figure(figsize=(10, 12),  num='Statistical analysis', tight_layout=True)
+	plt.subplot(2, 1, 1)
 	sns.violinplot(x='Condition', y='RWT', data=df_rwt, inner=None,  linewidth=1,
 						hue='Condition', palette=color_list[:len(df_rwt['Condition'].unique())], legend=False)
 	sns.stripplot(x='Condition', y='RWT', data=df_rwt, color='k', alpha=0.5, jitter=True, size=1.5)
@@ -147,14 +147,14 @@ def main(args_parser, conds_dict):
 				if (p_value < 0.05) and (p_value > 0.01): text = '*'
 				plt.text(i + (6-i)/2, (s/5)+2.2, text, ha='center', fontsize=14)
 			else: pass
-	plt.xticks(fontsize=18, rotation=30)
-	plt.yticks(fontsize=20)
-	plt.ylabel('RWT', fontsize=25)
-	plt.xlabel('', fontsize=25)
+	plt.xticks(c='white')
+	plt.yticks(fontsize=22)
+	plt.ylabel('RWT', fontsize=26)
+	plt.xlabel('', fontsize=26)
 	plt.grid(linestyle=':')
 	plt.ylim([-0.1,3.2])
 
-	plt.subplot(1, 2, 2)
+	plt.subplot(2, 1, 2)
 	sns.violinplot(x='Condition', y='RST', data=df_rst, inner=None, linewidth=1,
 					hue='Condition', palette=color_list[:len(df_rwt['Condition'].unique())], legend=False)
 	sns.stripplot(x='Condition', y='RST', data=df_rst, color='k', alpha=0.5, jitter=True, size=1.5)
@@ -175,10 +175,10 @@ def main(args_parser, conds_dict):
 			else: pass
 
 	## set the font size
-	plt.xticks(fontsize=18, rotation=30)
-	plt.yticks(fontsize=20)
-	plt.ylabel('RST', fontsize=20)
-	plt.xlabel('', fontsize=25)
+	plt.xticks(fontsize=20, rotation=30)
+	plt.yticks(fontsize=22)
+	plt.ylabel('RST', fontsize=26)
+	plt.xlabel('', fontsize=26)
 	plt.grid(linestyle=':')
 	plt.ylim([-0.1,3.2])
 	plt.show()
