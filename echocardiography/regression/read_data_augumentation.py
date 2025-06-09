@@ -49,6 +49,7 @@ def read_single_trial(model_path, trial):
             rst_error_list.append(rst_error)
 
 
+
         mpe_list_c = np.concatenate(mpe_list)
         mae_list_c = np.concatenate(mae_list)
         rwt_error_list_c = np.concatenate(rwt_error_list)
@@ -74,26 +75,33 @@ def friedman_and_post_hoc(args, experiments):
     mae = {trial: experiments[trial]['mae'] for trial in args.trials}
     rwt_error = {trial: experiments[trial]['rwt_error'] for trial in args.trials}
     rst_error = {trial: experiments[trial]['rst_error'] for trial in args.trials}
-
+    
     ## compute the Friedman test
+    print('OMNIBUS TESTS - FRIEDMAN TEST')
     rwt_friedman = friedmanchisquare(*[rwt_error[trial] for trial in args.trials])
     rst_friedman = friedmanchisquare(*[rst_error[trial] for trial in args.trials])
-    print(f'Friedman test for MPE: statistic {rwt_friedman.statistic:.4f}, p_value {rwt_friedman.pvalue:.10f}')
-    print(f'Friedman test for MAE: statistic {rst_friedman.statistic:.4f}, p_value {rst_friedman.pvalue:.10f}')
-    print()
+    print(f'Friedman test for RWT: statistic {rwt_friedman.statistic:.4f}, p_value {rwt_friedman.pvalue:.10f}')
+    print(f'Friedman test for RST: statistic {rst_friedman.statistic:.4f}, p_value {rst_friedman.pvalue:.10f}')
 
     if rwt_friedman.pvalue < 0.01 and rst_friedman.pvalue < 0.01:
         print('At least two groups are significantly different')
     else:
         print('We cannot discard the null H0: No significant difference between groups')
-    # dict_heart_part = {0: 'PW', 1: 'LVID', 2: 'IVS'}
-    # for i in range(3):
-    #     print(dict_heart_part[i])
-    #     mpe_friedman = friedmanchisquare(*[mpe[trial][:, i] for trial in args.trials])
-    #     mae_friedman = friedmanchisquare(*[mae[trial][:, i] for trial in args.trials])
-    #     print(f'Friedman test for MPE: statistic {mpe_friedman.statistic:.4f}, p_value {mpe_friedman.pvalue:.10f}')
-    #     print(f'Friedman test for MAE: statistic {mae_friedman.statistic:.4f}, p_value {mae_friedman.pvalue:.10f}')
-    #     print()
+
+    print()
+
+    dict_heart_part = {0: 'PW', 1: 'LVID', 2: 'IVS'}
+    for i in range(3):
+        print(dict_heart_part[i])
+        mpe_friedman = friedmanchisquare(*[mpe[trial][:, i] for trial in args.trials])
+        mae_friedman = friedmanchisquare(*[mae[trial][:, i] for trial in args.trials])
+        print(f'Friedman test for MPE: statistic {mpe_friedman.statistic:.4f}, p_value {mpe_friedman.pvalue:.10f}')
+        print(f'Friedman test for MAE: statistic {mae_friedman.statistic:.4f}, p_value {mae_friedman.pvalue:.10f}')
+        if mpe_friedman.pvalue < 0.01 and mae_friedman.pvalue < 0.01:
+            print('At least two groups are significantly different')
+        else:
+            print('We cannot discard the null H0: No significant difference between groups')
+        print()
 
     ## compute the post hoc test
     mpe_baseline = experiments['trial_1']['mpe']
@@ -118,6 +126,26 @@ def friedman_and_post_hoc(args, experiments):
         if rst_wilcoxon.pvalue < 0.01:
             print('!!! RST Significant !!!')
         violin_dict[trial] = [trial, mpe_trial, mae_trial, rwt_trial, rst_trial]
+
+        print()
+    print('Post hoc test for MPE and MAE')
+    for i in range(3):
+        print(dict_heart_part[i])
+        for trial in args.trials[1:]:
+            mpe_trial = experiments[trial]['mpe'][:, i]
+            mae_trial = experiments[trial]['mae'][:, i]
+            mpe_wilcoxon = wilcoxon(mpe_baseline[:, i], mpe_trial)
+            mae_wilcoxon = wilcoxon(mae_baseline[:, i], mae_trial)
+            print(f'Wilcoxon test for MPE: statistic {mpe_wilcoxon.statistic:.4f}, p_value {mpe_wilcoxon.pvalue:.10f}')
+            print(f'Wilcoxon test for MAE: statistic {mae_wilcoxon.statistic:.4f}, p_value {mae_wilcoxon.pvalue:.10f}')
+            if mpe_wilcoxon.pvalue < 0.01:
+                print('!!! MPE Significant !!!')
+            if mae_wilcoxon.pvalue < 0.01:
+                print('!!! MAE Significant !!!')
+            violin_dict[trial].append(mpe_trial)
+            violin_dict[trial].append(mae_trial)
+
+        print()
 
 
 
@@ -383,7 +411,7 @@ def main(args):
 
 
     ## compute the Friedman test
-    # friedman_and_post_hoc(args, experiments)
+    friedman_and_post_hoc(args, experiments)
 
     ## plot the boxplot of each fold
     boxplot_fold(args, experiments)
