@@ -105,7 +105,7 @@ if __name__ == '__main__':
     model_config = {
         'down_channels': [ 128, 256, 256, 256],
         'mid_channels': [ 256, 256],
-        'down_sample': [ False, False, False ],
+        'down_sample': [ False, True, False],
         'attn_down' : [True, True, True],
         'time_emb_dim': 256,
         'norm_channels' : 32,
@@ -116,8 +116,77 @@ if __name__ == '__main__':
         'num_up_layers': 2,
     }
     model = Unet(3, model_config)
-    x = torch.randn(16, 3, 30, 40)
-    t = torch.randint(0, 100, (16,))
+    x = torch.randn(1, 3, 30, 40)
+    t = torch.randint(0, 100, (1,))
     out = model(x, t)
     print(out.shape)
     # print(out)
+
+    def count_parameters(model):
+        total = sum(p.numel() for p in model.parameters())
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        return total, trainable
+
+    def count_flops(model, input, t):
+        flops = 0
+        handles = []
+
+        def conv_hook(module, input, output):
+            nonlocal flops
+            batch_size = input[0].shape[0]
+            out_h, out_w = output.shape[2:]
+            kernel_h, kernel_w = module.kernel_size
+            in_ch = module.in_channels
+            out_ch = module.out_channels
+            groups = module.groups
+
+            flops += batch_size * out_h * out_w * \
+                    (in_ch / groups) * out_ch * kernel_h * kernel_w * 2
+
+        def linear_hook(module, input, output):
+            nonlocal flops
+            flops += input[0].shape[0] * module.in_features * module.out_features * 2
+
+        def norm_hook(module, input, output):
+            nonlocal flops
+            flops += input[0].numel() * 3
+
+        def act_hook(module, input, output):
+            nonlocal flops
+            flops += output.numel()
+
+        for m in model.modules():
+            if isinstance(m, torch.nn.Conv2d):
+                handles.append(m.register_forward_hook(conv_hook))
+            elif isinstance(m, torch.nn.Linear):
+                handles.append(m.register_forward_hook(linear_hook))
+            elif isinstance(m, (torch.nn.BatchNorm2d, torch.nn.GroupNorm,
+                                torch.nn.LayerNorm, torch.nn.InstanceNorm2d)):
+                handles.append(m.register_forward_hook(norm_hook))
+            elif isinstance(m, (torch.nn.ReLU, torch.nn.SiLU, torch.nn.GELU,
+                                torch.nn.LeakyReLU, torch.nn.Tanh, torch.nn.Sigmoid)):
+                handles.append(m.register_forward_hook(act_hook))
+
+        with torch.no_grad():
+            model(input, t)
+
+        for h in handles:
+            h.remove()
+
+        return flops
+
+    total_params, trainable_params = count_parameters(model)
+
+    flops = count_flops(
+        model,
+        x,
+        t
+    )
+
+    print("\n" + "="*60)
+    print("MODEL COMPLEXITY")
+    print("="*60)
+    print(f"Total parameters:      {total_params / 1e6:.2f} M")
+    print(f"Trainable parameters: {trainable_params / 1e6:.2f} M")
+    print(f"GFLOPs (1 forward):    {flops / 1e9:.3f}")
+    print("="*60)
